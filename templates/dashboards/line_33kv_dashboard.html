@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}33 KV Line Dashboard{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1>33 KV Transmission Line</h1>
+            <p>33 KV Line projects and maintenance status in Siliguri Zone</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Section -->
+    <div class="stats-grid" style="margin-bottom: 30px;">
+        <div class="stat-card">
+            <h4>Total Length</h4>
+            <div class="stat-value">45 km</div>
+            <div class="stat-label">Under Construction: 15 km</div>
+        </div>
+        <div class="stat-card">
+            <h4>Towers</h4>
+            <div class="stat-value">120</div>
+            <div class="stat-label">Installed: 85</div>
+        </div>
+        <div class="stat-card">
+            <h4>Progress</h4>
+            <div class="stat-value">70%</div>
+            <div class="stat-label">Overall Completion</div>
+        </div>
+    </div>
+
+    <!-- Main Content Card -->
+    <div class="content-card">
+        <div class="section-title" style="margin-bottom: 25px;">
+            <i class="bi bi-arrow-left-right"></i>
+            <h2>33 KV Line Projects</h2>
+        </div>
+
+        <!-- Project Tabs (Bootstrap 5) -->
+        <ul class="nav nav-tabs" id="lineTab" role="tablist" style="margin-bottom: 20px;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="ongoing-tab" data-bs-toggle="tab" data-bs-target="#ongoing" type="button" role="tab">Ongoing Projects</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">Completed</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="planned-tab" data-bs-toggle="tab" data-bs-target="#planned" type="button" role="tab">Planned</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="lineTabContent">
+            <!-- Ongoing Projects -->
+            <div class="tab-pane fade show active" id="ongoing" role="tabpanel">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <!-- Project 1 -->
+                    <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h5 style="font-weight: 600; color: #1e2b3a;">Siliguri - Bagdogra Section</h5>
+                            <span style="background: #ffc107; color: #333; padding: 3px 10px; border-radius: 20px; font-size: 0.8rem;">In Progress</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+                            <div>
+                                <small style="color: #6c757d;">Length</small>
+                                <div style="font-weight: 600;">12 km</div>
+                            </div>
+                            <div>
+                                <small style="color: #6c757d;">Towers</small>
+                                <div style="font-weight: 600;">32 towers (24 installed)</div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <small style="color: #6c757d;">Progress</small>
+                            <div style="background: #e9ecef; height: 8px; border-radius: 10px; margin-top: 5px;">
+                                <div style="width: 75%; background: #5fa4ee; height: 8px; border-radius: 10px;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                        </div>
+                    </div>
+
+                    <!-- Project 2 -->
+                    <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h5 style="font-weight: 600; color: #1e2b3a;">Matigara - Naxalbari Line</h5>
+                            <span style="background: #ffc107; color: #333; padding: 3px 10px; border-radius: 20px; font-size: 0.8rem;">In Progress</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+                            <div>
+                                <small style="color: #6c757d;">Length</small>
+                                <div style="font-weight: 600;">8 km</div>
+                            </div>
+                            <div>
+                                <small style="color: #6c757d;">Towers</small>
+                                <div style="font-weight: 600;">22 towers (15 installed)</div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <small style="color: #6c757d;">Progress</small>
+                            <div style="background: #e9ecef; height: 8px; border-radius: 10px; margin-top: 5px;">
+                                <div style="width: 68%; background: #5fa4ee; height: 8px; border-radius: 10px;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed Projects -->
+            <div class="tab-pane fade" id="completed" role="tabpanel">
+                <div style="background: #f8fafd; border-radius: 12px; padding: 40px; text-align: center;">
+                    <i class="bi bi-check-circle-fill" style="font-size: 3rem; color: #28a745; margin-bottom: 15px;"></i>
+                    <h5>Completed Projects</h5>
+                    <p style="color: #6c757d;">3 projects completed in last 6 months</p>
+                    <a href="#" class="btn btn-outline-success">View History</a>
+                </div>
+            </div>
+
+            <!-- Planned Projects -->
+            <div class="tab-pane fade" id="planned" role="tabpanel">
+                <div style="background: #f8fafd; border-radius: 12px; padding: 40px; text-align: center;">
+                    <i class="bi bi-calendar-plus" style="font-size: 3rem; color: #5fa4ee; margin-bottom: 15px;"></i>
+                    <h5>Planned Projects</h5>
+                    <p style="color: #6c757d;">2 new lines planned for Q2 2026</p>
+                    <a href="#" class="btn btn-outline-primary">View Plans</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="margin-top: 30px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <a href="#" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Line Project
+            </a>
+            <a href="#" class="btn btn-outline-secondary">
+                <i class="bi bi-file-text"></i> View All Lines
+            </a>
+            <a href="#" class="btn btn-outline-warning">
+                <i class="bi bi-exclamation-triangle"></i> Maintenance Request
+            </a>
+        </div>
+    </div>
+
+    <!-- No extra JS needed - Bootstrap handles tabs automatically -->
+{% endblock %}

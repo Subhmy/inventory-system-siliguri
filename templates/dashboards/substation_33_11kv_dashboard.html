@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}33/11 KV Sub-Station Dashboard{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1>33/11 KV Sub-Station</h1>
+            <p>Overview and status of 33/11 KV Sub-Station projects in Siliguri Zone</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Section -->
+    <div class="stats-grid" style="margin-bottom: 30px;">
+        <div class="stat-card">
+            <h4>Total Projects</h4>
+            <div class="stat-value">08</div>
+            <div class="stat-label">Active: 5 | Completed: 3</div>
+        </div>
+        <div class="stat-card">
+            <h4>Material Status</h4>
+            <div class="stat-value">75%</div>
+            <div class="stat-label">Materials Allocated</div>
+        </div>
+        <div class="stat-card">
+            <h4>Overall Progress</h4>
+            <div class="stat-value">60%</div>
+            <div class="stat-label">Completion Rate</div>
+        </div>
+        <div class="stat-card">
+            <h4>Budget Utilization</h4>
+            <div class="stat-value">₹ 45L</div>
+            <div class="stat-label">Of ₹ 75L Total</div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px;">
+        <!-- Left Column - PTR Section -->
+        <div class="content-card" style="padding: 25px;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                <i class="bi bi-transform" style="font-size: 2rem; color: #5fa4ee;"></i>
+                <h3 style="margin: 0;">PTR Work</h3>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Progress</span>
+                    <span>65%</span>
+                </div>
+                <div style="height: 8px; background: #eef2f6; border-radius: 4px;">
+                    <div style="width: 65%; height: 100%; background: #5fa4ee; border-radius: 4px;"></div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <small class="text-muted">Total PTRs</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">12</div>
+                </div>
+                <div>
+                    <small class="text-muted">Installed</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">8</div>
+                </div>
+                <div>
+                    <small class="text-muted">Pending</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">4</div>
+                </div>
+                <div>
+                    <small class="text-muted">Target Date</small>
+                    <div style="font-size: 1rem; font-weight: 500;">Mar 2026</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <a href="#" class="btn btn-primary" style="width: 100%; padding: 10px;">View Details</a>
+            </div>
+        </div>
+        
+        <!-- Right Column - Bus Section -->
+        <div class="content-card" style="padding: 25px;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                <i class="bi bi-grid-3x3-gap-fill" style="font-size: 2rem; color: #5fa4ee;"></i>
+                <h3 style="margin: 0;">Bus Work</h3>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Progress</span>
+                    <span>45%</span>
+                </div>
+                <div style="height: 8px; background: #eef2f6; border-radius: 4px;">
+                    <div style="width: 45%; height: 100%; background: #5fa4ee; border-radius: 4px;"></div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <small class="text-muted">Total Sections</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">8</div>
+                </div>
+                <div>
+                    <small class="text-muted">Completed</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">4</div>
+                </div>
+                <div>
+                    <small class="text-muted">In Progress</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">3</div>
+                </div>
+                <div>
+                    <small class="text-muted">Pending</small>
+                    <div style="font-size: 1.5rem; font-weight: 600;">1</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <a href="#" class="btn btn-primary" style="width: 100%; padding: 10px;">View Details</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects List Section -->
+    <div class="content-card" style="padding: 25px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;">Active Projects</h3>
+            <a href="#" class="btn btn-success">+ New Project</a>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8fafd; border-bottom: 2px solid #eef2f6;">
+                        <th style="padding: 15px; text-align: left;">Project Name</th>
+                        <th style="padding: 15px; text-align: left;">Type</th>
+                        <th style="padding: 15px; text-align: left;">Progress</th>
+                        <th style="padding: 15px; text-align: left;">Status</th>
+                        <th style="padding: 15px; text-align: left;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #eef2f6;">
+                        <td style="padding: 15px;">Siliguri Town SS</td>
+                        <td style="padding: 15px;">PTR</td>
+                        <td style="padding: 15px;">
+                            <div style="width: 100px; height: 6px; background: #eef2f6; border-radius: 3px;">
+                                <div style="width: 80%; height: 100%; background: #28a745; border-radius: 3px;"></div>
+                            </div>
+                        </td>
+                        <td style="padding: 15px;"><span style="background: #28a745; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem;">Active</span></td>
+                        <td style="padding: 15px;"><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #eef2f6;">
+                        <td style="padding: 15px;">Matigara SS</td>
+                        <td style="padding: 15px;">Bus</td>
+                        <td style="padding: 15px;">
+                            <div style="width: 100px; height: 6px; background: #eef2f6; border-radius: 3px;">
+                                <div style="width: 45%; height: 100%; background: #ffc107; border-radius: 3px;"></div>
+                            </div>
+                        </td>
+                        <td style="padding: 15px;"><span style="background: #ffc107; color: #333; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem;">In Progress</span></td>
+                        <td style="padding: 15px;"><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 15px;">Phansidewa SS</td>
+                        <td style="padding: 15px;">PTR</td>
+                        <td style="padding: 15px;">
+                            <div style="width: 100px; height: 6px; background: #eef2f6; border-radius: 3px;">
+                                <div style="width: 30%; height: 100%; background: #dc3545; border-radius: 3px;"></div>
+                            </div>
+                        </td>
+                        <td style="padding: 15px;"><span style="background: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.85rem;">Delayed</span></td>
+                        <td style="padding: 15px;"><a href="#" class="btn btn-sm btn-outline-primary">View</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div style="display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap;">
+        <a href="#" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New PTR Work
+        </a>
+        <a href="#" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Bus Work
+        </a>
+        <a href="#" class="btn btn-outline-secondary">
+            <i class="bi bi-file-text"></i> Generate Report
+        </a>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Any page-specific JavaScript for substation dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('33/11 KV Sub-Station dashboard loaded');
+        
+        // You can add page-specific functionality here
+        // For example, refresh data every 30 seconds
+        // setInterval(fetchData, 30000);
+    });
+    
+    // Example function to fetch data (you'll implement with actual backend)
+    function fetchData() {
+        console.log('Fetching latest substation data...');
+        // Add AJAX call here later
+    }
+</script>
+{% endblock %}

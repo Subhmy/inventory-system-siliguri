@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}11 KV Line Dashboard{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1>11 KV Distribution Line</h1>
+            <p>11 KV Line projects and maintenance status in Siliguri Zone</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Quick Stats Section -->
+    <div class="stats-grid" style="margin-bottom: 30px;">
+        <div class="stat-card">
+            <h4>Total Length</h4>
+            <div class="stat-value">78 km</div>
+            <div class="stat-label">Under Construction: 25 km</div>
+        </div>
+        <div class="stat-card">
+            <h4>Transformers</h4>
+            <div class="stat-value">45</div>
+            <div class="stat-label">Installed: 32</div>
+        </div>
+        <div class="stat-card">
+            <h4>Progress</h4>
+            <div class="stat-value">55%</div>
+            <div class="stat-label">Overall Completion</div>
+        </div>
+    </div>
+
+    <!-- Main Content Card -->
+    <div class="content-card">
+        <div class="section-title" style="margin-bottom: 25px;">
+            <i class="bi bi-arrow-left-right"></i>
+            <h2>11 KV Line Network</h2>
+        </div>
+
+        <!-- Feeder Overview -->
+        <div style="margin-bottom: 30px;">
+            <h4 style="color: #1e2b3a; margin-bottom: 15px;">Feeder Overview</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                
+                <!-- Feeder 1 -->
+                <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <i class="bi bi-lightning-charge" style="color: #5fa4ee;"></i>
+                        <h5 style="font-weight: 600; color: #1e2b3a; margin: 0;">Feeder A - City Center</h5>
+                    </div>
+                    <p style="color: #6c757d; font-size: 0.9rem;">Length: 12 km | Consumers: 2,500</p>
+                    <div style="background: #e9ecef; height: 6px; border-radius: 10px;">
+                        <div style="width: 85%; background: #28a745; height: 6px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem;">Operational</span>
+                    </div>
+                </div>
+
+                <!-- Feeder 2 -->
+                <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <i class="bi bi-lightning-charge" style="color: #5fa4ee;"></i>
+                        <h5 style="font-weight: 600; color: #1e2b3a; margin: 0;">Feeder B - Industrial Area</h5>
+                    </div>
+                    <p style="color: #6c757d; font-size: 0.9rem;">Length: 18 km | Consumers: 180 (Industrial)</p>
+                    <div style="background: #e9ecef; height: 6px; border-radius: 10px;">
+                        <div style="width: 60%; background: #ffc107; height: 6px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <span style="background: #ffc107; color: #333; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem;">Under Maintenance</span>
+                    </div>
+                </div>
+
+                <!-- Feeder 3 -->
+                <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <i class="bi bi-lightning-charge" style="color: #5fa4ee;"></i>
+                        <h5 style="font-weight: 600; color: #1e2b3a; margin: 0;">Feeder C - Residential</h5>
+                    </div>
+                    <p style="color: #6c757d; font-size: 0.9rem;">Length: 15 km | Consumers: 3,200</p>
+                    <div style="background: #e9ecef; height: 6px; border-radius: 10px;">
+                        <div style="width: 95%; background: #28a745; height: 6px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem;">Operational</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conductor Work Section -->
+        <div style="margin-bottom: 30px;">
+            <h4 style="color: #1e2b3a; margin-bottom: 15px;">Conductor Replacement Work</h4>
+            <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; font-weight: 600; color: #1e2b3a; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eef2f6;">
+                    <div>Section</div>
+                    <div>Old Conductor</div>
+                    <div>New Conductor</div>
+                    <div>Status</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: center; margin-bottom: 15px;">
+                    <div>Sector 1 - Main Road</div>
+                    <div>Rabbit</div>
+                    <div>Weasel</div>
+                    <div><span style="background: #28a745; color: white; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">Completed</span></div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: center; margin-bottom: 15px;">
+                    <div>Sector 2 - Industrial</div>
+                    <div>Rabbit</div>
+                    <div>Weasel</div>
+                    <div><span style="background: #ffc107; color: #333; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">In Progress</span></div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                    <div>Sector 3 - Residential</div>
+                    <div>Rabbit</div>
+                    <div>Weasel</div>
+                    <div><span style="background: #17a2b8; color: white; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;">Planned</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Line Projects -->
+        <div style="margin-bottom: 30px;">
+            <h4 style="color: #1e2b3a; margin-bottom: 15px;">New Line Projects</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                
+                <!-- Project 1 -->
+                <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                    <h5 style="font-weight: 600; color: #1e2b3a;">New Extension - Phase 1</h5>
+                    <p style="color: #6c757d;">Length: 5.5 km | Est. Completion: Jun 2026</p>
+                    <div style="background: #e9ecef; height: 6px; border-radius: 10px;">
+                        <div style="width: 30%; background: #5fa4ee; height: 6px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+
+                <!-- Project 2 -->
+                <div style="background: #f8fafd; border-radius: 12px; padding: 20px;">
+                    <h5 style="font-weight: 600; color: #1e2b3a;">Rural Electrification</h5>
+                    <p style="color: #6c757d;">Length: 8.2 km | Est. Completion: Dec 2026</p>
+                    <div style="background: #e9ecef; height: 6px; border-radius: 10px;">
+                        <div style="width: 15%; background: #5fa4ee; height: 6px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="margin-top: 30px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <a href="#" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Line Project
+            </a>
+            <a href="#" class="btn btn-success">
+                <i class="bi bi-arrow-repeat"></i> Conductor Replacement
+            </a>
+            <a href="#" class="btn btn-outline-warning">
+                <i class="bi bi-exclamation-triangle"></i> Report Fault
+            </a>
+        </div>
+    </div>
+
+    <!-- Extra JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('11 KV Dashboard loaded');
+        });
+    </script>
+{% endblock %}

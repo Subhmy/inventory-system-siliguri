@@ -1,0 +1,495 @@
+<!-- sidebar.html - Complete Navigation Menu for IMS Siliguri -->
+
+<!-- Main Sidebar Container -->
+<div class="sidebar" id="sidebar">
+    <!-- Sidebar Header with Logo and Title -->
+    <div class="sidebar-header">
+        <h3>
+            <i class="bi bi-box-seam"></i>
+            IMS Siliguri
+        </h3>
+        <div class="subtitle">Inventory Management System</div>
+    </div>
+
+    <!-- Main Navigation Menu -->
+    <div class="menu-section">
+        <div class="menu-label">MAIN MENU</div>
+        
+        <!-- PRIORITY WORKS Section (Expandable) -->
+        <div class="menu-item">
+            <div class="menu-link" onclick="toggleSubmenu(event)">
+                <div class="left-content">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    <span>PRIORITY WORKS</span>
+                </div>
+                <i class="bi bi-chevron-down chevron" id="chevronIcon"></i>
+            </div>
+            
+            <!-- Submenu Items -->
+            <ul class="submenu expanded" id="prioritySubmenu">
+                <!-- 33/11 KV Sub-Station -->
+                <li class="submenu-item">
+                    <a href="{{ url_for('substation_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                        33/11 KV Sub-Station
+                    </a>
+                </li>
+                
+                <!-- HVDS -->
+                <li class="submenu-item">
+                    <a href="{{ url_for('hvds_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-bezier2"></i>
+                        HVDS
+                    </a>
+                </li>
+                
+                <!-- 33 KV Line -->
+                <li class="submenu-item">
+                    <a href="{{ url_for('line_33kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-arrow-left-right"></i>
+                        33 KV Line
+                    </a>
+                </li>
+                
+                <!-- 11 KV Line -->
+                <li class="submenu-item">
+                    <a href="{{ url_for('line_11kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-arrow-left-right"></i>
+                        11 KV Line
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- You can add more main menu sections here later -->
+        <!-- Example:
+        <div class="menu-item">
+            <div class="menu-link">
+                <div class="left-content">
+                    <i class="bi bi-file-text"></i>
+                    <span>REQUISITIONS</span>
+                </div>
+            </div>
+        </div>
+        -->
+    </div>
+
+    <!-- User Profile Section (Bottom of Sidebar) -->
+    <div class="user-section">
+        <div class="user-info">
+            <!-- User Avatar (First letter of email) -->
+            <div class="user-avatar">
+                {{ user.email[0]|upper if user and user.email else 'U' }}
+            </div>
+            
+            <!-- User Details -->
+            <div class="user-details">
+                <div class="user-email" title="{{ user.email if user else 'user@example.com' }}">
+                    {{ user.email if user else 'user@example.com' }}
+                </div>
+                <!-- Role Badge with dynamic color -->
+                <span class="user-role 
+                    {% if user.role == 'manager' %}role-manager-bg
+                    {% elif user.role == 'authority' %}role-authority-bg
+                    {% else %}role-user-bg{% endif %}">
+                    <i class="bi bi-person-badge"></i>
+                    {{ user.role|upper if user and user.role else 'USER' }}
+                </span>
+            </div>
+        </div>
+        
+        <!-- Logout Button -->
+        <a href="/logout" class="logout-btn">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
+    </div>
+</div>
+
+<!-- ==================== SIDEBAR STYLES ==================== -->
+<style>
+    /* Menu Item Styles */
+    .menu-item {
+        list-style: none;
+    }
+
+    .menu-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: #e0e0e0;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        justify-content: space-between;
+    }
+
+    .menu-link:hover {
+        background-color: #2c3e50;
+    }
+
+    .menu-link .left-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .menu-link i {
+        font-size: 1.2rem;
+        width: 24px;
+        color: #5fa4ee;
+    }
+
+    .menu-link .chevron {
+        font-size: 0.9rem;
+        color: #888;
+        transition: transform 0.3s ease;
+    }
+
+    .menu-link .chevron.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* Submenu Styles */
+    .submenu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .submenu.expanded {
+        max-height: 300px; /* Enough for all items */
+    }
+
+    .submenu-item {
+        position: relative;
+    }
+
+    .submenu-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px 12px 56px;
+        color: #c0c0c0;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+        gap: 12px;
+    }
+
+    .submenu-link:hover {
+        background-color: #2c3e50;
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    .submenu-link.active {
+        background-color: #2c3e50;
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    .submenu-link i {
+        font-size: 1rem;
+        width: 20px;
+        color: #5fa4ee;
+    }
+
+    /* User Section Styles */
+    .user-section {
+        padding: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: auto;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 15px;
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #5fa4ee 0%, #3a7bd5 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+        color: white;
+        text-transform: uppercase;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0; /* Allows text truncation */
+    }
+
+    .user-email {
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 500;
+        word-break: break-all;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-role {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-top: 4px;
+        letter-spacing: 0.5px;
+    }
+
+    /* Role background colors */
+    .role-user-bg {
+        background: rgba(23, 162, 184, 0.2);
+        color: #17a2b8;
+        border: 1px solid rgba(23, 162, 184, 0.3);
+    }
+
+    .role-manager-bg {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .role-authority-bg {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
+    /* Logout Button */
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        color: #e0e0e0;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logout-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: #5fa4ee;
+    }
+
+    .logout-btn i {
+        color: #5fa4ee;
+    }
+
+    /* Active menu item indicator */
+    .submenu-link.active {
+        background-color: #2c3e50;
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    /* Small screen adjustments */
+    @media (max-width: 768px) {
+        .user-email {
+            font-size: 0.8rem;
+        }
+        
+        .user-role {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+        }
+        
+        .logout-btn span {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<!-- ==================== SIDEBAR JAVASCRIPT ==================== -->
+<script>
+    // ==================== SUBMENU TOGGLE FUNCTIONALITY ====================
+    let isSubmenuExpanded = true;  // Track submenu state
+    
+    /**
+     * Toggle submenu open/closed
+     * @param {Event} event - The click event
+     */
+    function toggleSubmenu(event) {
+        // Stop event from bubbling up to parent elements
+        event.stopPropagation();
+        
+        // Get DOM elements
+        const submenu = document.getElementById('prioritySubmenu');
+        const chevron = document.getElementById('chevronIcon');
+        
+        // Only proceed if elements exist
+        if (submenu && chevron) {
+            if (isSubmenuExpanded) {
+                // Close submenu
+                submenu.classList.remove('expanded');
+                chevron.classList.remove('rotated');
+            } else {
+                // Open submenu
+                submenu.classList.add('expanded');
+                chevron.classList.add('rotated');
+            }
+            
+            // Toggle state
+            isSubmenuExpanded = !isSubmenuExpanded;
+        }
+    }
+    
+    // ==================== INITIALIZATION ON PAGE LOAD ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ensure submenu is expanded by default
+        const submenu = document.getElementById('prioritySubmenu');
+        const chevron = document.getElementById('chevronIcon');
+        
+        if (submenu && chevron) {
+            submenu.classList.add('expanded');
+            chevron.classList.add('rotated');
+            isSubmenuExpanded = true;
+        }
+        
+        // ==================== HIGHLIGHT ACTIVE MENU ITEM ====================
+        // Get current page URL
+        const currentPath = window.location.pathname;
+        
+        // Get all submenu links
+        const menuLinks = document.querySelectorAll('.submenu-link');
+        
+        // Loop through links and highlight the one matching current URL
+        menuLinks.forEach(link => {
+            // Get the href attribute and convert to URL path
+            const href = link.getAttribute('href');
+            
+            // Check if this link matches current page
+            if (href && currentPath.includes(href.replace('/dashboard', ''))) {
+                link.classList.add('active');
+            }
+            
+            // Also check if we're on a sub-page of this section
+            if (currentPath.includes('substation') && href.includes('substation')) {
+                link.classList.add('active');
+            }
+            if (currentPath.includes('hvds') && href.includes('hvds')) {
+                link.classList.add('active');
+            }
+            if (currentPath.includes('33kv') && href.includes('33kv')) {
+                link.classList.add('active');
+            }
+            if (currentPath.includes('11kv') && href.includes('11kv')) {
+                link.classList.add('active');
+            }
+        });
+    });
+    
+    // ==================== HANDLE WINDOW RESIZE ====================
+    window.addEventListener('resize', function() {
+        // Any responsive adjustments can go here
+        // For example, close sidebar on desktop? (handled in base.html)
+    });
+</script>
+
+<!-- ==================== ADDITIONAL SIDEBAR STYLES (from base) ==================== -->
+<!-- These styles are already in base.html but included here for completeness -->
+<style>
+    /* Sidebar container styles - already in base.html, but ensuring they apply */
+    .sidebar {
+        width: 280px;
+        background: linear-gradient(180deg, #1e2b3a 0%, #0f1a26 100%);
+        color: #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        position: fixed;
+        left: 0;
+        top: 0;
+        overflow-y: auto;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+        padding: 24px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .sidebar-header h3 i {
+        color: #5fa4ee;
+        font-size: 1.8rem;
+    }
+
+    .sidebar-header .subtitle {
+        font-size: 0.75rem;
+        color: #a0a0a0;
+        margin-top: 5px;
+        letter-spacing: 0.5px;
+        padding-left: 35px;
+    }
+
+    .menu-section {
+        flex: 1;
+        padding: 20px 0;
+    }
+
+    .menu-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+        padding: 0 20px;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    /* Scrollbar styling */
+    .sidebar::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: #1e2b3a;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background: #3a4a5a;
+        border-radius: 10px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+        background: #4a5a6a;
+    }
+</style>
