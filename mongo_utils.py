@@ -1,49 +1,249 @@
 """
 MongoDB Database Helper for IMS Siliguri
-Enhanced version with all filter functions
-FIXED: Replaced all 'if db:' with 'if db is not None'
+Enhanced version with SSL support, connection pooling, and better error handling
+Last Updated: March 4, 2026
+FIXED: Added SSL options for Render deployment
+FIXED: Connection pooling for better performance
+FIXED: Environment-specific configurations
 """
 
 from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure
 from datetime import datetime
 import os
+import time
+import socket
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
+
+# ==================== CONFIGURATION ====================
 
 # MongoDB Connection
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
 MONGO_DB = os.getenv('MONGO_DB', 'siliguri_electrical')
 
+# Connection Pool Settings
+MAX_POOL_SIZE = int(os.getenv('MONGO_MAX_POOL_SIZE', '50'))
+MIN_POOL_SIZE = int(os.getenv('MONGO_MIN_POOL_SIZE', '10'))
+MAX_IDLE_TIME_MS = int(os.getenv('MONGO_MAX_IDLE_TIME_MS', '10000'))
+CONNECT_TIMEOUT_MS = int(os.getenv('MONGO_CONNECT_TIMEOUT_MS', '20000'))
+SOCKET_TIMEOUT_MS = int(os.getenv('MONGO_SOCKET_TIMEOUT_MS', '20000'))
+SERVER_SELECTION_TIMEOUT_MS = int(os.getenv('MONGO_SERVER_SELECTION_TIMEOUT_MS', '30000'))
+
+# SSL/TLS Settings
+SSL_ENABLED = os.getenv('MONGO_SSL_ENABLED', 'true').lower() == 'true'
+SSL_ALLOW_INVALID_CERT = os.getenv('MONGO_SSL_ALLOW_INVALID_CERT', 'false').lower() == 'true'
+
+# Retry Settings
+MAX_RETRIES = int(os.getenv('MONGO_MAX_RETRIES', '3'))
+RETRY_DELAY_SECONDS = int(os.getenv('MONGO_RETRY_DELAY_SECONDS', '2'))
+
 # Global database connection
 mongo_client = None
 db = None
+connection_status = {
+    'connected': False,
+    'last_attempt': None,
+    'last_success': None,
+    'error_count': 0,
+    'last_error': None
+}
+
+# ==================== CONNECTION FUNCTIONS ====================
+
+def get_connection_options():
+    """Get MongoDB connection options based on environment"""
+    options = {
+        'maxPoolSize': MAX_POOL_SIZE,
+        'minPoolSize': MIN_POOL_SIZE,
+        'maxIdleTimeMS': MAX_IDLE_TIME_MS,
+        'connectTimeoutMS': CONNECT_TIMEOUT_MS,
+        'socketTimeoutMS': SOCKET_TIMEOUT_MS,
+        'serverSelectionTimeoutMS': SERVER_SELECTION_TIMEOUT_MS,
+        'retryWrites': True,
+        'retryReads': True,
+    }
+    
+    # Add SSL options if enabled
+    if SSL_ENABLED:
+        options['tls'] = True
+        options['tlsAllowInvalidCertificates'] = SSL_ALLOW_INVALID_CERT
+        
+        # For Render deployment, we need to be more flexible with SSL
+        if os.getenv('RENDER', 'false').lower() == 'true':
+            options['tlsInsecure'] = True
+            print("⚙️ Render environment detected: Using relaxed SSL settings")
+    
+    return options
+
+def test_network_connectivity():
+    """Test basic network connectivity to MongoDB host"""
+    try:
+        # Extract host from URI
+        if 'mongodb.net' in MONGO_URI:
+            # For Atlas, extract hostname
+            import re
+            match = re.search(r'@([^/]+)', MONGO_URI)
+            if match:
+                host = match.group(1).split('?')[0]
+                # Test DNS resolution
+                socket.gethostbyname(host)
+                print(f"✅ DNS resolution successful for {host}")
+                
+                # Test basic connectivity (not full SSL handshake)
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(10)
+                ip = socket.gethostbyname(host)
+                result = sock.connect_ex((ip, 27017))
+                sock.close()
+                
+                if result == 0:
+                    print(f"✅ Basic network connectivity to {host}:27017")
+                else:
+                    print(f"⚠️ Cannot connect to {host}:27017 - check firewall/network access")
+            return True
+    except Exception as e:
+        print(f"⚠️ Network test failed: {e}")
+        return False
+
+def create_mongo_client():
+    """Create MongoDB client with proper options and retry logic"""
+    global connection_status
+    
+    connection_status['last_attempt'] = datetime.now()
+    
+    # Test basic network first
+    test_network_connectivity()
+    
+    # Get connection options
+    options = get_connection_options()
+    
+    print(f"🔌 Attempting to connect to MongoDB...")
+    print(f"📊 Connection pool: min={MIN_POOL_SIZE}, max={MAX_POOL_SIZE}")
+    print(f"⏱️  Timeouts: connect={CONNECT_TIMEOUT_MS}ms, socket={SOCKET_TIMEOUT_MS}ms")
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            print(f"🔄 Connection attempt {attempt}/{MAX_RETRIES}...")
+            
+            # Create client
+            client = MongoClient(MONGO_URI, **options)
+            
+            # Test connection with ping
+            client.admin.command('ping')
+            
+            # Get server info
+            server_info = client.server_info()
+            mongodb_version = server_info.get('version', 'unknown')
+            
+            print(f"✅ MongoDB Connected Successfully!")
+            print(f"📦 Server version: {mongodb_version}")
+            print(f"📦 Database: {MONGO_DB}")
+            
+            connection_status['connected'] = True
+            connection_status['last_success'] = datetime.now()
+            connection_status['error_count'] = 0
+            connection_status['last_error'] = None
+            
+            return client
+            
+        except (ConnectionFailure, ServerSelectionTimeoutError, OperationFailure) as e:
+            error_msg = str(e)
+            connection_status['error_count'] += 1
+            connection_status['last_error'] = error_msg
+            
+            print(f"❌ Attempt {attempt} failed: {error_msg}")
+            
+            if attempt < MAX_RETRIES:
+                print(f"⏱️  Waiting {RETRY_DELAY_SECONDS} seconds before retry...")
+                time.sleep(RETRY_DELAY_SECONDS)
+            else:
+                print(f"❌ All {MAX_RETRIES} connection attempts failed")
+                
+    return None
 
 def get_db():
-    """Get database connection"""
-    global mongo_client, db
-    try:
-        if mongo_client is None:
-            mongo_client = MongoClient(MONGO_URI)
+    """Get database connection with automatic reconnection"""
+    global mongo_client, db, connection_status
+    
+    # Check if we need to reconnect
+    if mongo_client is None:
+        mongo_client = create_mongo_client()
+        if mongo_client:
             db = mongo_client[MONGO_DB]
-            print("✅ MongoDB Connected Successfully")
-        return db
-    except Exception as e:
-        print(f"❌ MongoDB Connection Error: {e}")
-        return None
+    else:
+        # Verify connection is still alive
+        try:
+            mongo_client.admin.command('ping')
+        except Exception as e:
+            print(f"⚠️ Connection lost: {e}. Attempting to reconnect...")
+            try:
+                mongo_client.close()
+            except:
+                pass
+            mongo_client = create_mongo_client()
+            if mongo_client:
+                db = mongo_client[MONGO_DB]
+    
+    return db
+
+def get_connection_status():
+    """Get current connection status"""
+    global connection_status
+    return {
+        **connection_status,
+        'uri_masked': MONGO_URI.replace(MONGO_URI.split('@')[0].split(':')[1] if '@' in MONGO_URI else '', '****'),
+        'database': MONGO_DB,
+        'pool_size': MAX_POOL_SIZE
+    }
+
+def close_connection():
+    """Close MongoDB connection"""
+    global mongo_client, db, connection_status
+    if mongo_client:
+        mongo_client.close()
+        mongo_client = None
+        db = None
+        connection_status['connected'] = False
+        print("🔌 MongoDB connection closed")
 
 # Initialize connection
 db = get_db()
+
+# ==================== EXISTING CLASSES (Enhanced with error handling) ====================
+
+class DatabaseError(Exception):
+    """Custom exception for database errors"""
+    pass
 
 class ProjectDB:
     """Helper class for project operations"""
     
     @staticmethod
+    def safe_execute(operation, fallback=None):
+        """Execute database operation with error handling"""
+        try:
+            return operation()
+        except Exception as e:
+            print(f"⚠️ Database operation failed: {e}")
+            # Try to reconnect
+            global mongo_client, db
+            if mongo_client:
+                try:
+                    mongo_client.admin.command('ping')
+                except:
+                    print("🔄 Attempting to reconnect...")
+                    close_connection()
+                    get_db()
+            return fallback
+    
+    @staticmethod
     def get_user_info(user_id):
         """Get user's role and division from profiles"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 user = db.users.find_one({"_id": user_id})
                 if user:
@@ -55,16 +255,14 @@ class ProjectDB:
                         'email': user.get('email')
                     }
             return None
-        except Exception as e:
-            print(f"Error getting user info: {e}")
-            return None
+        
+        return ProjectDB.safe_execute(_operation, None)
     
     @staticmethod
     def create_project(user_id, project_data):
         """Create a new project"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected")
                 return None
@@ -99,16 +297,14 @@ class ProjectDB:
                 project['_id'] = str(result.inserted_id)
                 return project
             return None
-        except Exception as e:
-            print(f"Error creating project: {e}")
-            return None
+        
+        return ProjectDB.safe_execute(_operation, None)
     
     @staticmethod
     def get_projects(user_id, filters=None):
         """Get projects based on user's role and division"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected")
                 return []
@@ -140,16 +336,14 @@ class ProjectDB:
                 p['_id'] = str(p['_id'])
             
             return projects
-        except Exception as e:
-            print(f"Error getting projects: {e}")
-            return []
+        
+        return ProjectDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_project_by_id(user_id, project_id):
         """Get a single project by ID"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected")
                 return None
@@ -159,16 +353,14 @@ class ProjectDB:
                 project['_id'] = str(project['_id'])
                 return project
             return None
-        except Exception as e:
-            print(f"Error getting project: {e}")
-            return None
+        
+        return ProjectDB.safe_execute(_operation, None)
     
     @staticmethod
     def update_project(user_id, project_id, updates):
         """Update a project"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected")
                 return None
@@ -181,55 +373,58 @@ class ProjectDB:
             if result.modified_count > 0:
                 return ProjectDB.get_project_by_id(user_id, project_id)
             return None
-        except Exception as e:
-            print(f"Error updating project: {e}")
-            return None
+        
+        return ProjectDB.safe_execute(_operation, None)
     
     @staticmethod
     def delete_project(user_id, project_id):
         """Delete a project"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected")
                 return False
                 
             result = db.projects.delete_one({"_id": project_id})
             return result.deleted_count > 0
-        except Exception as e:
-            print(f"Error deleting project: {e}")
-            return False
+        
+        return ProjectDB.safe_execute(_operation, False)
 
 
 class ReferenceDB:
     """Helper for reference data"""
     
     @staticmethod
-    def get_divisions():
+    def safe_execute(operation, fallback=None):
         try:
+            return operation()
+        except Exception as e:
+            print(f"⚠️ Reference operation failed: {e}")
+            return fallback
+    
+    @staticmethod
+    def get_divisions():
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 divisions = list(db.divisions.find({}))
                 return [d.get('name') for d in divisions]
             return ['Siliguri Town', 'Kurseong', 'Darjeeling', 'Jalpaiguri', 'Coochbehar']
-        except Exception as e:
-            print(f"Error getting divisions: {e}")
-            return ['Siliguri Town', 'Kurseong', 'Darjeeling', 'Jalpaiguri', 'Coochbehar']
+        
+        return ReferenceDB.safe_execute(_operation, 
+            ['Siliguri Town', 'Kurseong', 'Darjeeling', 'Jalpaiguri', 'Coochbehar'])
     
     @staticmethod
     def get_regions():
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 regions = list(db.regions.find({}))
                 return [r.get('name') for r in regions]
             return ['Darjeeling', 'Jalpaiguri', 'Coochbehar', 'Alipurduar']
-        except Exception as e:
-            print(f"Error getting regions: {e}")
-            return ['Darjeeling', 'Jalpaiguri', 'Coochbehar', 'Alipurduar']
+        
+        return ReferenceDB.safe_execute(_operation,
+            ['Darjeeling', 'Jalpaiguri', 'Coochbehar', 'Alipurduar'])
     
     @staticmethod
     def get_project_types():
@@ -250,11 +445,18 @@ class FilterDB:
     """Helper for filtered queries"""
     
     @staticmethod
+    def safe_execute(operation, fallback=None):
+        try:
+            return operation()
+        except Exception as e:
+            print(f"⚠️ Filter operation failed: {e}")
+            return fallback
+    
+    @staticmethod
     def get_all_regions():
         """Get all regions with stats"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 print("Database not connected, returning sample data")
                 return [
@@ -281,36 +483,33 @@ class FilterDB:
                     "divisions": len(divisions)
                 })
             return result
-        except Exception as e:
-            print(f"Error getting regions: {e}")
-            return [
+        
+        return FilterDB.safe_execute(_operation,
+            [
                 {"id": "reg_darjeeling", "name": "Darjeeling", "substations": 10, "divisions": 5},
                 {"id": "reg_jalpaiguri", "name": "Jalpaiguri", "substations": 6, "divisions": 2},
                 {"id": "reg_coochbehar", "name": "Coochbehar", "substations": 5, "divisions": 3},
                 {"id": "reg_alipurduar", "name": "Alipurduar", "substations": 3, "divisions": 1}
-            ]
+            ])
     
     @staticmethod
     def get_region_by_id(region_id):
         """Get region by ID"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 region = db.regions.find_one({"_id": region_id})
                 if region:
                     return region
             return {"_id": region_id, "name": region_id.capitalize()}
-        except Exception as e:
-            print(f"Error getting region: {e}")
-            return {"_id": region_id, "name": region_id.capitalize()}
+        
+        return FilterDB.safe_execute(_operation, {"_id": region_id, "name": region_id.capitalize()})
     
     @staticmethod
     def get_divisions_by_region(region_id):
         """Get divisions for a region"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 # Return sample data
                 if region_id == 'reg_darjeeling':
@@ -333,39 +532,28 @@ class FilterDB:
                     "substation_count": substations
                 })
             return result
-        except Exception as e:
-            print(f"Error getting divisions: {e}")
-            # Return sample data
-            if region_id == 'reg_darjeeling':
-                return [
-                    {"id": "div_siliguri", "name": "Siliguri Town", "substation_count": 4},
-                    {"id": "div_kurseong", "name": "Kurseong", "substation_count": 3},
-                    {"id": "div_darjeeling", "name": "Darjeeling", "substation_count": 2},
-                    {"id": "div_suburban", "name": "Sub-Urban", "substation_count": 1}
-                ]
-            return []
+        
+        return FilterDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_division_by_id(division_id):
         """Get division by ID"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 division = db.divisions.find_one({"_id": division_id})
                 if division:
                     return division
             return {"_id": division_id, "name": division_id.capitalize(), "region_id": "reg_darjeeling"}
-        except Exception as e:
-            print(f"Error getting division: {e}")
-            return {"_id": division_id, "name": division_id.capitalize(), "region_id": "reg_darjeeling"}
+        
+        return FilterDB.safe_execute(_operation, 
+            {"_id": division_id, "name": division_id.capitalize(), "region_id": "reg_darjeeling"})
     
     @staticmethod
     def get_substations_by_division(division_id):
         """Get substations for a division"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 return [
                     {"id": "ss_city_center", "name": "City Center", "location": "City Center", "capacity": "40 MVA", "status": "Active"},
@@ -383,19 +571,14 @@ class FilterDB:
                     "status": s.get("status", "Active")
                 })
             return result
-        except Exception as e:
-            print(f"Error getting substations: {e}")
-            return [
-                {"id": "ss_city_center", "name": "City Center", "location": "City Center", "capacity": "40 MVA", "status": "Active"},
-                {"id": "ss_industrial", "name": "Industrial Area", "location": "Industrial Zone", "capacity": "30 MVA", "status": "Active"}
-            ]
+        
+        return FilterDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_substation_by_id(substation_id):
         """Get substation by ID"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is not None:
                 substation = db.substations.find_one({"_id": substation_id})
                 if substation:
@@ -408,73 +591,57 @@ class FilterDB:
                 "capacity": "40 MVA",
                 "status": "Active"
             }
-        except Exception as e:
-            print(f"Error getting substation: {e}")
-            return {
-                "_id": substation_id,
-                "name": "City Center",
-                "division_id": "div_siliguri",
-                "location": "City Center",
-                "capacity": "40 MVA",
-                "status": "Active"
-            }
+        
+        return FilterDB.safe_execute(_operation, {
+            "_id": substation_id,
+            "name": "City Center",
+            "division_id": "div_siliguri",
+            "location": "City Center",
+            "capacity": "40 MVA",
+            "status": "Active"
+        })
     
     @staticmethod
     def get_ptrs_by_substation(substation_id):
         """Get PTRs for a substation"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 return [
                     {"_id": "ptr_001", "name": "PTR-1", "capacity": "20 MVA", "status": "Active"},
                     {"_id": "ptr_002", "name": "PTR-2", "capacity": "20 MVA", "status": "Active"}
                 ]
             return list(db.ptr_units.find({"substation_id": substation_id}))
-        except Exception as e:
-            print(f"Error getting PTRs: {e}")
-            return [
-                {"_id": "ptr_001", "name": "PTR-1", "capacity": "20 MVA", "status": "Active"},
-                {"_id": "ptr_002", "name": "PTR-2", "capacity": "20 MVA", "status": "Active"}
-            ]
+        
+        return FilterDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_33kv_lines_by_substation(substation_id):
         """Get 33KV lines from a substation"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 return [
                     {"_id": "line_001", "name": "Siliguri - Bagdogra", "length_km": 22.5, "status": "Active"},
                     {"_id": "line_002", "name": "Siliguri - Kurseong", "length_km": 24.0, "status": "Active"}
                 ]
             return list(db.lines_33kv.find({"from_substation_id": substation_id}))
-        except Exception as e:
-            print(f"Error getting 33KV lines: {e}")
-            return [
-                {"_id": "line_001", "name": "Siliguri - Bagdogra", "length_km": 22.5, "status": "Active"},
-                {"_id": "line_002", "name": "Siliguri - Kurseong", "length_km": 24.0, "status": "Active"}
-            ]
+        
+        return FilterDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_11kv_feeders_by_substation(substation_id):
         """Get 11KV feeders from a substation"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 return [
                     {"_id": "fdr_001", "name": "Feeder A", "length_km": 8.5, "dtr_count": 24, "status": "Active"},
                     {"_id": "fdr_002", "name": "Feeder B", "length_km": 12.0, "dtr_count": 32, "status": "Active"}
                 ]
             return list(db.feeders_11kv.find({"substation_id": substation_id}))
-        except Exception as e:
-            print(f"Error getting 11KV feeders: {e}")
-            return [
-                {"_id": "fdr_001", "name": "Feeder A", "length_km": 8.5, "dtr_count": 24, "status": "Active"},
-                {"_id": "fdr_002", "name": "Feeder B", "length_km": 12.0, "dtr_count": 32, "status": "Active"}
-            ]
+        
+        return FilterDB.safe_execute(_operation, [])
     
     @staticmethod
     def get_substation_details(substation_id):
@@ -517,9 +684,8 @@ class FilterDB:
     @staticmethod
     def get_projects_by_type_and_location(project_type, substation_id=None):
         """Get projects by type and location"""
-        try:
+        def _operation():
             db = get_db()
-            # FIXED: Compare with None
             if db is None:
                 return []
                 
@@ -527,16 +693,14 @@ class FilterDB:
             if substation_id:
                 query["substation_id"] = substation_id
             return list(db.projects.find(query))
-        except Exception as e:
-            print(f"Error getting projects: {e}")
-            return []
+        
+        return FilterDB.safe_execute(_operation, [])
 
 
 def init_master_data():
     """Initialize master data if collections are empty"""
     try:
         db = get_db()
-        # FIXED: Compare with None instead of 'if db:'
         if db is None:
             print("⚠️ Database not connected, skipping master data initialization")
             return
@@ -571,3 +735,39 @@ def init_master_data():
         print("✅ Master data initialized successfully")
     except Exception as e:
         print(f"❌ Error initializing master data: {e}")
+
+# ==================== CONNECTION TEST FUNCTION ====================
+
+def test_connection():
+    """Test MongoDB connection and return status"""
+    db = get_db()
+    if db is not None:
+        try:
+            # Try to list collections
+            collections = db.list_collection_names()
+            return {
+                'status': 'connected',
+                'database': MONGO_DB,
+                'collections': len(collections),
+                'connection_status': get_connection_status()
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error': str(e),
+                'connection_status': get_connection_status()
+            }
+    else:
+        return {
+            'status': 'disconnected',
+            'connection_status': get_connection_status()
+        }
+
+# Initialize connection on import
+if __name__ != '__main__':
+    # When imported as module, test connection
+    test_result = test_connection()
+    if test_result['status'] == 'connected':
+        print(f"✅ MongoDB ready: {test_result['collections']} collections available")
+    else:
+        print(f"⚠️ MongoDB status: {test_result['status']}")
