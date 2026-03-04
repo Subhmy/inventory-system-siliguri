@@ -1,0 +1,1223 @@
+<!-- dashboards/line_11kv_dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}11 KV Line Dashboard{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1>11 KV Distribution Line</h1>
+            <p>Siliguri Zone - 11KV Line Feeder Information & Analytics</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-container">
+        <div class="filter-header" onclick="toggleFilterPanel()">
+            <div>
+                <i class="bi bi-funnel-fill"></i>
+                <span>Advanced Filters</span>
+            </div>
+            <div>
+                <span class="active-filters-badge" id="activeFilterCount">0</span>
+                <i class="bi bi-chevron-down" id="filterChevron"></i>
+            </div>
+        </div>
+        
+        <div class="filter-panel" id="filterPanel">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label><i class="bi bi-grid-3x3-gap-fill"></i> ZONE</label>
+                    <select class="filter-select" id="zoneFilter">
+                        <option value="siliguri">Siliguri Zone</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-pin-map-fill"></i> REGION</label>
+                    <select class="filter-select" id="regionFilter">
+                        <option value="all">All Regions</option>
+                        <option value="darjeeling">Darjeeling</option>
+                        <option value="jalpaiguri">Jalpaiguri</option>
+                        <option value="coochbehar">Coochbehar</option>
+                        <option value="alipurduar">Alipurduar</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-diagram-3-fill"></i> DIVISION</label>
+                    <select class="filter-select" id="divisionFilter">
+                        <option value="all">All Divisions</option>
+                        <optgroup label="Darjeeling">
+                            <option value="siliguri-town">Siliguri Town Division</option>
+                            <option value="kurseong">Kurseong Division</option>
+                            <option value="darjeeling">Darjeeling Division</option>
+                            <option value="sub-urban">Sub-Urban Division</option>
+                            <option value="kalimpong">Kalimpong Division</option>
+                        </optgroup>
+                        <optgroup label="Jalpaiguri">
+                            <option value="jalpaiguri">Jalpaiguri Division</option>
+                            <option value="mal">Mal Division</option>
+                        </optgroup>
+                        <optgroup label="Coochbehar">
+                            <option value="coochbehar">Coochbehar Division</option>
+                            <option value="mathabhanga">Mathabhanga Division</option>
+                            <option value="dinhata">Dinhata Division</option>
+                        </optgroup>
+                        <optgroup label="Alipurduar">
+                            <option value="alipurduar">Alipurduar Division</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-building"></i> SUBSTATION</label>
+                    <select class="filter-select" id="substationFilter">
+                        <option value="all">All Substations</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-sort-numeric-down"></i> SHOW TOP</label>
+                    <select class="filter-select" id="topFilter">
+                        <option value="all">All Feeders</option>
+                        <option value="5">Top 5 Feeders</option>
+                        <option value="10">Top 10 Feeders</option>
+                        <option value="20">Top 20 Feeders</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="btn-apply" onclick="applyFilters()">
+                    <i class="bi bi-check2"></i> Apply Filters
+                </button>
+                <button class="btn-reset" onclick="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </button>
+                <button class="btn-export" onclick="exportReport()">
+                    <i class="bi bi-download"></i> Export Report
+                </button>
+            </div>
+            
+            <div class="active-filters" id="activeFiltersDisplay" style="display: none;">
+                <span><i class="bi bi-funnel-fill"></i> Active Filters:</span>
+                <div id="filterTags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Filter Indicator -->
+    <div class="filter-indicator">
+        <span class="badge bg-primary">ZONE: Siliguri</span>
+        <span class="badge bg-secondary" id="regionIndicator">REGION: All Regions</span>
+        <span class="badge bg-info" id="divisionIndicator">DIVISION: All Divisions</span>
+    </div>
+
+    <!-- ==================== DYNAMIC SCORECARDS - ZONE LEVEL ==================== -->
+    <div class="section-title" style="margin-top: 20px;">
+        <i class="bi bi-trophy-fill"></i>
+        <h2>ZONE LEVEL STATISTICS - SILIGURI ZONE</h2>
+    </div>
+
+    <div class="content-card">
+        <!-- Primary Scorecards -->
+        <div class="stats-grid">
+            <div class="stat-card highlight-card">
+                <h4><i class="bi bi-grid-3x3-gap-fill"></i> TOTAL REGIONS</h4>
+                <div class="stat-value">4</div>
+                <div class="stat-label">Darjeeling, Jalpaiguri, Coochbehar, Alipurduar</div>
+            </div>
+            <div class="stat-card highlight-card">
+                <h4><i class="bi bi-diagram-3-fill"></i> TOTAL DIVISIONS</h4>
+                <div class="stat-value">11</div>
+                <div class="stat-label">Across 4 Regions</div>
+            </div>
+            <div class="stat-card highlight-card">
+                <h4><i class="bi bi-building"></i> TOTAL SUBSTATIONS</h4>
+                <div class="stat-value">24</div>
+                <div class="stat-label">33/11 KV & 11 KV Substations</div>
+            </div>
+            <div class="stat-card highlight-card">
+                <h4><i class="bi bi-lightning"></i> TOTAL FEEDERS</h4>
+                <div class="stat-value">86</div>
+                <div class="stat-label">11 KV Distribution Feeders</div>
+            </div>
+        </div>
+
+        <!-- Secondary Scorecards -->
+        <div class="stats-grid" style="margin-top: 20px;">
+            <div class="stat-card">
+                <h4><i class="bi bi-rulers"></i> TOTAL LENGTH</h4>
+                <div class="stat-value">486 km</div>
+                <div class="stat-label">11 KV Network</div>
+            </div>
+            <div class="stat-card">
+                <h4><i class="bi bi-cpu"></i> TOTAL DTRs</h4>
+                <div class="stat-value">845</div>
+                <div class="stat-label">Distribution Transformers</div>
+            </div>
+            <div class="stat-card">
+                <h4><i class="bi bi-speedometer2"></i> AVG FEEDER LOAD</h4>
+                <div class="stat-value">3.4 MVA</div>
+                <div class="stat-label">Per Feeder Average</div>
+            </div>
+            <div class="stat-card">
+                <h4><i class="bi bi-arrow-up-circle-fill text-danger"></i> PEAK LOAD</h4>
+                <div class="stat-value">8.2 MVA</div>
+                <div class="stat-label">Feeder F - Industrial Area</div>
+            </div>
+        </div>
+
+        <!-- Tertiary Scorecards -->
+        <div class="stats-grid" style="margin-top: 20px;">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f6f9fc 0%, #e9f0f9 100%);">
+                <h4><i class="bi bi-check-circle-fill text-success"></i> ACTIVE FEEDERS</h4>
+                <div class="stat-value">72</div>
+                <div class="stat-label">84% of Total</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #fff8e7 0%, #fff3d6 100%);">
+                <h4><i class="bi bi-exclamation-triangle-fill text-warning"></i> UNDER MAINTENANCE</h4>
+                <div class="stat-value">8</div>
+                <div class="stat-label">9% of Total</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #e8f0fe 0%, #d9e6fb 100%);">
+                <h4><i class="bi bi-calendar-week-fill text-info"></i> PLANNED/UC</h4>
+                <div class="stat-value">6</div>
+                <div class="stat-label">7% of Total</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f0f4fa 0%, #e3eaf3 100%);">
+                <h4><i class="bi bi-arrow-left-right"></i> AVG LENGTH</h4>
+                <div class="stat-value">5.6 km</div>
+                <div class="stat-label">Per Feeder</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== REGION WISE BREAKDOWN ==================== -->
+    <div class="section-title" style="margin-top: 40px;">
+        <i class="bi bi-pin-map-fill"></i>
+        <h2>REGION WISE BREAKDOWN</h2>
+    </div>
+
+    <div class="content-card">
+        <div class="region-cards">
+            <!-- Darjeeling Region -->
+            <div class="region-card" onclick="filterByRegion('darjeeling')">
+                <div class="region-header" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                    <h3>DARJEELING</h3>
+                </div>
+                <div class="region-stats">
+                    <div class="region-stat-item">
+                        <span class="stat-label">Divisions</span>
+                        <span class="stat-number">5</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Substations</span>
+                        <span class="stat-number">10</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Feeders</span>
+                        <span class="stat-number">28</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-number">156 km</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">DTRs</span>
+                        <span class="stat-number">575</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Peak Load</span>
+                        <span class="stat-number">6.8 MVA</span>
+                    </div>
+                </div>
+                <div class="region-footer">
+                    <span class="peak-feeder">Peak Feeder: Feeder B (6.8 MVA)</span>
+                </div>
+            </div>
+
+            <!-- Jalpaiguri Region -->
+            <div class="region-card" onclick="filterByRegion('jalpaiguri')">
+                <div class="region-header" style="background: linear-gradient(135deg, #1b4d3d 0%, #2d6a4f 100%);">
+                    <h3>JALPAIGURI</h3>
+                </div>
+                <div class="region-stats">
+                    <div class="region-stat-item">
+                        <span class="stat-label">Divisions</span>
+                        <span class="stat-number">2</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Substations</span>
+                        <span class="stat-number">6</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Feeders</span>
+                        <span class="stat-number">24</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-number">128 km</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">DTRs</span>
+                        <span class="stat-number">312</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Peak Load</span>
+                        <span class="stat-number">8.2 MVA</span>
+                    </div>
+                </div>
+                <div class="region-footer">
+                    <span class="peak-feeder">Peak Feeder: Feeder F (8.2 MVA)</span>
+                </div>
+            </div>
+
+            <!-- Coochbehar Region -->
+            <div class="region-card" onclick="filterByRegion('coochbehar')">
+                <div class="region-header" style="background: linear-gradient(135deg, #7b4b2d 0%, #a25d37 100%);">
+                    <h3>COOCHBEHAR</h3>
+                </div>
+                <div class="region-stats">
+                    <div class="region-stat-item">
+                        <span class="stat-label">Divisions</span>
+                        <span class="stat-number">3</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Substations</span>
+                        <span class="stat-number">5</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Feeders</span>
+                        <span class="stat-number">18</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-number">112 km</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">DTRs</span>
+                        <span class="stat-number">198</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Peak Load</span>
+                        <span class="stat-number">4.5 MVA</span>
+                    </div>
+                </div>
+                <div class="region-footer">
+                    <span class="peak-feeder">Peak Feeder: Feeder K (4.5 MVA)</span>
+                </div>
+            </div>
+
+            <!-- Alipurduar Region -->
+            <div class="region-card" onclick="filterByRegion('alipurduar')">
+                <div class="region-header" style="background: linear-gradient(135deg, #633b5c 0%, #8e4d7a 100%);">
+                    <h3>ALIPURDUAR</h3>
+                </div>
+                <div class="region-stats">
+                    <div class="region-stat-item">
+                        <span class="stat-label">Divisions</span>
+                        <span class="stat-number">1</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Substations</span>
+                        <span class="stat-number">3</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Feeders</span>
+                        <span class="stat-number">16</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-number">90 km</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">DTRs</span>
+                        <span class="stat-number">154</span>
+                    </div>
+                    <div class="region-stat-item">
+                        <span class="stat-label">Peak Load</span>
+                        <span class="stat-number">3.2 MVA</span>
+                    </div>
+                </div>
+                <div class="region-footer">
+                    <span class="peak-feeder">Peak Feeder: Feeder M (3.2 MVA)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== DIVISION WISE BREAKDOWN (Darjeeling) ==================== -->
+    <div class="section-title" style="margin-top: 40px;">
+        <i class="bi bi-diagram-3-fill"></i>
+        <h2>DIVISION WISE BREAKDOWN - DARJEELING REGION</h2>
+    </div>
+
+    <div class="content-card">
+        <div class="division-cards">
+            <!-- Siliguri Town Division -->
+            <div class="division-card">
+                <h4><i class="bi bi-building"></i> SILIGURI TOWN</h4>
+                <div class="division-stats">
+                    <div><span>Substations:</span> <strong>4</strong></div>
+                    <div><span>Feeders:</span> <strong>12</strong></div>
+                    <div><span>Length:</span> <strong>68 km</strong></div>
+                    <div><span>DTRs:</span> <strong>245</strong></div>
+                    <div><span>Peak Load:</span> <strong>6.8 MVA</strong></div>
+                    <div><span>Avg Load:</span> <strong>3.8 MVA</strong></div>
+                </div>
+                <div class="division-footer">Peak: Feeder B (City Center)</div>
+            </div>
+            
+            <!-- Kurseong Division -->
+            <div class="division-card">
+                <h4><i class="bi bi-building"></i> KURSEONG</h4>
+                <div class="division-stats">
+                    <div><span>Substations:</span> <strong>3</strong></div>
+                    <div><span>Feeders:</span> <strong>8</strong></div>
+                    <div><span>Length:</span> <strong>42 km</strong></div>
+                    <div><span>DTRs:</span> <strong>156</strong></div>
+                    <div><span>Peak Load:</span> <strong>3.5 MVA</strong></div>
+                    <div><span>Avg Load:</span> <strong>2.1 MVA</strong></div>
+                </div>
+                <div class="division-footer">Peak: Feeder E (Kurseong)</div>
+            </div>
+            
+            <!-- Darjeeling Division -->
+            <div class="division-card">
+                <h4><i class="bi bi-building"></i> DARJEELING</h4>
+                <div class="division-stats">
+                    <div><span>Substations:</span> <strong>2</strong></div>
+                    <div><span>Feeders:</span> <strong>5</strong></div>
+                    <div><span>Length:</span> <strong>28 km</strong></div>
+                    <div><span>DTRs:</span> <strong>98</strong></div>
+                    <div><span>Peak Load:</span> <strong>2.8 MVA</strong></div>
+                    <div><span>Avg Load:</span> <strong>1.8 MVA</strong></div>
+                </div>
+                <div class="division-footer">Peak: Feeder H (Darjeeling)</div>
+            </div>
+            
+            <!-- Sub-Urban Division -->
+            <div class="division-card">
+                <h4><i class="bi bi-building"></i> SUB-URBAN</h4>
+                <div class="division-stats">
+                    <div><span>Substations:</span> <strong>1</strong></div>
+                    <div><span>Feeders:</span> <strong>3</strong></div>
+                    <div><span>Length:</span> <strong>18 km</strong></div>
+                    <div><span>DTRs:</span> <strong>76</strong></div>
+                    <div><span>Peak Load:</span> <strong>5.2 MVA</strong></div>
+                    <div><span>Avg Load:</span> <strong>3.2 MVA</strong></div>
+                </div>
+                <div class="division-footer">Peak: Feeder D (Commercial)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOP 10 FEEDERS BY PEAK LOAD ==================== -->
+    <div class="section-title" style="margin-top: 40px;">
+        <i class="bi bi-bar-chart-fill"></i>
+        <h2>TOP 10 FEEDERS BY PEAK LOAD - SILIGURI ZONE</h2>
+    </div>
+
+    <div class="content-card">
+        <div style="overflow-x: auto;">
+            <table class="table table-bordered table-hover" id="topFeedersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Rank</th>
+                        <th>Feeder Name</th>
+                        <th>Substation</th>
+                        <th>Division</th>
+                        <th>Region</th>
+                        <th>Length (km)</th>
+                        <th>Load (AMP)</th>
+                        <th>Load (MVA)</th>
+                        <th>DTRs</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="topFeedersBody">
+                    <tr class="peak-row">
+                        <td><span class="badge bg-danger">1</span></td>
+                        <td><strong>Feeder F</strong></td>
+                        <td>Industrial Area</td>
+                        <td>Jalpaiguri</td>
+                        <td>Jalpaiguri</td>
+                        <td>9.5</td>
+                        <td>420</td>
+                        <td><strong>8.2</strong></td>
+                        <td>38</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-warning">2</span></td>
+                        <td><strong>Feeder B</strong></td>
+                        <td>City Center</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>12.0</td>
+                        <td>350</td>
+                        <td><strong>6.8</strong></td>
+                        <td>32</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-info">3</span></td>
+                        <td><strong>Feeder G</strong></td>
+                        <td>Industrial Area</td>
+                        <td>Jalpaiguri</td>
+                        <td>Jalpaiguri</td>
+                        <td>6.8</td>
+                        <td>290</td>
+                        <td><strong>5.6</strong></td>
+                        <td>22</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><strong>Feeder D</strong></td>
+                        <td>Commercial Zone</td>
+                        <td>Sub-Urban</td>
+                        <td>Darjeeling</td>
+                        <td>5.8</td>
+                        <td>270</td>
+                        <td><strong>5.2</strong></td>
+                        <td>15</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><strong>Feeder A</strong></td>
+                        <td>City Center</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>8.5</td>
+                        <td>220</td>
+                        <td><strong>4.2</strong></td>
+                        <td>24</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td><strong>Feeder K</strong></td>
+                        <td>Coochbehar</td>
+                        <td>Coochbehar</td>
+                        <td>Coochbehar</td>
+                        <td>7.2</td>
+                        <td>210</td>
+                        <td><strong>4.0</strong></td>
+                        <td>18</td>
+                        <td><span class="badge bg-warning">Maint</span></td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td><strong>Feeder E</strong></td>
+                        <td>Kurseong</td>
+                        <td>Kurseong</td>
+                        <td>Darjeeling</td>
+                        <td>6.5</td>
+                        <td>180</td>
+                        <td><strong>3.5</strong></td>
+                        <td>20</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td><strong>Feeder M</strong></td>
+                        <td>Alipurduar</td>
+                        <td>Alipurduar</td>
+                        <td>Alipurduar</td>
+                        <td>8.2</td>
+                        <td>165</td>
+                        <td><strong>3.2</strong></td>
+                        <td>14</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td><strong>Feeder H</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Darjeeling</td>
+                        <td>Darjeeling</td>
+                        <td>5.5</td>
+                        <td>145</td>
+                        <td><strong>2.8</strong></td>
+                        <td>12</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td><strong>Feeder L</strong></td>
+                        <td>Mathabhanga</td>
+                        <td>Mathabhanga</td>
+                        <td>Coochbehar</td>
+                        <td>4.8</td>
+                        <td>140</td>
+                        <td><strong>2.7</strong></td>
+                        <td>10</td>
+                        <td><span class="badge bg-info">Planned</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== FEEDER DETAILS TABLE ==================== -->
+    <div class="section-title" style="margin-top: 40px;">
+        <i class="bi bi-table"></i>
+        <h2>COMPLETE FEEDER LIST</h2>
+    </div>
+
+    <div class="content-card">
+        <div style="overflow-x: auto;">
+            <table class="table table-bordered table-hover" id="completeFeederTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Sl. No.</th>
+                        <th>Feeder Name</th>
+                        <th>Feeder Code</th>
+                        <th>Feeder Type</th>
+                        <th>Substation</th>
+                        <th>Division</th>
+                        <th>Region</th>
+                        <th>Length (km)</th>
+                        <th>Load (AMP)</th>
+                        <th>Load (MVA)</th>
+                        <th>DTRs</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="completeFeederBody">
+                    <tr>
+                        <td>1</td>
+                        <td><strong>Feeder A</strong></td>
+                        <td>FC-2024-001</td>
+                        <td>Radial</td>
+                        <td>City Center</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>8.5</td>
+                        <td>220</td>
+                        <td>4.2</td>
+                        <td>24</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><strong>Feeder B</strong></td>
+                        <td>FC-2024-002</td>
+                        <td>Ring Main</td>
+                        <td>City Center</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>12.0</td>
+                        <td>350</td>
+                        <td>6.8</td>
+                        <td>32</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><strong>Feeder C</strong></td>
+                        <td>FC-2024-003</td>
+                        <td>Radial</td>
+                        <td>City Center</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>6.2</td>
+                        <td>110</td>
+                        <td>2.1</td>
+                        <td>18</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><strong>Feeder D</strong></td>
+                        <td>FC-2024-004</td>
+                        <td>Interconn</td>
+                        <td>Commercial Zone</td>
+                        <td>Sub-Urban</td>
+                        <td>Darjeeling</td>
+                        <td>5.8</td>
+                        <td>270</td>
+                        <td>5.2</td>
+                        <td>15</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><strong>Feeder E</strong></td>
+                        <td>FC-2024-005</td>
+                        <td>Radial</td>
+                        <td>Kurseong</td>
+                        <td>Kurseong</td>
+                        <td>Darjeeling</td>
+                        <td>6.5</td>
+                        <td>180</td>
+                        <td>3.5</td>
+                        <td>20</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td><strong>Feeder F</strong></td>
+                        <td>FC-2024-006</td>
+                        <td>Ring Main</td>
+                        <td>Industrial Area</td>
+                        <td>Jalpaiguri</td>
+                        <td>Jalpaiguri</td>
+                        <td>9.5</td>
+                        <td>420</td>
+                        <td>8.2</td>
+                        <td>38</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td><strong>Feeder G</strong></td>
+                        <td>FC-2024-007</td>
+                        <td>Radial</td>
+                        <td>Industrial Area</td>
+                        <td>Jalpaiguri</td>
+                        <td>Jalpaiguri</td>
+                        <td>6.8</td>
+                        <td>290</td>
+                        <td>5.6</td>
+                        <td>22</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td><strong>Feeder H</strong></td>
+                        <td>FC-2024-008</td>
+                        <td>Radial</td>
+                        <td>Darjeeling</td>
+                        <td>Darjeeling</td>
+                        <td>Darjeeling</td>
+                        <td>5.5</td>
+                        <td>145</td>
+                        <td>2.8</td>
+                        <td>12</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td><strong>Feeder I</strong></td>
+                        <td>FC-2024-009</td>
+                        <td>Radial</td>
+                        <td>Residential</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>4.2</td>
+                        <td>75</td>
+                        <td>1.4</td>
+                        <td>10</td>
+                        <td><span class="badge bg-success">Active</span></td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td><strong>Feeder J</strong></td>
+                        <td>FC-2024-010</td>
+                        <td>Radial</td>
+                        <td>Residential</td>
+                        <td>Siliguri Town</td>
+                        <td>Darjeeling</td>
+                        <td>3.8</td>
+                        <td>85</td>
+                        <td>1.6</td>
+                        <td>12</td>
+                        <td><span class="badge bg-warning">Maint</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function displayCurrentDate() {
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date();
+            dateElement.textContent = today.toLocaleDateString('en-US', options);
+        }
+    }
+
+    function toggleFilterPanel() {
+        const panel = document.getElementById('filterPanel');
+        const chevron = document.getElementById('filterChevron');
+        panel.classList.toggle('show');
+        chevron.classList.toggle('bi-chevron-down');
+        chevron.classList.toggle('bi-chevron-up');
+    }
+
+    function updateDivisions() {
+        const region = document.getElementById('regionFilter').value;
+        const divisionSelect = document.getElementById('divisionFilter');
+        
+        // This function would dynamically update divisions based on region
+        // For now, it's a placeholder
+        console.log('Region changed to:', region);
+    }
+
+    function applyFilters() {
+        const region = document.getElementById('regionFilter').value;
+        const division = document.getElementById('divisionFilter').value;
+        const substation = document.getElementById('substationFilter').value;
+        const top = document.getElementById('topFilter').value;
+        
+        let filterCount = 0;
+        if (region !== 'all') filterCount++;
+        if (division !== 'all') filterCount++;
+        if (substation !== 'all') filterCount++;
+        
+        document.getElementById('activeFilterCount').textContent = filterCount;
+        
+        // Update region indicator
+        if (region !== 'all') {
+            document.getElementById('regionIndicator').textContent = `REGION: ${region.charAt(0).toUpperCase() + region.slice(1)}`;
+        } else {
+            document.getElementById('regionIndicator').textContent = 'REGION: All Regions';
+        }
+        
+        // Show active filters display
+        if (filterCount > 0) {
+            document.getElementById('activeFiltersDisplay').style.display = 'flex';
+        } else {
+            document.getElementById('activeFiltersDisplay').style.display = 'none';
+        }
+        
+        alert(`Filters applied!\nRegion: ${region}\nDivision: ${division}\nTop: ${top}`);
+    }
+
+    function resetFilters() {
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').value = 'all';
+        document.getElementById('substationFilter').value = 'all';
+        document.getElementById('topFilter').value = 'all';
+        
+        document.getElementById('activeFilterCount').textContent = '0';
+        document.getElementById('activeFiltersDisplay').style.display = 'none';
+        document.getElementById('regionIndicator').textContent = 'REGION: All Regions';
+    }
+
+    function filterByRegion(region) {
+        document.getElementById('regionFilter').value = region;
+        applyFilters();
+    }
+
+    function exportReport() {
+        alert('Export functionality will be implemented here. This will download CSV/Excel of filtered data.');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        displayCurrentDate();
+        
+        // Populate substation dropdown
+        const substationSelect = document.getElementById('substationFilter');
+        const substations = [
+            'City Center', 'Industrial Area', 'Residential', 'Commercial Zone',
+            'Kurseong', 'Darjeeling', 'Coochbehar', 'Mathabhanga', 'Alipurduar'
+        ];
+        
+        substations.forEach(s => {
+            const option = document.createElement('option');
+            option.value = s.toLowerCase().replace(/\s+/g, '-');
+            option.textContent = s;
+            substationSelect.appendChild(option);
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==================== FILTER STYLES ==================== */
+    .filter-container {
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        overflow: hidden;
+    }
+
+    .filter-header {
+        padding: 15px 20px;
+        background: linear-gradient(135deg, #f8fafd 0%, #f0f3f8 100%);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eef2f6;
+    }
+
+    .filter-header i {
+        color: #5fa4ee;
+    }
+
+    .filter-panel {
+        padding: 20px;
+        display: none;
+    }
+
+    .filter-panel.show {
+        display: block;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-group label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1e2b3a;
+    }
+
+    .filter-group label i {
+        color: #5fa4ee;
+        margin-right: 5px;
+    }
+
+    .filter-select {
+        padding: 8px 10px;
+        border: 2px solid #eef2f6;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #1e2b3a;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:hover {
+        border-color: #5fa4ee;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #5fa4ee;
+        box-shadow: 0 0 0 3px rgba(95, 164, 238, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-apply, .btn-reset, .btn-export {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-apply {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-reset {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-reset:hover {
+        background: #5a6268;
+    }
+
+    .btn-export {
+        background: #28a745;
+        color: white;
+        margin-left: auto;
+    }
+
+    .btn-export:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+    }
+
+    .active-filters {
+        background: #e3f0ff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-top: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .filter-indicator {
+        margin: 15px 0;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    /* ==================== HIGHLIGHT CARDS ==================== */
+    .highlight-card {
+        background: linear-gradient(135deg, #f0f7ff 0%, #e5f0ff 100%);
+        border-left: 4px solid #5fa4ee;
+    }
+
+    /* ==================== REGION CARDS ==================== */
+    .region-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .region-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .region-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .region-header {
+        padding: 15px;
+        color: white;
+    }
+
+    .region-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .region-stats {
+        padding: 15px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .region-stat-item {
+        text-align: center;
+        padding: 8px;
+        background: #f8fafd;
+        border-radius: 8px;
+    }
+
+    .region-stat-item .stat-label {
+        font-size: 0.7rem;
+        color: #6c757d;
+        display: block;
+    }
+
+    .region-stat-item .stat-number {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e2b3a;
+    }
+
+    .region-footer {
+        padding: 10px 15px;
+        background: #f8fafd;
+        border-top: 1px solid #eef2f6;
+        font-size: 0.8rem;
+        color: #5fa4ee;
+    }
+
+    /* ==================== DIVISION CARDS ==================== */
+    .division-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+    }
+
+    .division-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #eef2f6;
+        transition: all 0.3s ease;
+    }
+
+    .division-card:hover {
+        border-color: #5fa4ee;
+        box-shadow: 0 5px 15px rgba(95,164,238,0.1);
+    }
+
+    .division-card h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #eef2f6;
+    }
+
+    .division-card h4 i {
+        color: #5fa4ee;
+        margin-right: 5px;
+    }
+
+    .division-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .division-stats div {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .division-stats div span {
+        display: block;
+        font-size: 0.7rem;
+        color: #999;
+    }
+
+    .division-stats div strong {
+        display: block;
+        font-size: 1rem;
+        color: #1e2b3a;
+    }
+
+    .division-footer {
+        font-size: 0.75rem;
+        color: #5fa4ee;
+        padding-top: 8px;
+        border-top: 1px dashed #eef2f6;
+    }
+
+    /* ==================== TABLE STYLES ==================== */
+    .peak-row {
+        background: rgba(255, 193, 7, 0.1);
+    }
+
+    .peak-row:hover {
+        background: rgba(255, 193, 7, 0.15) !important;
+    }
+
+    .badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    /* ==================== STATS GRID ==================== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #eef2f6;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    .stat-card h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 10px;
+    }
+
+    .stat-card h4 i {
+        color: #5fa4ee;
+        margin-right: 5px;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #5fa4ee;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-actions {
+            flex-direction: column;
+        }
+        
+        .btn-export {
+            margin-left: 0;
+        }
+        
+        .region-cards {
+            grid-template-columns: 1fr;
+        }
+        
+        .division-cards {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}

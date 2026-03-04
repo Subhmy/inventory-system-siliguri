@@ -1,0 +1,1107 @@
+<!-- templates/zone_overview.html -->
+<!-- Zone Overview Dashboard with Hierarchical Navigation -->
+{% extends "base.html" %}
+
+{% block title %}Zone Overview - IMS Siliguri{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1><i class="bi bi-globe2"></i> SILIGURI ZONE</h1>
+            <p>Zone Overview Dashboard - Hierarchical Navigation (Region → Division → Substation)</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- ==================== HIERARCHICAL BREADCRUMB ==================== -->
+    <div class="breadcrumb-container" id="breadcrumbContainer" style="display: none;">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb" id="breadcrumb">
+                <li class="breadcrumb-item"><a href="#" onclick="loadZoneLevel(); return false;">Zone Overview</a></li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- ==================== FILTER SECTION ==================== -->
+    <div class="filter-container">
+        <div class="filter-header" onclick="toggleFilterPanel()">
+            <div>
+                <i class="bi bi-funnel-fill"></i>
+                <span>Quick Filters</span>
+            </div>
+            <div>
+                <span class="active-filters-badge" id="activeFilterCount">0</span>
+                <i class="bi bi-chevron-down" id="filterChevron"></i>
+            </div>
+        </div>
+        
+        <div class="filter-panel" id="filterPanel">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label><i class="bi bi-pin-map-fill"></i> REGION</label>
+                    <select class="filter-select" id="regionFilter" onchange="filterByRegion(this.value)">
+                        <option value="all">All Regions</option>
+                        <option value="darjeeling">Darjeeling</option>
+                        <option value="jalpaiguri">Jalpaiguri</option>
+                        <option value="coochbehar">Coochbehar</option>
+                        <option value="alipurduar">Alipurduar</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-diagram-3-fill"></i> DIVISION</label>
+                    <select class="filter-select" id="divisionFilter" disabled>
+                        <option value="all">All Divisions</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="bi bi-building"></i> SUBSTATION</label>
+                    <select class="filter-select" id="substationFilter" disabled>
+                        <option value="all">All Substations</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="btn-apply" onclick="applyFilters()">
+                    <i class="bi bi-check2"></i> Apply Filters
+                </button>
+                <button class="btn-reset" onclick="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== DYNAMIC CONTENT AREA ==================== -->
+    <div id="contentArea">
+        <!-- ZONE LEVEL VIEW (Default) -->
+        <div id="zoneLevelView">
+            <!-- Zone Level Scorecards -->
+            <div class="section-title">
+                <i class="bi bi-trophy-fill"></i>
+                <h2>ZONE LEVEL STATISTICS - SILIGURI ZONE</h2>
+            </div>
+
+            <div class="content-card">
+                <div class="stats-grid">
+                    <div class="stat-card highlight-card">
+                        <h4><i class="bi bi-pin-map-fill"></i> TOTAL REGIONS</h4>
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">Darjeeling, Jalpaiguri, Coochbehar, Alipurduar</div>
+                    </div>
+                    <div class="stat-card highlight-card">
+                        <h4><i class="bi bi-diagram-3-fill"></i> TOTAL DIVISIONS</h4>
+                        <div class="stat-value">11</div>
+                        <div class="stat-label">Across 4 Regions</div>
+                    </div>
+                    <div class="stat-card highlight-card">
+                        <h4><i class="bi bi-building"></i> TOTAL SUBSTATIONS</h4>
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">33/11 KV & 11 KV Substations</div>
+                    </div>
+                    <div class="stat-card highlight-card">
+                        <h4><i class="bi bi-lightning"></i> TOTAL FEEDERS</h4>
+                        <div class="stat-value">86</div>
+                        <div class="stat-label">11 KV Distribution Feeders</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Region Cards -->
+            <div class="section-title" style="margin-top: 40px;">
+                <i class="bi bi-pin-map-fill"></i>
+                <h2>SELECT REGION TO DRILL DOWN</h2>
+            </div>
+
+            <div class="region-cards">
+                <!-- Darjeeling Region -->
+                <div class="region-card" onclick="loadRegionLevel('darjeeling')">
+                    <div class="region-header" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                        <h3>DARJEELING</h3>
+                    </div>
+                    <div class="region-stats">
+                        <div class="region-stat-item">
+                            <span class="stat-label">Divisions</span>
+                            <span class="stat-number">5</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Substations</span>
+                            <span class="stat-number">10</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Feeders</span>
+                            <span class="stat-number">28</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Length</span>
+                            <span class="stat-number">156 km</span>
+                        </div>
+                    </div>
+                    <div class="region-footer">
+                        <span class="click-indicator">Click to view divisions →</span>
+                    </div>
+                </div>
+
+                <!-- Jalpaiguri Region -->
+                <div class="region-card" onclick="loadRegionLevel('jalpaiguri')">
+                    <div class="region-header" style="background: linear-gradient(135deg, #1b4d3d 0%, #2d6a4f 100%);">
+                        <h3>JALPAIGURI</h3>
+                    </div>
+                    <div class="region-stats">
+                        <div class="region-stat-item">
+                            <span class="stat-label">Divisions</span>
+                            <span class="stat-number">2</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Substations</span>
+                            <span class="stat-number">6</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Feeders</span>
+                            <span class="stat-number">24</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Length</span>
+                            <span class="stat-number">128 km</span>
+                        </div>
+                    </div>
+                    <div class="region-footer">
+                        <span class="click-indicator">Click to view divisions →</span>
+                    </div>
+                </div>
+
+                <!-- Coochbehar Region -->
+                <div class="region-card" onclick="loadRegionLevel('coochbehar')">
+                    <div class="region-header" style="background: linear-gradient(135deg, #7b4b2d 0%, #a25d37 100%);">
+                        <h3>COOCHBEHAR</h3>
+                    </div>
+                    <div class="region-stats">
+                        <div class="region-stat-item">
+                            <span class="stat-label">Divisions</span>
+                            <span class="stat-number">3</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Substations</span>
+                            <span class="stat-number">5</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Feeders</span>
+                            <span class="stat-number">18</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Length</span>
+                            <span class="stat-number">112 km</span>
+                        </div>
+                    </div>
+                    <div class="region-footer">
+                        <span class="click-indicator">Click to view divisions →</span>
+                    </div>
+                </div>
+
+                <!-- Alipurduar Region -->
+                <div class="region-card" onclick="loadRegionLevel('alipurduar')">
+                    <div class="region-header" style="background: linear-gradient(135deg, #633b5c 0%, #8e4d7a 100%);">
+                        <h3>ALIPURDUAR</h3>
+                    </div>
+                    <div class="region-stats">
+                        <div class="region-stat-item">
+                            <span class="stat-label">Divisions</span>
+                            <span class="stat-number">1</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Substations</span>
+                            <span class="stat-number">3</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Feeders</span>
+                            <span class="stat-number">16</span>
+                        </div>
+                        <div class="region-stat-item">
+                            <span class="stat-label">Length</span>
+                            <span class="stat-number">90 km</span>
+                        </div>
+                    </div>
+                    <div class="region-footer">
+                        <span class="click-indicator">Click to view divisions →</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" style="display: none; text-align: center; padding: 50px;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading data...</p>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== STATE MANAGEMENT ====================
+    let currentLevel = 'zone'; // zone, region, division, substation
+    let currentRegionId = null;
+    let currentDivisionId = null;
+    let currentSubstationId = null;
+
+    // ==================== DISPLAY CURRENT DATE ====================
+    function displayCurrentDate() {
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date();
+            dateElement.textContent = today.toLocaleDateString('en-US', options);
+        }
+    }
+
+    // ==================== FILTER PANEL TOGGLE ====================
+    function toggleFilterPanel() {
+        const panel = document.getElementById('filterPanel');
+        const chevron = document.getElementById('filterChevron');
+        panel.classList.toggle('show');
+        chevron.classList.toggle('bi-chevron-down');
+        chevron.classList.toggle('bi-chevron-up');
+    }
+
+    // ==================== BREADCRUMB UPDATE ====================
+    function updateBreadcrumb() {
+        const breadcrumbContainer = document.getElementById('breadcrumbContainer');
+        const breadcrumb = document.getElementById('breadcrumb');
+        
+        breadcrumbContainer.style.display = 'block';
+        breadcrumb.innerHTML = '<li class="breadcrumb-item"><a href="#" onclick="loadZoneLevel(); return false;">Zone Overview</a></li>';
+        
+        if (currentRegionId) {
+            const regionName = currentRegionId.charAt(0).toUpperCase() + currentRegionId.slice(1);
+            breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="loadRegionLevel('${currentRegionId}'); return false;">${regionName}</a></li>`;
+        }
+        
+        if (currentDivisionId) {
+            const divisionNames = {
+                'div_siliguri': 'Siliguri Town',
+                'div_kurseong': 'Kurseong',
+                'div_darjeeling': 'Darjeeling',
+                'div_suburban': 'Sub-Urban',
+                'div_kalimpong': 'Kalimpong',
+                'div_jalpaiguri': 'Jalpaiguri',
+                'div_mal': 'Mal',
+                'div_coochbehar': 'Coochbehar',
+                'div_mathabhanga': 'Mathabhanga',
+                'div_dinhata': 'Dinhata',
+                'div_alipurduar': 'Alipurduar'
+            };
+            const divisionName = divisionNames[currentDivisionId] || currentDivisionId;
+            breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="loadDivisionLevel('${currentDivisionId}'); return false;">${divisionName}</a></li>`;
+        }
+        
+        if (currentSubstationId) {
+            breadcrumb.innerHTML += `<li class="breadcrumb-item active">Substation Details</li>`;
+        }
+    }
+
+    // ==================== LOAD ZONE LEVEL ====================
+    function loadZoneLevel() {
+        currentLevel = 'zone';
+        currentRegionId = null;
+        currentDivisionId = null;
+        currentSubstationId = null;
+        
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').disabled = true;
+        document.getElementById('substationFilter').disabled = true;
+        
+        updateBreadcrumb();
+        
+        // Reload the page to show zone level
+        window.location.reload();
+    }
+
+    // ==================== LOAD REGION LEVEL ====================
+    function loadRegionLevel(regionId) {
+        showLoading();
+        
+        currentLevel = 'region';
+        currentRegionId = regionId;
+        currentDivisionId = null;
+        currentSubstationId = null;
+        
+        document.getElementById('regionFilter').value = regionId;
+        document.getElementById('divisionFilter').disabled = false;
+        document.getElementById('substationFilter').disabled = true;
+        
+        updateBreadcrumb();
+        
+        // Fetch region data via API
+        fetch(`/api/region/${regionId}`)
+            .then(response => response.json())
+            .then(data => {
+                renderRegionLevel(data);
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                hideLoading();
+                // Fallback to mock data
+                renderMockRegionLevel(regionId);
+            });
+    }
+
+    // ==================== LOAD DIVISION LEVEL ====================
+    function loadDivisionLevel(divisionId) {
+        showLoading();
+        
+        currentLevel = 'division';
+        currentDivisionId = divisionId;
+        currentSubstationId = null;
+        
+        document.getElementById('divisionFilter').value = divisionId;
+        document.getElementById('substationFilter').disabled = false;
+        
+        updateBreadcrumb();
+        
+        // Fetch division data via API
+        fetch(`/api/division/${divisionId}`)
+            .then(response => response.json())
+            .then(data => {
+                renderDivisionLevel(data);
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                hideLoading();
+                // Fallback to mock data
+                renderMockDivisionLevel(divisionId);
+            });
+    }
+
+    // ==================== LOAD SUBSTATION LEVEL ====================
+    function loadSubstationLevel(substationId) {
+        showLoading();
+        
+        currentLevel = 'substation';
+        currentSubstationId = substationId;
+        
+        document.getElementById('substationFilter').value = substationId;
+        
+        updateBreadcrumb();
+        
+        // Fetch substation data via API
+        fetch(`/api/substation/${substationId}`)
+            .then(response => response.json())
+            .then(data => {
+                renderSubstationLevel(data);
+                hideLoading();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                hideLoading();
+                // Fallback to mock data
+                renderMockSubstationLevel(substationId);
+            });
+    }
+
+    // ==================== RENDER FUNCTIONS ====================
+    function renderRegionLevel(data) {
+        const contentArea = document.getElementById('contentArea');
+        const region = data.region || { name: currentRegionId.charAt(0).toUpperCase() + currentRegionId.slice(1) };
+        const divisions = data.divisions || [];
+        
+        let html = `
+            <div class="section-title">
+                <i class="bi bi-pin-map-fill"></i>
+                <h2>${region.name} REGION - DIVISIONS</h2>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Total Divisions</h4>
+                    <div class="stat-value">${divisions.length}</div>
+                    <div class="stat-label">${region.name} Region</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Substations</h4>
+                    <div class="stat-value">${divisions.reduce((sum, d) => sum + (d.substation_count || 0), 0)}</div>
+                    <div class="stat-label">Across all divisions</div>
+                </div>
+            </div>
+            
+            <div class="division-cards">
+        `;
+        
+        divisions.forEach(div => {
+            html += `
+                <div class="division-card" onclick="loadDivisionLevel('${div.id}')">
+                    <h4><i class="bi bi-building"></i> ${div.name}</h4>
+                    <div class="division-stats">
+                        <div><span>Substations:</span> <strong>${div.substation_count || 0}</strong></div>
+                    </div>
+                    <div class="division-footer">
+                        <span class="click-indicator">Click to view substations →</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        contentArea.innerHTML = html;
+    }
+
+    function renderDivisionLevel(data) {
+        const contentArea = document.getElementById('contentArea');
+        const division = data.division || { name: 'Division' };
+        const substations = data.substations || [];
+        
+        let html = `
+            <div class="section-title">
+                <i class="bi bi-building"></i>
+                <h2>${division.name} DIVISION - SUBSTATIONS</h2>
+            </div>
+            
+            <div class="substation-cards">
+        `;
+        
+        substations.forEach(sub => {
+            html += `
+                <div class="substation-card" onclick="loadSubstationLevel('${sub.id}')">
+                    <h4><i class="bi bi-grid-3x3-gap-fill"></i> ${sub.name}</h4>
+                    <div class="substation-stats">
+                        <div><span>Location:</span> <strong>${sub.location || 'N/A'}</strong></div>
+                        <div><span>Capacity:</span> <strong>${sub.capacity || 'N/A'}</strong></div>
+                        <div><span>Status:</span> <span class="badge bg-success">${sub.status || 'Active'}</span></div>
+                    </div>
+                    <div class="substation-footer">
+                        <span class="click-indicator">Click to view options →</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (substations.length === 0) {
+            html += `<p>No substations found in this division.</p>`;
+        }
+        
+        html += `</div>`;
+        contentArea.innerHTML = html;
+    }
+
+    function renderSubstationLevel(data) {
+        const contentArea = document.getElementById('contentArea');
+        const substation = data.substation || { name: 'Substation' };
+        const ptrs = data.ptrs || [];
+        const lines = data.lines_33kv || [];
+        const feeders = data.feeders_11kv || [];
+        
+        let html = `
+            <div class="section-title">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+                <h2>${substation.name} SUBSTATION</h2>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>PTR Units</h4>
+                    <div class="stat-value">${substation.ptr_count || ptrs.length}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>33KV Lines</h4>
+                    <div class="stat-value">${substation.lines_33kv || lines.length}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>11KV Feeders</h4>
+                    <div class="stat-value">${substation.feeders_11kv || feeders.length}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>DTR Count</h4>
+                    <div class="stat-value">${substation.dtr_count || 0}</div>
+                </div>
+            </div>
+            
+            <div class="section-title" style="margin-top: 30px;">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+                <h3>Substation Options</h3>
+            </div>
+            
+            <div class="dashboard-cards" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="dashboard-card" onclick="window.location.href='/substation-dashboard'">
+                    <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
+                    <div class="card-content">
+                        <h3>Existing Substation</h3>
+                        <p>View substation dashboard</p>
+                    </div>
+                    <div class="card-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+                </div>
+                
+                <div class="dashboard-card" onclick="window.location.href='/new-substation-dashboard'">
+                    <div class="card-icon"><i class="bi bi-building-add"></i></div>
+                    <div class="card-content">
+                        <h3>New Substation</h3>
+                        <p>New construction projects</p>
+                    </div>
+                    <div class="card-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+                </div>
+                
+                <div class="dashboard-card" onclick="window.location.href='/ptr-augmentation-dashboard'">
+                    <div class="card-icon"><i class="bi bi-arrow-up-circle"></i></div>
+                    <div class="card-content">
+                        <h3>PTR Augmentation</h3>
+                        <p>Augmentation projects</p>
+                    </div>
+                    <div class="card-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
+                </div>
+            </div>
+        `;
+        
+        contentArea.innerHTML = html;
+    }
+
+    // ==================== MOCK RENDER FUNCTIONS (Fallback) ====================
+    function renderMockRegionLevel(regionId) {
+        const divisions = {
+            'darjeeling': [
+                { id: 'div_siliguri', name: 'Siliguri Town', substation_count: 4 },
+                { id: 'div_kurseong', name: 'Kurseong', substation_count: 3 },
+                { id: 'div_darjeeling', name: 'Darjeeling', substation_count: 2 },
+                { id: 'div_suburban', name: 'Sub-Urban', substation_count: 1 },
+                { id: 'div_kalimpong', name: 'Kalimpong', substation_count: 0 }
+            ],
+            'jalpaiguri': [
+                { id: 'div_jalpaiguri', name: 'Jalpaiguri', substation_count: 4 },
+                { id: 'div_mal', name: 'Mal', substation_count: 2 }
+            ],
+            'coochbehar': [
+                { id: 'div_coochbehar', name: 'Coochbehar', substation_count: 3 },
+                { id: 'div_mathabhanga', name: 'Mathabhanga', substation_count: 1 },
+                { id: 'div_dinhata', name: 'Dinhata', substation_count: 1 }
+            ],
+            'alipurduar': [
+                { id: 'div_alipurduar', name: 'Alipurduar', substation_count: 3 }
+            ]
+        };
+        
+        renderRegionLevel({
+            region: { name: regionId.charAt(0).toUpperCase() + regionId.slice(1) },
+            divisions: divisions[regionId] || []
+        });
+    }
+
+    function renderMockDivisionLevel(divisionId) {
+        const substations = {
+            'div_siliguri': [
+                { id: 'ss_city_center', name: 'City Center', location: 'City Center', capacity: '40 MVA', status: 'Active' },
+                { id: 'ss_industrial', name: 'Industrial Area', location: 'Industrial Zone', capacity: '30 MVA', status: 'Active' },
+                { id: 'ss_residential', name: 'Residential North', location: 'Residential Area', capacity: '20 MVA', status: 'Active' },
+                { id: 'ss_commercial', name: 'Commercial Zone', location: 'Commercial Area', capacity: '25 MVA', status: 'Active' }
+            ],
+            'div_kurseong': [
+                { id: 'ss_kurseong', name: 'Kurseong Town', location: 'Kurseong', capacity: '15 MVA', status: 'Active' },
+                { id: 'ss_kurseong_east', name: 'Kurseong East', location: 'Kurseong East', capacity: '10 MVA', status: 'Under Maintenance' }
+            ]
+        };
+        
+        renderDivisionLevel({
+            division: { name: divisionId.replace('div_', '').replace('_', ' ').toUpperCase() },
+            substations: substations[divisionId] || []
+        });
+    }
+
+    function renderMockSubstationLevel(substationId) {
+        renderSubstationLevel({
+            substation: { name: 'City Center', ptr_count: 2, lines_33kv: 4, feeders_11kv: 4, dtr_count: 89 }
+        });
+    }
+
+    // ==================== FILTER FUNCTIONS ====================
+    function filterByRegion(regionId) {
+        if (regionId !== 'all') {
+            loadRegionLevel(regionId);
+        }
+    }
+
+    function applyFilters() {
+        const region = document.getElementById('regionFilter').value;
+        const division = document.getElementById('divisionFilter').value;
+        const substation = document.getElementById('substationFilter').value;
+        
+        let filterCount = 0;
+        if (region !== 'all') filterCount++;
+        if (division !== 'all') filterCount++;
+        if (substation !== 'all') filterCount++;
+        
+        document.getElementById('activeFilterCount').textContent = filterCount;
+        
+        alert('Filters applied! (Integration with database pending)');
+    }
+
+    function resetFilters() {
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').value = 'all';
+        document.getElementById('divisionFilter').disabled = true;
+        document.getElementById('substationFilter').value = 'all';
+        document.getElementById('substationFilter').disabled = true;
+        
+        document.getElementById('activeFilterCount').textContent = '0';
+        
+        loadZoneLevel();
+    }
+
+    // ==================== LOADING INDICATOR ====================
+    function showLoading() {
+        document.getElementById('loadingSpinner').style.display = 'block';
+        document.getElementById('contentArea').style.opacity = '0.5';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('contentArea').style.opacity = '1';
+    }
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        displayCurrentDate();
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Filter Panel Styles */
+    .filter-container {
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        overflow: hidden;
+    }
+
+    .filter-header {
+        padding: 15px 20px;
+        background: #f8fafd;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        color: #1e2b3a;
+    }
+
+    .filter-header i {
+        color: #5fa4ee;
+        margin-right: 8px;
+    }
+
+    .filter-panel {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        background: white;
+    }
+
+    .filter-panel.show {
+        max-height: 300px;
+        padding: 20px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-group label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 5px;
+    }
+
+    .filter-select {
+        padding: 8px 12px;
+        border: 1px solid #dde2e8;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .btn-apply, .btn-reset {
+        padding: 8px 20px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-apply {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-reset {
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Breadcrumb Styles */
+    .breadcrumb-container {
+        background: white;
+        border-radius: 8px;
+        padding: 12px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .breadcrumb {
+        margin: 0;
+        padding: 0;
+    }
+
+    .breadcrumb-item a {
+        color: #5fa4ee;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .breadcrumb-item a:hover {
+        text-decoration: underline;
+    }
+
+    /* Region Cards */
+    .region-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .region-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid #eef2f6;
+    }
+
+    .region-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    .region-header {
+        padding: 20px;
+        color: white;
+    }
+
+    .region-header h3 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 600;
+    }
+
+    .region-stats {
+        padding: 20px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .region-stat-item {
+        text-align: center;
+    }
+
+    .region-stat-item .stat-label {
+        display: block;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+
+    .region-stat-item .stat-number {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1e2b3a;
+    }
+
+    .region-footer {
+        padding: 12px 20px;
+        background: #f8fafd;
+        color: #5fa4ee;
+        font-size: 0.85rem;
+        text-align: right;
+    }
+
+    /* Division Cards */
+    .division-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .division-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid #eef2f6;
+    }
+
+    .division-card:hover {
+        transform: translateY(-3px);
+        border-color: #5fa4ee;
+    }
+
+    .division-card h4 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 15px;
+    }
+
+    .division-stats div {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px dashed #eef2f6;
+    }
+
+    .division-stats div:last-child {
+        border-bottom: none;
+    }
+
+    .division-stats span {
+        color: #6c757d;
+    }
+
+    .division-stats strong {
+        color: #1e2b3a;
+    }
+
+    .division-footer {
+        margin-top: 15px;
+        text-align: right;
+        color: #5fa4ee;
+        font-size: 0.85rem;
+    }
+
+    /* Substation Cards */
+    .substation-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .substation-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid #eef2f6;
+    }
+
+    .substation-card:hover {
+        transform: translateY(-3px);
+        border-color: #5fa4ee;
+    }
+
+    .substation-card h4 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 15px;
+    }
+
+    .substation-stats div {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px dashed #eef2f6;
+    }
+
+    .substation-stats div:last-child {
+        border-bottom: none;
+    }
+
+    .substation-footer {
+        margin-top: 15px;
+        text-align: right;
+        color: #5fa4ee;
+        font-size: 0.85rem;
+    }
+
+    .click-indicator {
+        font-size: 0.8rem;
+        opacity: 0.7;
+    }
+
+    .region-card:hover .click-indicator,
+    .division-card:hover .click-indicator,
+    .substation-card:hover .click-indicator {
+        opacity: 1;
+    }
+
+    /* Dashboard Cards (for substation options) */
+    .dashboard-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .dashboard-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        border-color: #5fa4ee;
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    .card-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #e3f0ff 0%, #d0e4ff 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-icon i {
+        font-size: 1.5rem;
+        color: #5fa4ee;
+    }
+
+    .card-content {
+        flex: 1;
+    }
+
+    .card-content h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #1e2b3a;
+    }
+
+    .card-content p {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin: 0;
+    }
+
+    .card-arrow i {
+        font-size: 1.3rem;
+        color: #5fa4ee;
+        opacity: 0.5;
+        transition: opacity 0.3s;
+    }
+
+    .dashboard-card:hover .card-arrow i {
+        opacity: 1;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: #f8fafd;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid #eef2f6;
+    }
+
+    .stat-card.highlight-card {
+        background: linear-gradient(135deg, #f0f7ff 0%, #e5f0ff 100%);
+        border-color: #cce3ff;
+    }
+
+    .stat-card h4 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        margin-bottom: 10px;
+    }
+
+    .stat-card h4 i {
+        color: #5fa4ee;
+        margin-right: 5px;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #5fa4ee;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .dashboard-cards {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-panel.show {
+            max-height: 400px;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

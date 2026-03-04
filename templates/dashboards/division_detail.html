@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ division.name }} Division - Electrical Overview{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Header with Back Button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="/region/{{ region.id }}" class="btn btn-outline-secondary btn-sm mb-2">
+                <i class="bi bi-arrow-left"></i> Back to {{ region.name }} Region
+            </a>
+            <h1 class="h3 mb-0">{{ division.name }} Division</h1>
+            <p class="text-muted">Substation Overview - February 2026</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Division Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Substations</h6>
+                    <h2 class="mb-0">{{ division_stats.substations }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">33KV Lines</h6>
+                    <h2 class="mb-0">{{ division_stats.lines_33kv }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">11KV Feeders</h6>
+                    <h2 class="mb-0">{{ division_stats.feeders_11kv }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-1">Total PTRs</h6>
+                    <h2 class="mb-0">{{ division_stats.ptrs }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Substation Cards -->
+    <h5 class="mb-3"><i class="bi bi-building me-2"></i>Select Substation to View Details</h5>
+    
+    <div class="row g-4">
+        {% for substation in substations %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card substation-card" onclick="navigateToSubstation('{{ substation.id }}')">
+                <div class="card-header" style="background: linear-gradient(135deg, #1e2b3a, #2c3e50);">
+                    <h5 class="mb-0 text-white">{{ substation.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="substation-details">
+                        <div class="detail-item">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Location: <strong>{{ substation.location }}</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="bi bi-cpu"></i>
+                            <span>Capacity: <strong>{{ substation.capacity }}</strong></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="bi bi-check-circle"></i>
+                            <span>Status: <strong class="text-success">{{ substation.status }}</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <span class="click-indicator">Click to view options →</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function displayCurrentDate() {
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date();
+            dateElement.textContent = today.toLocaleDateString('en-US', options);
+        }
+    }
+
+    function navigateToSubstation(substationId) {
+        window.location.href = `/substation/${substationId}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        displayCurrentDate();
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .substation-card {
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        height: 100%;
+    }
+    .substation-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .substation-details {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 0;
+        border-bottom: 1px dashed #e9ecef;
+    }
+    .detail-item i {
+        color: #0d6efd;
+        width: 20px;
+    }
+    .click-indicator {
+        color: #0d6efd;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}

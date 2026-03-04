@@ -1,0 +1,1985 @@
+<!-- templates/admin_overview.html -->
+<!-- STUNNING SKY BLUE VERSION - Beautiful Light Blue Cards -->
+{% extends "base.html" %}
+
+{% block title %}Administrative Overview - IMS Siliguri{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ========== BEAUTIFUL SKY BLUE COLOR PALETTE ========== */
+    :root {
+        /* Soft Background */
+        --bg-light: #f0f9ff;
+        --bg-card: #ffffff;
+        --bg-soft: #f8fafc;
+        
+        /* Beautiful Sky Blue Shades */
+        --sky-50: #f0f9ff;
+        --sky-100: #e0f2fe;
+        --sky-200: #bae6fd;
+        --sky-300: #7dd3fc;
+        --sky-400: #38bdf8;
+        --sky-500: #0ea5e9;
+        --sky-600: #0284c7;
+        --sky-700: #0369a1;
+        --sky-800: #075985;
+        --sky-900: #0c4a6e;
+        
+        /* Light Blue Variations for Cards */
+        --blue-light-1: #e6f3ff;
+        --blue-light-2: #d9ecff;
+        --blue-light-3: #cce5ff;
+        --blue-light-4: #bfdeff;
+        --blue-light-5: #b2d8ff;
+        
+        --blue-soft-1: #f0f7ff;
+        --blue-soft-2: #e6f0ff;
+        --blue-soft-3: #d9eaff;
+        --blue-soft-4: #cce3ff;
+        --blue-soft-5: #bfdcff;
+        
+        /* Gradient Blues */
+        --gradient-sky-1: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        --gradient-sky-2: linear-gradient(135deg, #bae6fd, #7dd3fc);
+        --gradient-sky-3: linear-gradient(135deg, #7dd3fc, #38bdf8);
+        --gradient-sky-4: linear-gradient(135deg, #38bdf8, #0ea5e9);
+        
+        /* Card Gradients */
+        --card-sky-light: linear-gradient(145deg, #ffffff, #f0f9ff);
+        --card-sky-medium: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+        --card-sky-deep: linear-gradient(145deg, #e0f2fe, #bae6fd);
+        
+        /* Line Colors - Sky Blues */
+        --line-sky-1: #7dd3fc;
+        --line-sky-2: #38bdf8;
+        --line-sky-3: #0ea5e9;
+        --line-sky-4: #0284c7;
+        
+        /* Shadows - Soft Blue */
+        --shadow-soft: 0 10px 30px -10px rgba(14, 165, 233, 0.1);
+        --shadow-medium: 0 20px 40px -15px rgba(14, 165, 233, 0.2);
+        --shadow-colored: 0 20px 40px -12px rgba(14, 165, 233, 0.3);
+        --shadow-card: 0 15px 35px -10px rgba(14, 165, 233, 0.08);
+        --shadow-hover: 0 30px 50px -15px rgba(14, 165, 233, 0.3);
+        
+        /* Line Thickness */
+        --line-thick: 8px;
+        --line-medium: 6px;
+        --line-thin: 4px;
+    }
+
+    body {
+        background: var(--bg-light);
+        background-image: radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.03) 0%, transparent 30%),
+                          radial-gradient(circle at 90% 70%, rgba(56, 189, 248, 0.03) 0%, transparent 30%);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        min-height: 100vh;
+    }
+
+    /* ========== FILTER SECTION - SKY BLUE THEME ========== */
+    .filters-section {
+        background: var(--bg-card);
+        border-radius: 32px;
+        padding: 28px;
+        margin-bottom: 28px;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .filters-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500));
+    }
+
+    .filters-title {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .filters-title i {
+        font-size: 28px;
+        color: white;
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        padding: 12px;
+        border-radius: 18px;
+        box-shadow: 0 10px 20px -8px rgba(14, 165, 233, 0.4);
+    }
+
+    .filters-title h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.5px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+
+    .filter-item {
+        background: var(--bg-soft);
+        border-radius: 24px;
+        padding: 16px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02), 0 4px 6px rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .filter-item:hover {
+        transform: translateY(-2px);
+        border-color: var(--sky-400);
+        box-shadow: 0 15px 30px -12px rgba(14, 165, 233, 0.2);
+        background: white;
+    }
+
+    .filter-item label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-item label i {
+        color: var(--sky-500);
+        font-size: 16px;
+    }
+
+    .filter-item select, .filter-item input {
+        width: 100%;
+        height: 48px;
+        border: 2px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 0 16px;
+        font-size: 15px;
+        color: #1e293b;
+        background: white;
+        transition: all 0.3s;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        font-weight: 500;
+    }
+
+    .filter-item select:focus, .filter-item input:focus {
+        outline: none;
+        border-color: var(--sky-500);
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+    }
+
+    .filter-item select:disabled {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        color: #94a3b8;
+        opacity: 0.7;
+    }
+
+    .date-input {
+        position: relative;
+    }
+
+    .date-input i {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--sky-500);
+        pointer-events: none;
+    }
+
+    /* Active Filters - Sky Blue Tags */
+    .active-filters {
+        background: var(--bg-soft);
+        border-radius: 50px;
+        padding: 16px 24px;
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .filter-badge {
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        border-radius: 40px;
+        padding: 10px 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 8px 15px -6px rgba(14, 165, 233, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.2s;
+    }
+
+    .filter-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 25px -8px rgba(14, 165, 233, 0.5);
+    }
+
+    .filter-badge i:first-child {
+        color: white;
+    }
+
+    .filter-badge .remove-filter {
+        color: rgba(255, 255, 255, 0.8);
+        cursor: pointer;
+    }
+
+    .filter-badge .remove-filter:hover {
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .clear-all-btn {
+        margin-left: auto;
+        color: var(--sky-600);
+        font-weight: 600;
+        text-decoration: none;
+        padding: 8px 20px;
+        border-radius: 30px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+
+    .clear-all-btn:hover {
+        background: var(--sky-500);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -8px rgba(14, 165, 233, 0.4);
+    }
+
+    /* Loading Animation */
+    .filter-loading {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        color: var(--sky-600);
+        font-weight: 500;
+    }
+
+    .filter-loading.active {
+        display: flex;
+    }
+
+    .spinner-sky {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 3px solid #e2e8f0;
+        border-top-color: var(--sky-400);
+        border-right-color: var(--sky-500);
+        border-bottom-color: var(--sky-600);
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ========== HIERARCHICAL VIEW - LIGHT BACKGROUND ========== */
+    .hierarchy-container {
+        background: var(--bg-card);
+        border-radius: 40px;
+        padding: 40px;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        margin-bottom: 30px;
+        overflow-x: auto;
+        position: relative;
+    }
+
+    .hierarchy-container::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500));
+        border-radius: 0 0 40px 40px;
+    }
+
+    .hierarchy-title {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 40px;
+        padding: 20px 30px;
+        background: var(--bg-soft);
+        border-radius: 60px;
+        border: 1px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .hierarchy-title i {
+        font-size: 32px;
+        color: white;
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        padding: 16px;
+        border-radius: 50%;
+        box-shadow: 0 10px 20px -8px rgba(14, 165, 233, 0.4);
+    }
+
+    .hierarchy-title h2 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.5px;
+    }
+
+    .title-badge {
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        padding: 8px 24px;
+        border-radius: 40px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 8px 15px -6px rgba(14, 165, 233, 0.4);
+        margin-left: auto;
+    }
+
+    /* Tree Container */
+    .tree-container {
+        position: relative;
+        padding: 30px 0;
+        min-width: min-content;
+    }
+
+    /* Beautiful Central Line */
+    .tree-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 6px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--sky-300), var(--sky-400), var(--sky-500), var(--sky-600));
+        opacity: 0.3;
+        border-radius: 3px;
+        box-shadow: 0 0 20px var(--sky-400);
+        animation: pulseLine 3s ease-in-out infinite;
+        z-index: 0;
+    }
+
+    @keyframes pulseLine {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+
+    /* ===== ZONE LEVEL - SKY BLUE CARD ===== */
+    .zone-node {
+        margin-bottom: 70px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        z-index: 10;
+    }
+
+    .zone-card {
+        background: linear-gradient(135deg, #ffffff, var(--sky-50));
+        padding: 50px 70px;
+        border-radius: 50px;
+        box-shadow: var(--shadow-card), 0 0 0 2px rgba(14, 165, 233, 0.2), 0 0 0 4px rgba(14, 165, 233, 0.05);
+        min-width: 600px;
+        position: relative;
+        z-index: 20;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(14, 165, 233, 0.2);
+        overflow: hidden;
+    }
+
+    .zone-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500));
+    }
+
+    .zone-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: var(--shadow-hover), 0 0 0 4px rgba(14, 165, 233, 0.3);
+    }
+
+    .zone-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .zone-header h2 {
+        margin: 0;
+        font-size: 40px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--sky-600), var(--sky-400));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -1px;
+    }
+
+    .zone-badge {
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        padding: 12px 28px;
+        border-radius: 50px;
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 8px 15px -6px rgba(14, 165, 233, 0.4);
+    }
+
+    .zone-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+    }
+
+    .zone-stat-card {
+        background: var(--sky-50);
+        padding: 25px;
+        border-radius: 30px;
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        transition: all 0.3s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+    }
+
+    .zone-stat-card:nth-child(2) { background: var(--sky-100); }
+    .zone-stat-card:nth-child(3) { background: var(--sky-50); }
+    .zone-stat-card:nth-child(4) { background: var(--sky-100); }
+
+    .zone-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.2);
+        border-color: var(--sky-400);
+    }
+
+    .zone-stat-label {
+        font-size: 13px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .zone-stat-value {
+        font-size: 36px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--sky-600), var(--sky-400));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+
+    .zone-stat-trend {
+        font-size: 13px;
+        margin-top: 8px;
+        color: var(--sky-600);
+        font-weight: 600;
+    }
+
+    /* Beautiful Thick Zone Connector */
+    .zone-connector {
+        position: absolute;
+        bottom: -45px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 8px;
+        height: 45px;
+        background: linear-gradient(180deg, var(--sky-400), var(--sky-500));
+        box-shadow: 0 0 20px var(--sky-400);
+        border-radius: 4px;
+        animation: glowLine 2s ease-in-out infinite;
+        z-index: 15;
+    }
+
+    @keyframes glowLine {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; box-shadow: 0 0 30px var(--sky-500); }
+    }
+
+    /* ===== REGIONS LEVEL ===== */
+    .regions-level {
+        display: flex;
+        gap: 60px;
+        justify-content: center;
+        margin-bottom: 70px;
+        position: relative;
+        padding-top: 55px;
+        flex-wrap: wrap;
+    }
+
+    /* Beautiful Horizontal Connector */
+    .region-horizontal-line {
+        position: absolute;
+        top: 0;
+        left: 80px;
+        right: 80px;
+        height: 8px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500), var(--sky-600));
+        border-radius: 4px;
+        box-shadow: 0 0 20px var(--sky-400);
+        opacity: 0.6;
+        animation: glowHorizontal 3s ease-in-out infinite;
+    }
+
+    .region-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        min-width: 380px;
+        z-index: 10;
+    }
+
+    /* Thick Vertical Connector */
+    .region-vertical-line {
+        position: absolute;
+        top: -55px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 8px;
+        height: 55px;
+        background: linear-gradient(180deg, var(--sky-400), var(--sky-500));
+        box-shadow: 0 0 20px var(--sky-400);
+        border-radius: 4px;
+        animation: glowVertical 2s ease-in-out infinite;
+    }
+
+    /* BEAUTIFUL SKY BLUE REGION CARDS */
+    .region-card {
+        padding: 35px;
+        border-radius: 40px;
+        width: 100%;
+        margin-bottom: 45px;
+        position: relative;
+        z-index: 20;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+        color: #1e293b;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .region-card[data-color="1"] { 
+        background: linear-gradient(135deg, var(--sky-100), var(--sky-200));
+        box-shadow: 0 25px 40px -15px rgba(14, 165, 233, 0.3);
+    }
+    .region-card[data-color="2"] { 
+        background: linear-gradient(135deg, var(--sky-200), var(--sky-300));
+        box-shadow: 0 25px 40px -15px rgba(14, 165, 233, 0.3);
+    }
+    .region-card[data-color="3"] { 
+        background: linear-gradient(135deg, var(--sky-300), var(--sky-400));
+        box-shadow: 0 25px 40px -15px rgba(14, 165, 233, 0.3);
+    }
+    .region-card[data-color="4"] { 
+        background: linear-gradient(135deg, var(--sky-200), var(--sky-300));
+        box-shadow: 0 25px 40px -15px rgba(14, 165, 233, 0.3);
+    }
+
+    .region-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.5) 0%, transparent 50%);
+        pointer-events: none;
+    }
+
+    .region-card:hover {
+        transform: translateY(-12px) scale(1.03);
+        box-shadow: 0 40px 60px -15px rgba(14, 165, 233, 0.4), 0 0 0 4px rgba(255, 255, 255, 0.5);
+        filter: brightness(1.02);
+    }
+
+    .region-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .region-header h3 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+        color: #0c4a6e;
+    }
+
+    .region-badge {
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(5px);
+        padding: 8px 20px;
+        border-radius: 40px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0369a1;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .region-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin: 25px 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .region-metric {
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(5px);
+        padding: 18px;
+        border-radius: 25px;
+        transition: all 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .region-metric:hover {
+        background: rgba(255, 255, 255, 0.7);
+        transform: translateY(-3px);
+    }
+
+    .region-metric .label {
+        font-size: 12px;
+        color: #0369a1;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+
+    .region-metric .value {
+        font-size: 22px;
+        font-weight: 700;
+        color: #0c4a6e;
+    }
+
+    /* ===== DIVISIONS LEVEL ===== */
+    .divisions-level {
+        display: flex;
+        gap: 30px;
+        justify-content: center;
+        position: relative;
+        flex-wrap: wrap;
+        width: 100%;
+        padding-top: 35px;
+    }
+
+    .division-horizontal-line {
+        position: absolute;
+        top: 0;
+        left: 30px;
+        right: 30px;
+        height: 6px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500));
+        border-radius: 3px;
+        box-shadow: 0 0 20px var(--sky-400);
+        opacity: 0.5;
+    }
+
+    .division-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        min-width: 300px;
+    }
+
+    .division-vertical-line {
+        position: absolute;
+        top: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 6px;
+        height: 35px;
+        background: linear-gradient(180deg, var(--sky-400), var(--sky-500));
+        box-shadow: 0 0 20px var(--sky-400);
+        border-radius: 3px;
+    }
+
+    /* BEAUTIFUL SKY BLUE DIVISION CARDS */
+    .division-card {
+        padding: 25px;
+        border-radius: 32px;
+        width: 100%;
+        transition: all 0.3s;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        color: #1e293b;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .division-card[data-color="1"] { 
+        background: linear-gradient(135deg, var(--sky-200), var(--sky-300));
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.3);
+    }
+    .division-card[data-color="2"] { 
+        background: linear-gradient(135deg, var(--sky-300), var(--sky-400));
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.3);
+    }
+    .division-card[data-color="3"] { 
+        background: linear-gradient(135deg, var(--sky-100), var(--sky-200));
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.3);
+    }
+    .division-card[data-color="4"] { 
+        background: linear-gradient(135deg, var(--sky-200), var(--sky-300));
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.3);
+    }
+
+    .division-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.5) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    .division-card:hover {
+        transform: translateY(-10px) scale(1.03);
+        box-shadow: 0 30px 40px -15px rgba(14, 165, 233, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.5);
+        filter: brightness(1.02);
+    }
+
+    .division-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .division-header h4 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #075985;
+    }
+
+    .division-stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .division-stat {
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(5px);
+        padding: 15px;
+        border-radius: 20px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .division-stat .stat-label {
+        font-size: 11px;
+        color: #0284c7;
+        text-transform: uppercase;
+    }
+
+    .division-stat .stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #075985;
+    }
+
+    /* ===== CENTERS LEVEL ===== */
+    .centers-level {
+        display: flex;
+        gap: 25px;
+        margin-top: 35px;
+        position: relative;
+        padding-top: 35px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .center-horizontal-line {
+        position: absolute;
+        top: 0;
+        left: 25px;
+        right: 25px;
+        height: 5px;
+        background: linear-gradient(90deg, var(--sky-300), var(--sky-400), var(--sky-500));
+        border-radius: 2.5px;
+        box-shadow: 0 0 15px var(--sky-400);
+        opacity: 0.5;
+    }
+
+    .center-item {
+        position: relative;
+        padding-top: 35px;
+        min-width: 260px;
+    }
+
+    .center-vertical-line {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 5px;
+        height: 35px;
+        background: linear-gradient(180deg, var(--sky-400), var(--sky-500));
+        box-shadow: 0 0 15px var(--sky-400);
+        border-radius: 2.5px;
+    }
+
+    /* BEAUTIFUL SKY BLUE CENTER CARDS */
+    .center-card {
+        padding: 22px;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #ffffff, var(--sky-50));
+        border: 2px solid;
+        transition: all 0.3s;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+    }
+
+    .center-card[data-color="1"] { border-color: var(--sky-300); }
+    .center-card[data-color="2"] { border-color: var(--sky-400); }
+    .center-card[data-color="3"] { border-color: var(--sky-300); }
+    .center-card[data-color="4"] { border-color: var(--sky-400); }
+
+    .center-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 6px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--sky-300), var(--sky-400));
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .center-card:hover {
+        transform: translateY(-8px) scale(1.03);
+        box-shadow: 0 25px 35px -12px rgba(14, 165, 233, 0.3);
+    }
+
+    .center-card:hover::before {
+        opacity: 1;
+    }
+
+    .center-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .center-header h5 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0c4a6e;
+    }
+
+    .center-type {
+        font-size: 11px;
+        background: linear-gradient(135deg, var(--sky-300), var(--sky-400));
+        color: white;
+        padding: 5px 15px;
+        border-radius: 30px;
+        font-weight: 600;
+        box-shadow: 0 4px 10px -4px rgba(14, 165, 233, 0.4);
+    }
+
+    .center-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .center-metric {
+        text-align: center;
+        background: var(--sky-50);
+        padding: 12px;
+        border-radius: 18px;
+        transition: all 0.2s;
+    }
+
+    .center-metric:hover {
+        background: white;
+        box-shadow: 0 4px 10px -4px rgba(14, 165, 233, 0.2);
+    }
+
+    .center-metric .metric-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #075985;
+    }
+
+    .center-metric .metric-label {
+        font-size: 10px;
+        color: #0284c7;
+        text-transform: uppercase;
+    }
+
+    /* Progress Bars */
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 4px;
+        margin: 15px 0 5px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--sky-400), var(--sky-500));
+        border-radius: 4px;
+        transition: width 0.5s ease;
+        box-shadow: 0 0 15px var(--sky-400);
+    }
+
+    /* ===== MODAL - SKY BLUE THEME ===== */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 50px;
+        max-width: 1000px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+        padding: 45px;
+        position: relative;
+        box-shadow: var(--shadow-hover), 0 0 0 4px rgba(14, 165, 233, 0.2);
+        animation: slideUp 0.4s ease;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 25px;
+        right: 25px;
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: white;
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 20px -8px rgba(14, 165, 233, 0.4);
+        transition: all 0.3s;
+        z-index: 10;
+    }
+
+    .modal-close:hover {
+        transform: rotate(90deg) scale(1.1);
+        box-shadow: 0 0 30px var(--sky-500);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        margin-bottom: 35px;
+        padding-bottom: 25px;
+        border-bottom: 2px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .modal-header-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        border-radius: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: white;
+        box-shadow: 0 15px 25px -10px rgba(14, 165, 233, 0.4);
+    }
+
+    .modal-header-text h2 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--sky-600), var(--sky-400));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .modal-header-text p {
+        margin: 8px 0 0;
+        color: #64748b;
+        font-size: 16px;
+    }
+
+    .modal-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+        margin: 35px 0;
+    }
+
+    .modal-stat-card {
+        background: var(--sky-50);
+        padding: 30px;
+        border-radius: 35px;
+        text-align: center;
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        transition: all 0.3s;
+    }
+
+    .modal-stat-card:nth-child(2) { background: var(--sky-100); }
+    .modal-stat-card:nth-child(3) { background: var(--sky-50); }
+
+    .modal-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 30px -12px rgba(14, 165, 233, 0.2);
+        border-color: var(--sky-400);
+    }
+
+    .modal-stat-card .stat-value {
+        font-size: 42px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--sky-600), var(--sky-400));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+
+    .modal-stat-card .stat-label {
+        font-size: 15px;
+        color: #64748b;
+        margin-top: 10px;
+    }
+
+    .modal-section {
+        background: var(--bg-soft);
+        border-radius: 35px;
+        padding: 30px;
+        margin: 25px 0;
+        border: 1px solid rgba(14, 165, 233, 0.1);
+    }
+
+    .modal-section h3 {
+        margin: 0 0 20px 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modal-section h3 i {
+        color: var(--sky-500);
+    }
+
+    .modal-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .modal-table th {
+        text-align: left;
+        padding: 15px;
+        background: white;
+        font-weight: 600;
+        color: #64748b;
+        font-size: 14px;
+        text-transform: uppercase;
+        border-bottom: 2px solid rgba(14, 165, 233, 0.2);
+    }
+
+    .modal-table td {
+        padding: 15px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        color: #1e293b;
+    }
+
+    .modal-table tr:hover td {
+        background: var(--sky-50);
+        cursor: pointer;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 15px 30px;
+        border-radius: 50px;
+        background: linear-gradient(135deg, var(--sky-400), var(--sky-500));
+        box-shadow: 0 10px 20px -8px rgba(14, 165, 233, 0.4);
+        transition: all 0.3s;
+        margin-bottom: 25px;
+    }
+
+    .back-button:hover {
+        transform: translateX(-8px);
+        box-shadow: 0 0 30px var(--sky-500);
+    }
+
+    /* Empty State */
+    .empty-state-enhanced {
+        text-align: center;
+        padding: 100px;
+        background: white;
+        border-radius: 60px;
+        border: 2px dashed var(--sky-300);
+    }
+
+    .empty-state-enhanced i {
+        font-size: 100px;
+        color: var(--sky-300);
+        margin-bottom: 30px;
+    }
+
+    .empty-state-enhanced h3 {
+        font-size: 32px;
+        color: #1e293b;
+        margin-bottom: 15px;
+    }
+
+    .empty-state-enhanced p {
+        color: #64748b;
+        font-size: 18px;
+    }
+
+    /* Click Hint */
+    .click-hint {
+        text-align: center;
+        margin-top: 35px;
+        color: #64748b;
+        font-size: 15px;
+        font-weight: 500;
+    }
+
+    .click-hint i {
+        color: var(--sky-500);
+        margin-right: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .zone-card { min-width: 500px; padding: 40px 50px; }
+        .region-item { min-width: 320px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <!-- ========== FILTER SECTION ========== -->
+    <div class="filters-section">
+        <div class="filters-title">
+            <i class="bi bi-funnel"></i>
+            <h3>Organizational Filter Control</h3>
+            <div class="filter-loading" id="filterLoading">
+                <div class="spinner-sky"></div>
+                <span>Syncing data...</span>
+            </div>
+        </div>
+
+        <div class="filter-grid">
+            <div class="filter-item">
+                <label><i class="bi bi-globe2"></i> Zone</label>
+                <select id="zoneFilter" class="filter-select">
+                    <option value="">All Zones</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="bi bi-pin-map"></i> Region</label>
+                <select id="regionFilter" class="filter-select" disabled>
+                    <option value="">All Regions</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="bi bi-diagram-3"></i> Division</label>
+                <select id="divisionFilter" class="filter-select" disabled>
+                    <option value="">All Divisions</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="bi bi-building"></i> Center</label>
+                <select id="centerFilter" class="filter-select" disabled>
+                    <option value="">All Centers</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label><i class="bi bi-calendar"></i> Period</label>
+                <div class="date-input">
+                    <input type="month" id="asOnDate" value="2026-03">
+                    <i class="bi bi-calendar3"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Filters Tags -->
+        <div class="active-filters" id="activeFilters" style="display: none;">
+            <span class="filter-badge" id="zoneBadge">
+                <i class="bi bi-globe2"></i> Zone: <span id="zoneBadgeText"></span>
+                <i class="bi bi-x-circle remove-filter" onclick="clearFilter('zone')"></i>
+            </span>
+            <span class="filter-badge" id="regionBadge">
+                <i class="bi bi-pin-map"></i> Region: <span id="regionBadgeText"></span>
+                <i class="bi bi-x-circle remove-filter" onclick="clearFilter('region')"></i>
+            </span>
+            <span class="filter-badge" id="divisionBadge">
+                <i class="bi bi-diagram-3"></i> Division: <span id="divisionBadgeText"></span>
+                <i class="bi bi-x-circle remove-filter" onclick="clearFilter('division')"></i>
+            </span>
+            <span class="filter-badge" id="centerBadge">
+                <i class="bi bi-building"></i> Center: <span id="centerBadgeText"></span>
+                <i class="bi bi-x-circle remove-filter" onclick="clearFilter('center')"></i>
+            </span>
+            <a href="#" class="clear-all-btn" onclick="clearAllFilters()">Clear All Filters</a>
+        </div>
+    </div>
+
+    <!-- ========== HIERARCHICAL VIEW ========== -->
+    <div class="hierarchy-container">
+        <div class="hierarchy-title">
+            <i class="bi bi-diagram-3"></i>
+            <h2>Siliguri Zone - Organizational Structure</h2>
+            <span class="title-badge" id="hierarchyCount">Loading...</span>
+        </div>
+
+        <div id="hierarchyLoading" class="filter-loading" style="display: none; justify-content: center; padding: 60px;">
+            <div class="spinner-sky"></div>
+            <span style="margin-left: 15px;">Building organizational hierarchy...</span>
+        </div>
+
+        <div id="hierarchyContent" class="tree-container">
+            <!-- Dynamically populated -->
+        </div>
+
+        <div class="click-hint">
+            <i class="bi bi-info-circle"></i> Click any card for detailed information
+        </div>
+    </div>
+</div>
+
+<!-- ========== MODAL FOR DETAILS ========== -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-content" id="modalContent">
+        <!-- Populated dynamically -->
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ========== API ENDPOINTS ==========
+    const API = {
+        ZONES: '/api/zones',
+        REGIONS: '/api/regions',
+        DIVISIONS: '/api/divisions',
+        CENTERS: '/api/centers',
+        FILTER_OPTIONS: '/api/filter-options',
+        OFFICE_DETAILS: '/api/office-details'
+    };
+
+    // ========== STATE MANAGEMENT ==========
+    let appState = {
+        filters: {
+            zone: '',
+            region: '',
+            division: '',
+            center: '',
+            date: '2026-03'
+        },
+        data: {
+            zones: [],
+            regions: [],
+            divisions: [],
+            centers: []
+        },
+        selectedOffice: null
+    };
+
+    // ========== INITIALIZATION ==========
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFilterOptions();
+        setupFilterListeners();
+        loadHierarchyData();
+    });
+
+    // ========== API CALLS ==========
+    async function fetchAPI(endpoint, params = {}) {
+        const url = new URL(endpoint, window.location.origin);
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error(`API Error (${endpoint}):`, error);
+            showError(`Failed to load data: ${error.message}`);
+            return null;
+        }
+    }
+
+    async function loadFilterOptions() {
+        showLoading('filters');
+        const data = await fetchAPI(API.FILTER_OPTIONS);
+        if (data && data.zones) {
+            populateFilters(data);
+        }
+        hideLoading('filters');
+    }
+
+    async function loadHierarchyData() {
+        showLoading('hierarchy');
+        
+        const [zones, regions, divisions, centers] = await Promise.all([
+            fetchAPI(API.ZONES),
+            fetchAPI(API.REGIONS),
+            fetchAPI(API.DIVISIONS),
+            fetchAPI(API.CENTERS)
+        ]);
+        
+        if (zones) appState.data.zones = zones;
+        if (regions) appState.data.regions = regions;
+        if (divisions) appState.data.divisions = divisions;
+        if (centers) appState.data.centers = centers;
+        
+        renderHierarchy();
+        hideLoading('hierarchy');
+    }
+
+    // ========== FILTER FUNCTIONS ==========
+    function populateFilters(data) {
+        const zoneSelect = document.getElementById('zoneFilter');
+        zoneSelect.innerHTML = '<option value="">All Zones</option>';
+        
+        if (data.zones) {
+            data.zones.forEach(zone => {
+                const option = document.createElement('option');
+                option.value = zone._id || zone.id || zone.name;
+                option.textContent = zone.name;
+                zoneSelect.appendChild(option);
+            });
+        }
+    }
+
+    function setupFilterListeners() {
+        document.getElementById('zoneFilter').addEventListener('change', function(e) {
+            appState.filters.zone = e.target.value;
+            appState.filters.region = '';
+            appState.filters.division = '';
+            appState.filters.center = '';
+            
+            updateRegionFilter(e.target.value);
+            updateActiveFilters();
+            renderHierarchy();
+        });
+
+        document.getElementById('regionFilter').addEventListener('change', function(e) {
+            appState.filters.region = e.target.value;
+            appState.filters.division = '';
+            appState.filters.center = '';
+            
+            updateDivisionFilter(e.target.value);
+            updateActiveFilters();
+            renderHierarchy();
+        });
+
+        document.getElementById('divisionFilter').addEventListener('change', function(e) {
+            appState.filters.division = e.target.value;
+            appState.filters.center = '';
+            
+            updateCenterFilter(e.target.value);
+            updateActiveFilters();
+            renderHierarchy();
+        });
+
+        document.getElementById('centerFilter').addEventListener('change', function(e) {
+            appState.filters.center = e.target.value;
+            updateActiveFilters();
+            renderHierarchy();
+        });
+    }
+
+    async function updateRegionFilter(zoneId) {
+        const regionSelect = document.getElementById('regionFilter');
+        regionSelect.innerHTML = '<option value="">All Regions</option>';
+        regionSelect.disabled = !zoneId;
+        
+        if (!zoneId) return;
+        
+        const regions = appState.data.regions || [];
+        regions.forEach(region => {
+            const option = document.createElement('option');
+            option.value = region.name || region._id;
+            option.textContent = region.name || region._id;
+            regionSelect.appendChild(option);
+        });
+    }
+
+    async function updateDivisionFilter(regionName) {
+        const divisionSelect = document.getElementById('divisionFilter');
+        divisionSelect.innerHTML = '<option value="">All Divisions</option>';
+        divisionSelect.disabled = !regionName;
+        
+        if (!regionName) return;
+        
+        const divisions = (appState.data.divisions || []).filter(d => d.region === regionName);
+        divisions.forEach(division => {
+            const option = document.createElement('option');
+            option.value = division.name;
+            option.textContent = division.name;
+            divisionSelect.appendChild(option);
+        });
+    }
+
+    async function updateCenterFilter(divisionName) {
+        const centerSelect = document.getElementById('centerFilter');
+        centerSelect.innerHTML = '<option value="">All Centers</option>';
+        centerSelect.disabled = !divisionName;
+        
+        if (!divisionName) return;
+        
+        const centers = (appState.data.centers || []).filter(c => c.division === divisionName);
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.name;
+            option.textContent = center.name;
+            centerSelect.appendChild(option);
+        });
+    }
+
+    function updateActiveFilters() {
+        const activeFiltersDiv = document.getElementById('activeFilters');
+        let hasActiveFilters = false;
+
+        if (appState.filters.zone) {
+            document.getElementById('zoneBadgeText').textContent = appState.filters.zone;
+            document.getElementById('zoneBadge').style.display = 'inline-flex';
+            hasActiveFilters = true;
+        } else {
+            document.getElementById('zoneBadge').style.display = 'none';
+        }
+
+        if (appState.filters.region) {
+            document.getElementById('regionBadgeText').textContent = appState.filters.region;
+            document.getElementById('regionBadge').style.display = 'inline-flex';
+            hasActiveFilters = true;
+        } else {
+            document.getElementById('regionBadge').style.display = 'none';
+        }
+
+        if (appState.filters.division) {
+            document.getElementById('divisionBadgeText').textContent = appState.filters.division;
+            document.getElementById('divisionBadge').style.display = 'inline-flex';
+            hasActiveFilters = true;
+        } else {
+            document.getElementById('divisionBadge').style.display = 'none';
+        }
+
+        if (appState.filters.center) {
+            document.getElementById('centerBadgeText').textContent = appState.filters.center;
+            document.getElementById('centerBadge').style.display = 'inline-flex';
+            hasActiveFilters = true;
+        } else {
+            document.getElementById('centerBadge').style.display = 'none';
+        }
+
+        activeFiltersDiv.style.display = hasActiveFilters ? 'flex' : 'none';
+    }
+
+    function clearFilter(filterType) {
+        switch(filterType) {
+            case 'zone':
+                document.getElementById('zoneFilter').value = '';
+                appState.filters.zone = '';
+                document.getElementById('regionFilter').innerHTML = '<option value="">All Regions</option>';
+                document.getElementById('regionFilter').disabled = true;
+                document.getElementById('divisionFilter').innerHTML = '<option value="">All Divisions</option>';
+                document.getElementById('divisionFilter').disabled = true;
+                document.getElementById('centerFilter').innerHTML = '<option value="">All Centers</option>';
+                document.getElementById('centerFilter').disabled = true;
+                appState.filters.region = '';
+                appState.filters.division = '';
+                appState.filters.center = '';
+                break;
+            case 'region':
+                document.getElementById('regionFilter').value = '';
+                appState.filters.region = '';
+                document.getElementById('divisionFilter').innerHTML = '<option value="">All Divisions</option>';
+                document.getElementById('divisionFilter').disabled = true;
+                document.getElementById('centerFilter').innerHTML = '<option value="">All Centers</option>';
+                document.getElementById('centerFilter').disabled = true;
+                appState.filters.division = '';
+                appState.filters.center = '';
+                break;
+            case 'division':
+                document.getElementById('divisionFilter').value = '';
+                appState.filters.division = '';
+                document.getElementById('centerFilter').innerHTML = '<option value="">All Centers</option>';
+                document.getElementById('centerFilter').disabled = true;
+                appState.filters.center = '';
+                break;
+            case 'center':
+                document.getElementById('centerFilter').value = '';
+                appState.filters.center = '';
+                break;
+        }
+        updateActiveFilters();
+        renderHierarchy();
+    }
+
+    function clearAllFilters() {
+        document.getElementById('zoneFilter').value = '';
+        document.getElementById('regionFilter').innerHTML = '<option value="">All Regions</option>';
+        document.getElementById('regionFilter').disabled = true;
+        document.getElementById('divisionFilter').innerHTML = '<option value="">All Divisions</option>';
+        document.getElementById('divisionFilter').disabled = true;
+        document.getElementById('centerFilter').innerHTML = '<option value="">All Centers</option>';
+        document.getElementById('centerFilter').disabled = true;
+        
+        appState.filters = {
+            zone: '',
+            region: '',
+            division: '',
+            center: '',
+            date: '2026-03'
+        };
+        
+        updateActiveFilters();
+        renderHierarchy();
+    }
+
+    // ========== RENDER HIERARCHY ==========
+    function renderHierarchy() {
+        const container = document.getElementById('hierarchyContent');
+        
+        if (!appState.data.centers || appState.data.centers.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state-enhanced">
+                    <i class="bi bi-database"></i>
+                    <h3>No Data Available</h3>
+                    <p>Please add centers to MongoDB to visualize the hierarchy</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Apply filters
+        let filteredCenters = [...appState.data.centers];
+        
+        if (appState.filters.region) {
+            filteredCenters = filteredCenters.filter(c => c.region === appState.filters.region);
+        }
+        if (appState.filters.division) {
+            filteredCenters = filteredCenters.filter(c => c.division === appState.filters.division);
+        }
+        if (appState.filters.center) {
+            filteredCenters = filteredCenters.filter(c => c.name === appState.filters.center);
+        }
+
+        // Calculate aggregates
+        const totalConsumers = filteredCenters.reduce((sum, c) => sum + (c.total_consumers || 0), 0);
+        const totalCenters = filteredCenters.length;
+        const uniqueRegions = [...new Set(filteredCenters.map(c => c.region).filter(Boolean))];
+        const uniqueDivisions = [...new Set(filteredCenters.map(c => c.division).filter(Boolean))];
+        
+        let html = '<div class="tree-container">';
+        
+        // ===== ZONE LEVEL =====
+        html += `
+            <div class="zone-node">
+                <div class="zone-card" onclick="showDetails('zone', 'Siliguri Zone')">
+                    <div class="zone-header">
+                        <h2>Siliguri Zone</h2>
+                        <span class="zone-badge">Administrative HQ</span>
+                    </div>
+                    <div class="zone-stats-grid">
+                        <div class="zone-stat-card">
+                            <div class="zone-stat-label">Regions</div>
+                            <div class="zone-stat-value">${uniqueRegions.length}</div>
+                            <div class="zone-stat-trend">↑ 100% coverage</div>
+                        </div>
+                        <div class="zone-stat-card">
+                            <div class="zone-stat-label">Divisions</div>
+                            <div class="zone-stat-value">${uniqueDivisions.length}</div>
+                            <div class="zone-stat-trend">↑ ${uniqueDivisions.length} active</div>
+                        </div>
+                        <div class="zone-stat-card">
+                            <div class="zone-stat-label">Centers</div>
+                            <div class="zone-stat-value">${totalCenters}</div>
+                            <div class="zone-stat-trend">⚡ Operational</div>
+                        </div>
+                        <div class="zone-stat-card">
+                            <div class="zone-stat-label">Consumers</div>
+                            <div class="zone-stat-value">${formatNumber(totalConsumers)}</div>
+                            <div class="zone-stat-trend">👥 Served</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: 85%"></div>
+                    </div>
+                </div>
+                <div class="zone-connector"></div>
+            </div>
+        `;
+
+        // ===== REGIONS LEVEL =====
+        if (uniqueRegions.length > 0) {
+            html += '<div class="regions-level"><div class="region-horizontal-line"></div>';
+            
+            uniqueRegions.forEach((regionName, index) => {
+                const regionCenters = filteredCenters.filter(c => c.region === regionName);
+                const regionDivisions = [...new Set(regionCenters.map(c => c.division).filter(Boolean))];
+                const regionConsumers = regionCenters.reduce((sum, c) => sum + (c.total_consumers || 0), 0);
+                const regionDTR = regionCenters.reduce((sum, c) => sum + (c.total_dtr || 0), 0);
+                
+                html += `
+                    <div class="region-item">
+                        <div class="region-vertical-line"></div>
+                        <div class="region-card" data-color="${(index % 4) + 1}" onclick="showDetails('region', '${regionName}')">
+                            <div class="region-header">
+                                <h3>${regionName}</h3>
+                                <span class="region-badge">${regionCenters.length} Centers</span>
+                            </div>
+                            <div class="region-metrics-grid">
+                                <div class="region-metric">
+                                    <div class="label">Divisions</div>
+                                    <div class="value">${regionDivisions.length}</div>
+                                </div>
+                                <div class="region-metric">
+                                    <div class="label">Consumers</div>
+                                    <div class="value">${formatNumber(regionConsumers)}</div>
+                                </div>
+                                <div class="region-metric">
+                                    <div class="label">DTRs</div>
+                                    <div class="value">${formatNumber(regionDTR)}</div>
+                                </div>
+                                <div class="region-metric">
+                                    <div class="label">Staff</div>
+                                    <div class="value">${regionCenters.reduce((sum, c) => sum + (c.total_staff || 0), 0)}</div>
+                                </div>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: ${Math.min(100, (regionConsumers/totalConsumers)*100)}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="divisions-level">
+                            <div class="division-horizontal-line"></div>
+                `;
+                
+                // Divisions
+                regionDivisions.forEach(divisionName => {
+                    const divisionCenters = regionCenters.filter(c => c.division === divisionName);
+                    const divisionConsumers = divisionCenters.reduce((sum, c) => sum + (c.total_consumers || 0), 0);
+                    
+                    html += `
+                        <div class="division-item">
+                            <div class="division-vertical-line"></div>
+                            <div class="division-card" data-color="${(index % 4) + 1}" onclick="showDetails('division', '${divisionName}')">
+                                <div class="division-header">
+                                    <h4>${divisionName}</h4>
+                                    <span class="region-badge">${divisionCenters.length} Ctr</span>
+                                </div>
+                                <div class="division-stats-grid">
+                                    <div class="division-stat">
+                                        <div class="stat-label">Consumers</div>
+                                        <div class="stat-value">${formatNumber(divisionConsumers)}</div>
+                                    </div>
+                                    <div class="division-stat">
+                                        <div class="stat-label">DTRs</div>
+                                        <div class="stat-value">${divisionCenters.reduce((sum, c) => sum + (c.total_dtr || 0), 0)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="centers-level">
+                                <div class="center-horizontal-line"></div>
+                    `;
+                    
+                    // Centers
+                    divisionCenters.forEach(center => {
+                        const lossReduction = ((center.atc_loss_last_month || 0) - (center.atc_loss_running_month || 0)).toFixed(1);
+                        
+                        html += `
+                            <div class="center-item">
+                                <div class="center-vertical-line"></div>
+                                <div class="center-card" data-color="${(index % 4) + 1}" onclick="showDetails('center', '${center.name}')">
+                                    <div class="center-header">
+                                        <h5>${center.name}</h5>
+                                        <span class="center-type">${center.ccc_type || 'CCC'}</span>
+                                    </div>
+                                    <div class="center-metrics">
+                                        <div class="center-metric">
+                                            <div class="metric-value">${formatNumber(center.total_consumers || 0)}</div>
+                                            <div class="metric-label">Consumers</div>
+                                        </div>
+                                        <div class="center-metric">
+                                            <div class="metric-value">${center.total_staff || 0}</div>
+                                            <div class="metric-label">Staff</div>
+                                        </div>
+                                        <div class="center-metric">
+                                            <div class="metric-value">${center.total_dtr || 0}</div>
+                                            <div class="metric-label">DTRs</div>
+                                        </div>
+                                        <div class="center-metric">
+                                            <div class="metric-value" style="color: ${lossReduction >= 0 ? '#10b981' : '#ef4444'}">
+                                                ${lossReduction}%
+                                            </div>
+                                            <div class="metric-label">Loss Δ</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        
+        container.innerHTML = html;
+        document.getElementById('hierarchyCount').textContent = 
+            `${uniqueRegions.length} Regions • ${uniqueDivisions.length} Divisions • ${filteredCenters.length} Centers`;
+    }
+
+    // ========== DETAILS MODAL ==========
+    async function showDetails(type, id) {
+        showLoading('details');
+        const data = await fetchAPI(API.OFFICE_DETAILS, { type, id });
+        
+        if (!data) {
+            hideLoading('details');
+            return;
+        }
+        
+        const modal = document.getElementById('detailModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        let icon = 'building';
+        if (type === 'zone') icon = 'globe2';
+        else if (type === 'region') icon = 'pin-map';
+        else if (type === 'division') icon = 'diagram-3';
+        else if (type === 'center') icon = 'building';
+        
+        let html = `
+            <button class="modal-close" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+            <div class="back-button" onclick="closeModal()">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </div>
+            
+            <div class="modal-header">
+                <div class="modal-header-icon">
+                    <i class="bi bi-${icon}"></i>
+                </div>
+                <div class="modal-header-text">
+                    <h2>${data.name || id}</h2>
+                    <p>${type.charAt(0).toUpperCase() + type.slice(1)} Details • Last updated: ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+            
+            <div class="modal-stats-grid">
+                <div class="modal-stat-card">
+                    <div class="stat-value">${data.total_consumers?.toLocaleString() || data.total_consumers || 0}</div>
+                    <div class="stat-label">Total Consumers</div>
+                </div>
+                <div class="modal-stat-card">
+                    <div class="stat-value">${data.total_staff || data.staff || 0}</div>
+                    <div class="stat-label">Staff Members</div>
+                </div>
+                <div class="modal-stat-card">
+                    <div class="stat-value">${data.total_dtr || data.dtr || 0}</div>
+                    <div class="stat-label">DTR Units</div>
+                </div>
+            </div>
+        `;
+        
+        if (data.centers && data.centers.length > 0) {
+            html += `
+                <div class="modal-section">
+                    <h3><i class="bi bi-building"></i> Centers Under ${data.name}</h3>
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>Center Name</th>
+                                <th>Consumers</th>
+                                <th>Staff</th>
+                                <th>DTRs</th>
+                                <th>AT&C Loss</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.centers.forEach(center => {
+                html += `
+                    <tr onclick="showDetails('center', '${center.name}')">
+                        <td><strong>${center.name}</strong></td>
+                        <td>${center.total_consumers?.toLocaleString() || 0}</td>
+                        <td>${center.total_staff || 0}</td>
+                        <td>${center.total_dtr || 0}</td>
+                        <td style="color: ${center.atc_loss_running_month < center.atc_loss_last_month ? '#10b981' : '#ef4444'}">
+                            ${center.atc_loss_running_month || 0}% (prev: ${center.atc_loss_last_month || 0}%)
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table></div>`;
+        }
+        
+        html += `
+            <div class="modal-section">
+                <h3><i class="bi bi-graph-up"></i> Performance Metrics</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h4 style="margin: 0 0 15px 0; color: #1e293b;">AT&C Loss %</h4>
+                        <div style="background: #f8fafc; padding: 20px; border-radius: 20px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>Last Month:</span>
+                                <span style="font-weight: 700;">${data.atc_loss_last_month || 0}%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Current Month:</span>
+                                <span style="font-weight: 700; color: ${(data.atc_loss_running_month || 0) < (data.atc_loss_last_month || 0) ? '#10b981' : '#ef4444'}">
+                                    ${data.atc_loss_running_month || 0}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0 0 15px 0; color: #1e293b;">T&D Loss %</h4>
+                        <div style="background: #f8fafc; padding: 20px; border-radius: 20px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span>Last Month:</span>
+                                <span style="font-weight: 700;">${data.td_loss_last_month || 0}%</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Current Month:</span>
+                                <span style="font-weight: 700; color: ${(data.td_loss_running_month || 0) < (data.td_loss_last_month || 0) ? '#10b981' : '#ef4444'}">
+                                    ${data.td_loss_running_month || 0}%
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modalContent.innerHTML = html;
+        modal.classList.add('active');
+        hideLoading('details');
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').classList.remove('active');
+    }
+
+    function formatNumber(num) {
+        if (!num) return '0';
+        if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+
+    function showLoading(type) {
+        if (type === 'filters') {
+            document.getElementById('filterLoading').classList.add('active');
+        } else if (type === 'hierarchy') {
+            document.getElementById('hierarchyLoading').style.display = 'flex';
+            document.getElementById('hierarchyContent').style.opacity = '0.5';
+        }
+    }
+
+    function hideLoading(type) {
+        if (type === 'filters') {
+            document.getElementById('filterLoading').classList.remove('active');
+        } else if (type === 'hierarchy') {
+            document.getElementById('hierarchyLoading').style.display = 'none';
+            document.getElementById('hierarchyContent').style.opacity = '1';
+        }
+    }
+
+    function showError(message) {
+        console.error(message);
+        alert(message);
+    }
+</script>
+{% endblock %}

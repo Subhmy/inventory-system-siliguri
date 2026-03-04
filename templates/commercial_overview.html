@@ -1,0 +1,252 @@
+<!-- templates/commercial_overview.html -->
+<!-- Commercial Dashboard - Financial, Billing & Collection Metrics -->
+{% extends "base.html" %}
+
+{% block title %}Commercial Overview - IMS Siliguri{% endblock %}
+
+{% block content %}
+    <div class="commercial-dashboard">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Input (MTD)</span>
+                    <span class="kpi-value" id="inputMtd">185.6 MU</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Demand (MTD)</span>
+                    <span class="kpi-value" id="demandMtd">168.2 MU</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%);">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Collection (MTD)</span>
+                    <span class="kpi-value" id="collectionMtd">₹42.5 Cr</span>
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Collection Eff</span>
+                    <span class="kpi-value" id="collectionEff">94.2%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameter Checkboxes -->
+        <div class="parameter-section">
+            <span class="parameter-label">Display Parameters:</span>
+            <div class="parameter-checkboxes" id="parameterCheckboxes">
+                <label class="checkbox-item">
+                    <input type="checkbox" value="input" checked> Input
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" value="demand" checked> Demand
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" value="collection" checked> Collection
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" value="atc_loss" checked> AT&C Loss
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" value="td_loss"> T&D Loss
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" value="coll_eff"> Collection Efficiency
+                </label>
+            </div>
+        </div>
+
+        <!-- Commercial Data Table -->
+        <div class="section-title">
+            <i class="bi bi-table"></i>
+            <h2>Division-wise Commercial Performance</h2>
+            <span class="title-badge">FY 2025-26</span>
+        </div>
+
+        <div class="table-container">
+            <table class="commercial-table" id="commercialTable">
+                <thead>
+                    <tr>
+                        <th>Sl.</th>
+                        <th>Unit</th>
+                        <th>Jan 2026</th>
+                        <th>Feb 2026</th>
+                        <th>Mar 2026</th>
+                        <th>Change (MoM)</th>
+                        <th>Target</th>
+                        <th>vs Target</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="commercialTableBody">
+                    <!-- Data will be populated from database -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards" id="summaryCards">
+            <!-- Will be populated from database -->
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCommercialData();
+        setupParameterListeners();
+    });
+
+    function loadCommercialData() {
+        // This will fetch from database API
+        // For now, using sample data
+        const data = {
+            kpi: {
+                input: 185.6,
+                demand: 168.2,
+                collection: 42.5,
+                collectionEff: 94.2
+            },
+            divisions: [
+                { sl: 1, name: 'Balurghat Div Total', jan: 27.66, feb: 26.84, mar: '-', target: 25.22, status: 'above' },
+                { sl: 2, name: 'Buniadpur Div Total', jan: 31.31, feb: 30.45, mar: '-', target: 28.07, status: 'above' },
+                { sl: 3, name: 'Chanchal Div Total', jan: 32.89, feb: 31.92, mar: '-', target: 31.07, status: 'above' },
+                { sl: 4, name: 'Gazole Div Total', jan: 28.56, feb: 27.71, mar: '-', target: 26.82, status: 'above' },
+                { sl: 5, name: 'Islampur Div Total', jan: 35.48, feb: 34.42, mar: '-', target: 31.46, status: 'above' },
+                { sl: 6, name: 'Malda Div Total', jan: 19.69, feb: 20.15, mar: '-', target: 22.08, status: 'below' },
+                { sl: 7, name: 'North Malda Div Total', jan: '-', feb: '-', mar: '-', target: '-', status: 'na' },
+                { sl: 8, name: 'Raiganj Div Total', jan: 24.58, feb: 23.89, mar: '-', target: 23.91, status: 'above' },
+                { sl: 9, name: 'South Malda Div Total', jan: '-', feb: '-', mar: '-', target: '-', status: 'na' }
+            ],
+            summary: {
+                atcLoss: 18.5,
+                atcLossChange: 2.1,
+                tdLoss: 12.3,
+                tdLossChange: -1.2,
+                collectionEff: 94.2,
+                collectionEffChange: 3.1,
+                outstanding: 8.2,
+                outstandingChange: 0.5
+            }
+        };
+
+        // Update KPI values
+        document.getElementById('inputMtd').textContent = data.kpi.input + ' MU';
+        document.getElementById('demandMtd').textContent = data.kpi.demand + ' MU';
+        document.getElementById('collectionMtd').textContent = '₹' + data.kpi.collection + ' Cr';
+        document.getElementById('collectionEff').textContent = data.kpi.collectionEff + '%';
+
+        // Render table
+        renderCommercialTable(data.divisions);
+
+        // Render summary cards
+        renderSummaryCards(data.summary);
+    }
+
+    function renderCommercialTable(divisions) {
+        const tbody = document.getElementById('commercialTableBody');
+        let html = '';
+
+        divisions.forEach(div => {
+            const change = div.jan !== '-' && div.feb !== '-' ? 
+                ((div.jan - div.feb) / div.feb * 100).toFixed(1) : '-';
+            const changeClass = change !== '-' ? (change > 0 ? 'positive' : 'negative') : '';
+            
+            const vsTarget = div.target !== '-' && div.jan !== '-' ?
+                (div.jan - div.target).toFixed(2) : '-';
+            const targetClass = vsTarget !== '-' ? (vsTarget > 0 ? 'positive' : 'negative') : '';
+
+            let statusBadge = '';
+            if (div.status === 'above') {
+                statusBadge = '<span class="badge bg-success">Above Target</span>';
+            } else if (div.status === 'below') {
+                statusBadge = '<span class="badge bg-danger">Below Target</span>';
+            } else {
+                statusBadge = '<span class="badge bg-secondary">No Data</span>';
+            }
+
+            html += `
+                <tr>
+                    <td>${div.sl}</td>
+                    <td><strong>${div.name}</strong></td>
+                    <td>${div.jan}</td>
+                    <td>${div.feb}</td>
+                    <td>${div.mar}</td>
+                    <td class="${changeClass}">${change !== '-' ? change + '%' : '-'}</td>
+                    <td>${div.target}</td>
+                    <td class="${targetClass}">${vsTarget !== '-' ? vsTarget : '-'}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function renderSummaryCards(summary) {
+        const container = document.getElementById('summaryCards');
+        
+        container.innerHTML = `
+            <div class="summary-card">
+                <div class="summary-title">AT&C Loss</div>
+                <div class="summary-value">${summary.atcLoss}%</div>
+                <div class="summary-trend ${summary.atcLossChange > 0 ? 'negative' : 'positive'}">
+                    ${summary.atcLossChange > 0 ? '↑' : '↓'} ${Math.abs(summary.atcLossChange)}%
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">T&D Loss</div>
+                <div class="summary-value">${summary.tdLoss}%</div>
+                <div class="summary-trend ${summary.tdLossChange > 0 ? 'negative' : 'positive'}">
+                    ${summary.tdLossChange > 0 ? '↑' : '↓'} ${Math.abs(summary.tdLossChange)}%
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">Collection Efficiency</div>
+                <div class="summary-value">${summary.collectionEff}%</div>
+                <div class="summary-trend ${summary.collectionEffChange > 0 ? 'positive' : 'negative'}">
+                    ${summary.collectionEffChange > 0 ? '↑' : '↓'} ${Math.abs(summary.collectionEffChange)}%
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">Outstanding Dues</div>
+                <div class="summary-value">₹${summary.outstanding} Cr</div>
+                <div class="summary-trend ${summary.outstandingChange > 0 ? 'negative' : 'positive'}">
+                    ${summary.outstandingChange > 0 ? '↑' : '↓'} ${Math.abs(summary.outstandingChange)}%
+                </div>
+            </div>
+        `;
+    }
+
+    function setupParameterListeners() {
+        const checkboxes = document.querySelectorAll('.checkbox-item input');
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                // This will update which columns are shown in table
+                updateTableColumns();
+            });
+        });
+    }
+
+    function updateTableColumns() {
+        // This will hide/show columns based on selected parameters
+        console.log('Updating table columns based on selected parameters');
+    }
+</script>
+{% endblock %}

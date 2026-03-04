@@ -1,0 +1,711 @@
+<!-- sidebar.html - Enhanced Navigation Menu for IMS Siliguri -->
+<!-- Last Updated: March 2, 2026 -->
+<!-- Updated with General Overview and all dashboard routes -->
+
+<!-- Main Sidebar Container -->
+<div class="sidebar" id="sidebar">
+    <!-- Sidebar Header with Logo and Title -->
+    <div class="sidebar-header">
+        <h3>
+            <i class="bi bi-box-seam"></i>
+            IMS Siliguri
+        </h3>
+        <div class="subtitle">Inventory Management System</div>
+    </div>
+
+    <!-- Main Navigation Menu -->
+    <div class="menu-section">
+        <div class="menu-label">MAIN MENU</div>
+        
+        <!-- ========== GENERAL OVERVIEW (NEW - Primary Navigation) ========== -->
+        <div class="menu-item">
+            <a href="{{ url_for('general_overview') }}" class="menu-link general-overview-link" id="generalOverviewLink">
+                <div class="left-content">
+                    <i class="bi bi-grid"></i>
+                    <span>GENERAL OVERVIEW</span>
+                </div>
+                <i class="bi bi-chevron-right" style="color: #5fa4ee; font-size: 0.9rem;"></i>
+            </a>
+        </div>
+
+        <!-- Optional Divider -->
+        <div class="menu-divider"></div>
+
+        <!-- ========== ZONE OVERVIEW (Technical Dashboard) ========== -->
+        <div class="menu-item">
+            <a href="{{ url_for('zone_overview') }}" class="menu-link zone-overview-link" id="zoneOverviewLink">
+                <div class="left-content">
+                    <i class="bi bi-globe2"></i>
+                    <span>TECHNICAL DASHBOARD</span>
+                </div>
+                <i class="bi bi-chevron-right" style="color: #5fa4ee; font-size: 0.9rem;"></i>
+            </a>
+        </div>
+
+        <!-- ========== ADMIN OVERVIEW (NEW) ========== -->
+        <div class="menu-item">
+            <a href="{{ url_for('admin_overview') }}" class="menu-link admin-overview-link" id="adminOverviewLink">
+                <div class="left-content">
+                    <i class="bi bi-person-badge"></i>
+                    <span>ADMINISTRATIVE</span>
+                </div>
+                <i class="bi bi-chevron-right" style="color: #5fa4ee; font-size: 0.9rem;"></i>
+            </a>
+        </div>
+
+        <!-- ========== COMMERCIAL OVERVIEW (NEW) ========== -->
+        <div class="menu-item">
+            <a href="{{ url_for('commercial_overview') }}" class="menu-link commercial-overview-link" id="commercialOverviewLink">
+                <div class="left-content">
+                    <i class="bi bi-currency-rupee"></i>
+                    <span>COMMERCIAL</span>
+                </div>
+                <i class="bi bi-chevron-right" style="color: #5fa4ee; font-size: 0.9rem;"></i>
+            </a>
+        </div>
+
+        <!-- Optional Divider -->
+        <div class="menu-divider"></div>
+
+        <!-- ========== 33/11 KV Sub-Station Section ========== -->
+        <div class="menu-item">
+            <div class="menu-link" onclick="toggleSubmenu('substationMainSubmenu', 'chevronIcon-substation-main')">
+                <div class="left-content">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                    <span>33/11 KV Sub-Stn</span>
+                </div>
+                <i class="bi bi-chevron-down chevron" id="chevronIcon-substation-main"></i>
+            </div>
+            
+            <!-- Level 1 Submenu -->
+            <ul class="submenu" id="substationMainSubmenu">
+                <li class="submenu-item">
+                    <a href="{{ url_for('substation_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-speedometer2"></i>
+                        Overview Dashboard
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('new_substation_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-building-add"></i>
+                        New Sub-Station Projects
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('ptr_augmentation_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-arrow-up-circle"></i>
+                        PTR Augmentation
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ========== HVDS Section ========== -->
+        <div class="menu-item">
+            <a href="{{ url_for('hvds_dashboard') }}" class="menu-link">
+                <div class="left-content">
+                    <i class="bi bi-bezier2"></i>
+                    <span>HVDS</span>
+                </div>
+            </a>
+        </div>
+        
+        <!-- ========== 33 KV Line Section ========== -->
+        <div class="menu-item">
+            <div class="menu-link" onclick="toggleSubmenu('line33kvMainSubmenu', 'chevronIcon-33kv-main')">
+                <div class="left-content">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>33 KV Line</span>
+                </div>
+                <i class="bi bi-chevron-down chevron" id="chevronIcon-33kv-main"></i>
+            </div>
+            
+            <!-- Level 1 Submenu -->
+            <ul class="submenu" id="line33kvMainSubmenu">
+                <li class="submenu-item">
+                    <a href="{{ url_for('line_33kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-speedometer2"></i>
+                        Overview Dashboard
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('new_33kv_line_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-plus-circle"></i>
+                        New 33KV Line
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('conductor_augmt_33kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-arrow-repeat"></i>
+                        Conductor Augmentation
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ========== 11 KV Line Section ========== -->
+        <div class="menu-item">
+            <div class="menu-link" onclick="toggleSubmenu('line11kvMainSubmenu', 'chevronIcon-11kv-main')">
+                <div class="left-content">
+                    <i class="bi bi-arrow-left-right"></i>
+                    <span>11 KV Line</span>
+                </div>
+                <i class="bi bi-chevron-down chevron" id="chevronIcon-11kv-main"></i>
+            </div>
+            
+            <!-- Level 1 Submenu -->
+            <ul class="submenu" id="line11kvMainSubmenu">
+                <li class="submenu-item">
+                    <a href="{{ url_for('line_11kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-speedometer2"></i>
+                        Overview Dashboard
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('new_11kv_line_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-plus-circle"></i>
+                        New 11KV Line
+                    </a>
+                </li>
+                <li class="submenu-item">
+                    <a href="{{ url_for('conductor_augmt_11kv_dashboard') }}" class="submenu-link">
+                        <i class="bi bi-arrow-repeat"></i>
+                        Conductor Augmentation
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- User Profile Section (Bottom of Sidebar) -->
+    <div class="user-section">
+        <div class="user-info">
+            <!-- User Avatar (First letter of email) -->
+            <div class="user-avatar">
+                {{ user.email[0]|upper if user and user.email else 'U' }}
+            </div>
+            
+            <!-- User Details -->
+            <div class="user-details">
+                <div class="user-email" title="{{ user.email if user else 'user@example.com' }}">
+                    {{ user.email if user else 'user@example.com' }}
+                </div>
+                <!-- Role Badge with dynamic color -->
+                <span class="user-role 
+                    {% if user.role == 'manager' %}role-manager-bg
+                    {% elif user.role == 'authority' %}role-authority-bg
+                    {% else %}role-user-bg{% endif %}">
+                    <i class="bi bi-person-badge"></i>
+                    {{ user.role|upper if user and user.role else 'USER' }}
+                </span>
+            </div>
+        </div>
+        
+        <!-- Logout Button -->
+        <a href="/logout" class="logout-btn">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </a>
+    </div>
+</div>
+
+<!-- ==================== SIDEBAR STYLES ==================== -->
+<style>
+    /* Menu Item Styles */
+    .menu-item {
+        list-style: none;
+    }
+
+    .menu-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: #e0e0e0;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        justify-content: space-between;
+    }
+
+    .menu-link:hover {
+        background-color: #2c3e50;
+    }
+
+    .menu-link .left-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .menu-link i {
+        font-size: 1.2rem;
+        width: 24px;
+        color: #5fa4ee;
+    }
+
+    .menu-link .chevron {
+        font-size: 0.9rem;
+        color: #888;
+        transition: transform 0.3s ease;
+    }
+
+    .menu-link .chevron.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* General Overview Link Special Styling */
+    .general-overview-link {
+        background: linear-gradient(90deg, rgba(95, 164, 238, 0.15) 0%, rgba(95, 164, 238, 0) 100%);
+        border-left: 3px solid #5fa4ee;
+        margin-bottom: 5px;
+    }
+
+    .general-overview-link .left-content i {
+        color: #5fa4ee;
+    }
+
+    .general-overview-link:hover {
+        background: linear-gradient(90deg, rgba(95, 164, 238, 0.25) 0%, rgba(95, 164, 238, 0.05) 100%);
+    }
+
+    .general-overview-link.active {
+        background: linear-gradient(90deg, #2c3e50 0%, #1e2b3a 100%);
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    /* Zone Overview Link Special Styling */
+    .zone-overview-link {
+        background: linear-gradient(90deg, rgba(23, 162, 184, 0.1) 0%, rgba(23, 162, 184, 0) 100%);
+        border-left: 3px solid #17a2b8;
+    }
+
+    .zone-overview-link .left-content i {
+        color: #17a2b8;
+    }
+
+    .zone-overview-link:hover {
+        background: linear-gradient(90deg, rgba(23, 162, 184, 0.2) 0%, rgba(23, 162, 184, 0.05) 100%);
+    }
+
+    .zone-overview-link.active {
+        background: linear-gradient(90deg, #2c3e50 0%, #1e2b3a 100%);
+        border-left-color: #17a2b8;
+        color: white;
+    }
+
+    /* Admin Overview Link Special Styling */
+    .admin-overview-link {
+        background: linear-gradient(90deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0) 100%);
+        border-left: 3px solid #ffc107;
+    }
+
+    .admin-overview-link .left-content i {
+        color: #ffc107;
+    }
+
+    .admin-overview-link:hover {
+        background: linear-gradient(90deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.05) 100%);
+    }
+
+    .admin-overview-link.active {
+        background: linear-gradient(90deg, #2c3e50 0%, #1e2b3a 100%);
+        border-left-color: #ffc107;
+        color: white;
+    }
+
+    /* Commercial Overview Link Special Styling */
+    .commercial-overview-link {
+        background: linear-gradient(90deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0) 100%);
+        border-left: 3px solid #28a745;
+    }
+
+    .commercial-overview-link .left-content i {
+        color: #28a745;
+    }
+
+    .commercial-overview-link:hover {
+        background: linear-gradient(90deg, rgba(40, 167, 69, 0.2) 0%, rgba(40, 167, 69, 0.05) 100%);
+    }
+
+    .commercial-overview-link.active {
+        background: linear-gradient(90deg, #2c3e50 0%, #1e2b3a 100%);
+        border-left-color: #28a745;
+        color: white;
+    }
+
+    /* Menu Divider */
+    .menu-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 10px 20px;
+    }
+
+    /* Submenu Styles */
+    .submenu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .submenu.expanded {
+        max-height: 300px;
+    }
+
+    .submenu-item {
+        position: relative;
+    }
+
+    .submenu-link {
+        display: flex;
+        align-items: center;
+        padding: 10px 20px 10px 52px;
+        color: #c0c0c0;
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+        gap: 10px;
+    }
+
+    .submenu-link:hover {
+        background-color: #2c3e50;
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    .submenu-link.active {
+        background-color: #2c3e50;
+        border-left-color: #5fa4ee;
+        color: white;
+    }
+
+    .submenu-link i {
+        font-size: 0.9rem;
+        width: 18px;
+        color: #5fa4ee;
+    }
+
+    /* User Section Styles */
+    .user-section {
+        padding: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: auto;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 15px;
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #5fa4ee 0%, #3a7bd5 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+        color: white;
+        text-transform: uppercase;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-email {
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-role {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-top: 4px;
+        letter-spacing: 0.5px;
+    }
+
+    /* Role background colors */
+    .role-user-bg {
+        background: rgba(23, 162, 184, 0.2);
+        color: #17a2b8;
+        border: 1px solid rgba(23, 162, 184, 0.3);
+    }
+
+    .role-manager-bg {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .role-authority-bg {
+        background: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
+    /* Logout Button */
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        color: #e0e0e0;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logout-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: #5fa4ee;
+    }
+
+    .logout-btn i {
+        color: #5fa4ee;
+    }
+
+    /* Sidebar container styles */
+    .sidebar {
+        width: 280px;
+        background: linear-gradient(180deg, #1e2b3a 0%, #0f1a26 100%);
+        color: #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        position: fixed;
+        left: 0;
+        top: 0;
+        overflow-y: auto;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar-header {
+        padding: 24px 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .sidebar-header h3 i {
+        color: #5fa4ee;
+        font-size: 1.8rem;
+    }
+
+    .sidebar-header .subtitle {
+        font-size: 0.75rem;
+        color: #a0a0a0;
+        margin-top: 5px;
+        letter-spacing: 0.5px;
+        padding-left: 35px;
+    }
+
+    .menu-section {
+        flex: 1;
+        padding: 20px 0;
+    }
+
+    .menu-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+        padding: 0 20px;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    /* Scrollbar styling */
+    .sidebar::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: #1e2b3a;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background: #3a4a5a;
+        border-radius: 10px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+        background: #4a5a6a;
+    }
+
+    /* Small screen adjustments */
+    @media (max-width: 768px) {
+        .sidebar {
+            width: 85%;
+            max-width: 320px;
+        }
+        
+        .submenu-link {
+            padding-left: 45px;
+        }
+        
+        .menu-link .left-content span {
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<!-- ==================== SIDEBAR JAVASCRIPT ==================== -->
+<script>
+    // Object to track submenu states
+    const submenuStates = {
+        'substationMainSubmenu': false,
+        'line33kvMainSubmenu': false,
+        'line11kvMainSubmenu': false
+    };
+
+    /**
+     * Toggle submenu open/closed
+     * @param {string} submenuId - ID of the submenu to toggle
+     * @param {string} chevronId - ID of the chevron icon
+     * @param {Event} event - The click event (optional)
+     */
+    function toggleSubmenu(submenuId, chevronId, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        const submenu = document.getElementById(submenuId);
+        const chevron = document.getElementById(chevronId);
+        
+        if (submenu && chevron) {
+            if (submenu.classList.contains('expanded')) {
+                submenu.classList.remove('expanded');
+                chevron.classList.remove('rotated');
+                submenuStates[submenuId] = false;
+            } else {
+                submenu.classList.add('expanded');
+                chevron.classList.add('rotated');
+                submenuStates[submenuId] = true;
+                
+                // Optional: Close other submenus at same level
+                // You can add logic here if needed
+            }
+        }
+    }
+    
+    // ==================== INITIALIZATION ON PAGE LOAD ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPath = window.location.pathname;
+        
+        // ==================== HIGHLIGHT ACTIVE MENU ITEM ====================
+        const menuLinks = document.querySelectorAll('.menu-link');
+        
+        menuLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            
+            if (href && currentPath.includes(href)) {
+                link.classList.add('active');
+            }
+        });
+
+        // Special highlight for general overview
+        if (currentPath.includes('general-overview') || currentPath === '/general-overview') {
+            const generalLink = document.getElementById('generalOverviewLink');
+            if (generalLink) {
+                generalLink.classList.add('active');
+            }
+        }
+
+        // Special highlight for zone overview
+        if (currentPath.includes('zone-overview')) {
+            const zoneLink = document.getElementById('zoneOverviewLink');
+            if (zoneLink) {
+                zoneLink.classList.add('active');
+            }
+        }
+
+        // Special highlight for admin overview
+        if (currentPath.includes('admin-overview')) {
+            const adminLink = document.getElementById('adminOverviewLink');
+            if (adminLink) {
+                adminLink.classList.add('active');
+            }
+        }
+
+        // Special highlight for commercial overview
+        if (currentPath.includes('commercial-overview')) {
+            const commercialLink = document.getElementById('commercialOverviewLink');
+            if (commercialLink) {
+                commercialLink.classList.add('active');
+            }
+        }
+
+        // Highlight submenu links
+        const submenuLinks = document.querySelectorAll('.submenu-link');
+        submenuLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && currentPath.includes(href)) {
+                link.classList.add('active');
+                
+                // Expand parent submenu
+                const parentSubmenu = link.closest('.submenu');
+                if (parentSubmenu) {
+                    parentSubmenu.classList.add('expanded');
+                    
+                    // Find and rotate the corresponding chevron
+                    const parentId = parentSubmenu.id;
+                    let chevronId = '';
+                    
+                    if (parentId === 'substationMainSubmenu') {
+                        chevronId = 'chevronIcon-substation-main';
+                    } else if (parentId === 'line33kvMainSubmenu') {
+                        chevronId = 'chevronIcon-33kv-main';
+                    } else if (parentId === 'line11kvMainSubmenu') {
+                        chevronId = 'chevronIcon-11kv-main';
+                    }
+                    
+                    const chevron = document.getElementById(chevronId);
+                    if (chevron) {
+                        chevron.classList.add('rotated');
+                    }
+                }
+            }
+        });
+    });
+    
+    // Make toggleSubmenu globally available
+    window.toggleSubmenu = toggleSubmenu;
+</script>

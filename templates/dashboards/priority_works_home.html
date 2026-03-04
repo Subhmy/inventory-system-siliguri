@@ -1,0 +1,456 @@
+<!-- dashboards/priority_works_home.html -->
+{% extends "base.html" %}
+
+{% block title %}Priority Works Dashboard{% endblock %}
+
+{% block content %}
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-text">
+            <h1>IMS Siliguri</h1>
+            <p>Inventory Management System - Priority Works</p>
+        </div>
+        <div class="date-badge">
+            <i class="bi bi-calendar3"></i>
+            <span id="currentDate"></span>
+        </div>
+    </div>
+
+    <!-- Section Title (Dynamic) -->
+    <div class="section-title" id="sectionTitle">
+        <i class="bi bi-lightning-charge-fill"></i>
+        <h2>PRIORITY WORKS <span id="selectedItemName"></span></h2>
+    </div>
+
+    <!-- Content Card (Dynamic) -->
+    <div class="content-card" id="contentCard">
+        <div class="placeholder-icon">
+            <i class="bi bi-arrow-up-left-circle"></i>
+        </div>
+        <h3>Welcome to Priority Works</h3>
+        <p>Select a specific project from the sidebar to view detailed information.</p>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== GLOBAL VARIABLES ====================
+    let lastSelectedItem = '';
+    
+    // ==================== SHOW CONTENT FUNCTION ====================
+    function showContent(itemName, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        lastSelectedItem = itemName;
+        
+        const contentCard = document.getElementById('contentCard');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const selectedItemSpan = document.getElementById('selectedItemName');
+        
+        if (!contentCard) return;
+        
+        // Update section title
+        if (sectionTitle) {
+            sectionTitle.innerHTML = `
+                <i class="bi bi-lightning-charge-fill"></i>
+                <h2>${itemName} <span></span></h2>
+            `;
+        }
+        
+        // Different content for each selection
+        switch(itemName) {
+            case '33/11 KV Sub-Station':
+                contentCard.innerHTML = `
+                    <div class="priority-content">
+                        <h3>33/11 KV Sub-Station</h3>
+                        <p>Overview and status of 33/11 KV Sub-Station projects in Siliguri Zone</p>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h4>Total Projects</h4>
+                                <div class="stat-value">08</div>
+                                <div class="stat-label">Active: 5 | Completed: 3</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Material Status</h4>
+                                <div class="stat-value">75%</div>
+                                <div class="stat-label">Materials Allocated</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Progress</h4>
+                                <div class="stat-value">60%</div>
+                                <div class="stat-label">Overall Completion</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h4>Sub-Station Details</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Location</th>
+                                        <th>Capacity</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>City Center</td>
+                                        <td>33/11 KV, 20 MVA</td>
+                                        <td><span class="badge bg-success">Operational</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Industrial Area</td>
+                                        <td>33/11 KV, 30 MVA</td>
+                                        <td><span class="badge bg-warning">Under Maintenance</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>North Zone</td>
+                                        <td>33/11 KV, 15 MVA</td>
+                                        <td><span class="badge bg-success">Operational</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'HVDS':
+                contentCard.innerHTML = `
+                    <div class="priority-content">
+                        <h3>HVDS (High Voltage Distribution System)</h3>
+                        <p>High Voltage Distribution System projects and status in Siliguri Zone</p>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h4>Total Projects</h4>
+                                <div class="stat-value">12</div>
+                                <div class="stat-label">Active: 8 | Completed: 4</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Material Status</h4>
+                                <div class="stat-value">45%</div>
+                                <div class="stat-label">Materials Allocated</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Progress</h4>
+                                <div class="stat-value">35%</div>
+                                <div class="stat-label">Overall Completion</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h4>DTR Installation Status</h4>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <h4>100 KVA DTR</h4>
+                                    <div class="stat-value">45</div>
+                                    <div class="stat-label">Installed: 32</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h4>63 KVA DTR</h4>
+                                    <div class="stat-value">28</div>
+                                    <div class="stat-label">Installed: 18</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h4>25 KVA DTR</h4>
+                                    <div class="stat-value">56</div>
+                                    <div class="stat-label">Installed: 41</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case '33 KV Line':
+                contentCard.innerHTML = `
+                    <div class="priority-content">
+                        <h3>33 KV Transmission Line</h3>
+                        <p>33 KV Line projects and maintenance status in Siliguri Zone</p>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h4>Total Length</h4>
+                                <div class="stat-value">45 km</div>
+                                <div class="stat-label">Under Construction: 15 km</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Towers</h4>
+                                <div class="stat-value">120</div>
+                                <div class="stat-label">Installed: 85</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Progress</h4>
+                                <div class="stat-value">70%</div>
+                                <div class="stat-label">Completion</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h4>Section-wise Status</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        <th>Length</th>
+                                        <th>Towers</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Siliguri - Naxalbari</td>
+                                        <td>18 km</td>
+                                        <td>48</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Naxalbari - Bagdogra</td>
+                                        <td>12 km</td>
+                                        <td>32</td>
+                                        <td><span class="badge bg-warning">In Progress</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Bagdogra - Phansidewa</td>
+                                        <td>15 km</td>
+                                        <td>40</td>
+                                        <td><span class="badge bg-primary">Under Construction</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 20px;">
+                            <h4>Conductor Replacement Work</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        <th>Old Conductor</th>
+                                        <th>New Conductor</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Siliguri - Naxalbari</td>
+                                        <td>ACSR 50 mm²</td>
+                                        <td>ACSR 80 mm²</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Naxalbari - Bagdogra</td>
+                                        <td>ACSR 35 mm²</td>
+                                        <td>ACSR 65 mm²</td>
+                                        <td><span class="badge bg-warning">In Progress</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case '11 KV Line':
+                contentCard.innerHTML = `
+                    <div class="priority-content">
+                        <h3>11 KV Distribution Line</h3>
+                        <p>11 KV Line projects and maintenance status in Siliguri Zone</p>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h4>Total Length</h4>
+                                <div class="stat-value">78 km</div>
+                                <div class="stat-label">Under Construction: 25 km</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Transformers</h4>
+                                <div class="stat-value">45</div>
+                                <div class="stat-label">Installed: 32</div>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Progress</h4>
+                                <div class="stat-value">55%</div>
+                                <div class="stat-label">Overall Completion</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h4>11 KV Line Network - Feeder Overview</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Feeder</th>
+                                        <th>Location</th>
+                                        <th>Length</th>
+                                        <th>Consumers</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Feeder A</strong></td>
+                                        <td>City Center</td>
+                                        <td>12 km</td>
+                                        <td>2,500</td>
+                                        <td><span class="badge bg-success">Operational</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Feeder B</strong></td>
+                                        <td>Industrial Area</td>
+                                        <td>18 km</td>
+                                        <td>180 (Industrial)</td>
+                                        <td><span class="badge bg-warning">Under Maintenance</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Feeder C</strong></td>
+                                        <td>Residential</td>
+                                        <td>15 km</td>
+                                        <td>3,200</td>
+                                        <td><span class="badge bg-success">Operational</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Feeder D</strong></td>
+                                        <td>Commercial Zone</td>
+                                        <td>10 km</td>
+                                        <td>450</td>
+                                        <td><span class="badge bg-success">Operational</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Feeder E</strong></td>
+                                        <td>Rural Area</td>
+                                        <td>23 km</td>
+                                        <td>1,800</td>
+                                        <td><span class="badge bg-primary">Under Construction</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 20px;">
+                            <h4>Conductor Replacement Work - 11 KV Line</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        <th>Old Conductor</th>
+                                        <th>New Conductor</th>
+                                        <th>Length</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>City Center - Hospital</td>
+                                        <td>ACSR 25 mm²</td>
+                                        <td>ACSR 50 mm²</td>
+                                        <td>3.5 km</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Industrial Area - Phase 1</td>
+                                        <td>ACSR 35 mm²</td>
+                                        <td>ACSR 70 mm²</td>
+                                        <td>5.2 km</td>
+                                        <td><span class="badge bg-warning">In Progress</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Residential - Sector A</td>
+                                        <td>ACSR 20 mm²</td>
+                                        <td>ACSR 45 mm²</td>
+                                        <td>4.8 km</td>
+                                        <td><span class="badge bg-primary">Pending</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Commercial Zone - Market</td>
+                                        <td>ACSR 30 mm²</td>
+                                        <td>ACSR 60 mm²</td>
+                                        <td>2.1 km</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 20px; background: #f0f7ff; padding: 15px; border-radius: 8px;">
+                            <h4>📊 Summary</h4>
+                            <p><strong>Total Feeders:</strong> 5 | <strong>Operational:</strong> 3 | <strong>Under Maintenance:</strong> 1 | <strong>Under Construction:</strong> 1</p>
+                            <p><strong>Conductor Replacement Progress:</strong> 50% (10.5 km of 21 km completed)</p>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            default:
+                contentCard.innerHTML = `
+                    <div class="placeholder-icon">
+                        <i class="bi bi-arrow-up-left-circle"></i>
+                    </div>
+                    <h3>Welcome to Priority Works</h3>
+                    <p>Select a specific project from the sidebar to view detailed information.</p>
+                    
+                    <div class="stats-grid" style="margin-top: 30px;">
+                        <div class="stat-card">
+                            <h4>Total Projects</h4>
+                            <div class="stat-value">24</div>
+                            <div class="stat-label">Active across all categories</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>In Progress</h4>
+                            <div class="stat-value">18</div>
+                            <div class="stat-label">75% of total</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Completed</h4>
+                            <div class="stat-value">6</div>
+                            <div class="stat-label">25% of total</div>
+                        </div>
+                    </div>
+                `;
+        }
+        
+        // Remove active class from all submenu links
+        document.querySelectorAll('.submenu-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // Add active class to clicked link
+        if (event && event.target) {
+            const clickedLink = event.target.closest('.submenu-link');
+            if (clickedLink) {
+                clickedLink.classList.add('active');
+            }
+        }
+        
+        // Close sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+            if (typeof closeSidebar === 'function') {
+                closeSidebar();
+            }
+        }
+    }
+
+    // Make showContent globally available
+    window.showContent = showContent;
+    
+    // ==================== DISPLAY CURRENT DATE ====================
+    function displayCurrentDate() {
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date();
+            dateElement.textContent = today.toLocaleDateString('en-US', options);
+        }
+    }
+    
+    // ==================== ON PAGE LOAD ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        displayCurrentDate();
+    });
+</script>
+{% endblock %}
