@@ -1,6 +1,5 @@
 flask==2.3.3
 python-dotenv==1.0.0
-supabase==1.2.0
 gunicorn==21.2.0
 httpx==0.24.1
 pandas==2.2.3
