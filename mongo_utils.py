@@ -770,4 +770,4 @@ if __name__ != '__main__':
     if test_result['status'] == 'connected':
         print(f"✅ MongoDB ready: {test_result['collections']} collections available")
     else:
-        print(f"⚠️ MongoDB status: {test_result['status']}")
+        print(f"⚠️ MongoDB status: {test_result['status']}") 

@@ -1091,4 +1091,4 @@ if __name__ == '__main__':
     
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)#   F O R C E   R E N D E R   D E P L O Y   -   0 3 / 0 4 / 2 0 2 6   1 8 : 0 2 : 5 5  
- 
+  
