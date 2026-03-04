@@ -2,17 +2,19 @@
 MongoDB Database Helper for IMS Siliguri
 Enhanced version with SSL support, connection pooling, and better error handling
 Last Updated: March 4, 2026
-FIXED: Added SSL options for Render deployment
+FIXED: SSL options conflict (tlsInsecure and tlsAllowInvalidCertificates cannot be used together)
+FIXED: Added environment-specific SSL handling
 FIXED: Connection pooling for better performance
-FIXED: Environment-specific configurations
+ADDED: Better error messages for common issues
 """
 
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure, InvalidURI
 from datetime import datetime
 import os
 import time
 import socket
+import re
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -35,6 +37,9 @@ SERVER_SELECTION_TIMEOUT_MS = int(os.getenv('MONGO_SERVER_SELECTION_TIMEOUT_MS',
 # SSL/TLS Settings
 SSL_ENABLED = os.getenv('MONGO_SSL_ENABLED', 'true').lower() == 'true'
 SSL_ALLOW_INVALID_CERT = os.getenv('MONGO_SSL_ALLOW_INVALID_CERT', 'false').lower() == 'true'
+
+# Detect Render environment
+IS_RENDER = os.getenv('RENDER', 'false').lower() == 'true'
 
 # Retry Settings
 MAX_RETRIES = int(os.getenv('MONGO_MAX_RETRIES', '3'))
@@ -69,12 +74,17 @@ def get_connection_options():
     # Add SSL options if enabled
     if SSL_ENABLED:
         options['tls'] = True
-        options['tlsAllowInvalidCertificates'] = SSL_ALLOW_INVALID_CERT
         
-        # For Render deployment, we need to be more flexible with SSL
-        if os.getenv('RENDER', 'false').lower() == 'true':
+        # CRITICAL FIX: Use ONLY ONE of these options, not both
+        if IS_RENDER:
+            # For Render deployment, use tlsInsecure (more compatible)
             options['tlsInsecure'] = True
-            print("⚙️ Render environment detected: Using relaxed SSL settings")
+            print("⚙️ Render environment detected: Using tlsInsecure=True")
+        else:
+            # For local development, use tlsAllowInvalidCertificates if needed
+            options['tlsAllowInvalidCertificates'] = SSL_ALLOW_INVALID_CERT
+            if SSL_ALLOW_INVALID_CERT:
+                print("⚙️ Using tlsAllowInvalidCertificates=True")
     
     return options
 
@@ -84,7 +94,6 @@ def test_network_connectivity():
         # Extract host from URI
         if 'mongodb.net' in MONGO_URI:
             # For Atlas, extract hostname
-            import re
             match = re.search(r'@([^/]+)', MONGO_URI)
             if match:
                 host = match.group(1).split('?')[0]
@@ -103,9 +112,36 @@ def test_network_connectivity():
                     print(f"✅ Basic network connectivity to {host}:27017")
                 else:
                     print(f"⚠️ Cannot connect to {host}:27017 - check firewall/network access")
+                    print("   Make sure MongoDB Atlas Network Access includes Render's IPs")
             return True
     except Exception as e:
         print(f"⚠️ Network test failed: {e}")
+        return False
+
+def validate_uri():
+    """Validate MongoDB URI format and extract info"""
+    try:
+        if not MONGO_URI:
+            print("❌ MONGO_URI is empty")
+            return False
+        
+        # Check if it's a valid URI format
+        if not (MONGO_URI.startswith('mongodb://') or MONGO_URI.startswith('mongodb+srv://')):
+            print(f"❌ Invalid MongoDB URI format: {MONGO_URI[:20]}...")
+            return False
+        
+        # Extract username (for logging)
+        if '@' in MONGO_URI:
+            user_part = MONGO_URI.split('@')[0]
+            if '://' in user_part:
+                auth_part = user_part.split('://')[1]
+                if ':' in auth_part:
+                    username = auth_part.split(':')[0]
+                    print(f"👤 Connecting as user: {username}")
+        
+        return True
+    except Exception as e:
+        print(f"❌ URI validation error: {e}")
         return False
 
 def create_mongo_client():
@@ -113,6 +149,11 @@ def create_mongo_client():
     global connection_status
     
     connection_status['last_attempt'] = datetime.now()
+    
+    # Validate URI first
+    if not validate_uri():
+        print("❌ Invalid MongoDB URI. Check your .env file or environment variables.")
+        return None
     
     # Test basic network first
     test_network_connectivity()
@@ -149,6 +190,15 @@ def create_mongo_client():
             
             return client
             
+        except InvalidURI as e:
+            error_msg = str(e)
+            connection_status['error_count'] += 1
+            connection_status['last_error'] = error_msg
+            
+            print(f"❌ Invalid URI: {error_msg}")
+            print("   Check your MONGO_URI environment variable format.")
+            break  # Don't retry for invalid URI
+            
         except (ConnectionFailure, ServerSelectionTimeoutError, OperationFailure) as e:
             error_msg = str(e)
             connection_status['error_count'] += 1
@@ -161,6 +211,9 @@ def create_mongo_client():
                 time.sleep(RETRY_DELAY_SECONDS)
             else:
                 print(f"❌ All {MAX_RETRIES} connection attempts failed")
+                if IS_RENDER:
+                    print("   This is a Render deployment. Make sure MongoDB Atlas Network Access")
+                    print("   includes Render's outbound IPs. Check Render dashboard → Settings → Outbound IP Addresses")
                 
     return None
 
@@ -192,11 +245,23 @@ def get_db():
 def get_connection_status():
     """Get current connection status"""
     global connection_status
+    
+    # Mask password in URI for logging
+    masked_uri = MONGO_URI
+    if '@' in masked_uri:
+        parts = masked_uri.split('@')
+        auth_part = parts[0]
+        if ':' in auth_part:
+            protocol = auth_part.split('://')[0] + '://'
+            user = auth_part.split('://')[1].split(':')[0]
+            masked_uri = f"{protocol}{user}:****@{parts[1]}"
+    
     return {
         **connection_status,
-        'uri_masked': MONGO_URI.replace(MONGO_URI.split('@')[0].split(':')[1] if '@' in MONGO_URI else '', '****'),
+        'uri_masked': masked_uri,
         'database': MONGO_DB,
-        'pool_size': MAX_POOL_SIZE
+        'pool_size': MAX_POOL_SIZE,
+        'environment': 'render' if IS_RENDER else 'local'
     }
 
 def close_connection():
@@ -210,6 +275,11 @@ def close_connection():
         print("🔌 MongoDB connection closed")
 
 # Initialize connection
+print("=" * 60)
+print("🔌 MongoDB Connection Initializer")
+print("=" * 60)
+print(f"🌍 Environment: {'Render' if IS_RENDER else 'Local'}")
+print(f"📁 Database: {MONGO_DB}")
 db = get_db()
 
 # ==================== EXISTING CLASSES (Enhanced with error handling) ====================
@@ -770,4 +840,6 @@ if __name__ != '__main__':
     if test_result['status'] == 'connected':
         print(f"✅ MongoDB ready: {test_result['collections']} collections available")
     else:
-        print(f"⚠️ MongoDB status: {test_result['status']}") 
+        print(f"⚠️ MongoDB status: {test_result['status']}")
+        if test_result['status'] == 'disconnected':
+            print("   The application will use sample data until MongoDB connects.")
