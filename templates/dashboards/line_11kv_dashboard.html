@@ -4,6 +4,28 @@
 {% block title %}11 KV Line Dashboard{% endblock %}
 
 {% block content %}
+<!-- Back to Technical Dashboard Button - TOP RIGHT -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <a href="{{ url_for('main.technical_overview') }}" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    " onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
+       onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+        <span>Back to Technical Dashboard</span>
+    </a>
+</div>
     <!-- Welcome Banner -->
     <div class="welcome-banner">
         <div class="welcome-text">

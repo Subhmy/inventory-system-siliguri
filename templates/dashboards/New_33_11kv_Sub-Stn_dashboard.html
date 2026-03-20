@@ -4,6 +4,28 @@
 {% block title %}New 33/11 KV Sub-Station Dashboard{% endblock %}
 
 {% block content %}
+<!-- Back to High Priority Work Button - TOP RIGHT -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <a href="{{ url_for('main.priority_works_overview') }}" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    " onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
+       onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+        <span>Back to High Priority Work</span>
+    </a>
+</div>
     <!-- Welcome Banner -->
     <div class="welcome-banner">
         <div class="welcome-text">
@@ -106,7 +128,7 @@
             <i class="bi bi-building-add"></i>
             <h2>NEW SUBSTATION PROJECTS</h2>
         </div>
-        <a href="{{ url_for('substation_dashboard') }}" class="btn btn-outline-primary">
+        <a href="{{ url_for('main.substation_dashboard') }}" class="btn btn-outline-primary">
             <i class="bi bi-arrow-left"></i> Back to Substation
         </a>
     </div>

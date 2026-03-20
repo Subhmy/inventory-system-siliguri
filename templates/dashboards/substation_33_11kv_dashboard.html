@@ -4,348 +4,371 @@
 {% block title %}33/11 KV Sub-Station Dashboard{% endblock %}
 
 {% block content %}
-    <!-- Welcome Banner -->
-    <div class="welcome-banner">
-        <div class="welcome-text">
-            <h1>33/11 KV Sub-Station</h1>
-            <p>Siliguri Zone - Substation Projects & Analytics</p>
+<!-- Back to Technical Dashboard Button - TOP RIGHT - FIXED with main. prefix -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <a href="{{ url_for('main.technical_overview') }}" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    " onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
+       onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+        <span>Back to Technical Dashboard</span>
+    </a>
+</div>
+
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h1>33/11 KV Sub-Station</h1>
+        <p>Siliguri Zone - Substation Projects & Analytics</p>
+    </div>
+    <div class="date-badge">
+        <i class="bi bi-calendar3"></i>
+        <span id="currentDate"></span>
+    </div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-container">
+    <div class="filter-header" onclick="toggleFilterPanel()">
+        <div>
+            <i class="bi bi-funnel-fill"></i>
+            <span>Advanced Filters</span>
         </div>
-        <div class="date-badge">
-            <i class="bi bi-calendar3"></i>
-            <span id="currentDate"></span>
+        <div>
+            <span class="active-filters-badge" id="activeFilterCount">0</span>
+            <i class="bi bi-chevron-down" id="filterChevron"></i>
         </div>
     </div>
-
-    <!-- Filter Panel -->
-    <div class="filter-container">
-        <div class="filter-header" onclick="toggleFilterPanel()">
-            <div>
-                <i class="bi bi-funnel-fill"></i>
-                <span>Advanced Filters</span>
+    
+    <div class="filter-panel" id="filterPanel">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label><i class="bi bi-grid-3x3-gap-fill"></i> ZONE</label>
+                <select class="filter-select" id="zoneFilter">
+                    <option value="siliguri">Siliguri Zone</option>
+                </select>
             </div>
-            <div>
-                <span class="active-filters-badge" id="activeFilterCount">0</span>
-                <i class="bi bi-chevron-down" id="filterChevron"></i>
+            
+            <div class="filter-group">
+                <label><i class="bi bi-pin-map-fill"></i> REGION</label>
+                <select class="filter-select" id="regionFilter" onchange="updateDivisions()">
+                    <option value="all">All Regions</option>
+                    <option value="darjeeling">Darjeeling</option>
+                    <option value="jalpaiguri">Jalpaiguri</option>
+                    <option value="coochbehar">Coochbehar</option>
+                    <option value="alipurduar">Alipurduar</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label><i class="bi bi-diagram-3-fill"></i> DIVISION</label>
+                <select class="filter-select" id="divisionFilter">
+                    <option value="all">All Divisions</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label><i class="bi bi-building"></i> SUBSTATION</label>
+                <select class="filter-select" id="substationFilter">
+                    <option value="all">All Substations</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label><i class="bi bi-sort-numeric-down"></i> SHOW TOP</label>
+                <select class="filter-select" id="topFilter">
+                    <option value="all">All Substations</option>
+                    <option value="5">Top 5 by Capacity</option>
+                    <option value="10">Top 10 by Capacity</option>
+                    <option value="20">Top 20 by Capacity</option>
+                </select>
             </div>
         </div>
         
-        <div class="filter-panel" id="filterPanel">
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label><i class="bi bi-grid-3x3-gap-fill"></i> ZONE</label>
-                    <select class="filter-select" id="zoneFilter">
-                        <option value="siliguri">Siliguri Zone</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label><i class="bi bi-pin-map-fill"></i> REGION</label>
-                    <select class="filter-select" id="regionFilter" onchange="updateDivisions()">
-                        <option value="all">All Regions</option>
-                        <option value="darjeeling">Darjeeling</option>
-                        <option value="jalpaiguri">Jalpaiguri</option>
-                        <option value="coochbehar">Coochbehar</option>
-                        <option value="alipurduar">Alipurduar</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label><i class="bi bi-diagram-3-fill"></i> DIVISION</label>
-                    <select class="filter-select" id="divisionFilter">
-                        <option value="all">All Divisions</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label><i class="bi bi-building"></i> SUBSTATION</label>
-                    <select class="filter-select" id="substationFilter">
-                        <option value="all">All Substations</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label><i class="bi bi-sort-numeric-down"></i> SHOW TOP</label>
-                    <select class="filter-select" id="topFilter">
-                        <option value="all">All Substations</option>
-                        <option value="5">Top 5 by Capacity</option>
-                        <option value="10">Top 10 by Capacity</option>
-                        <option value="20">Top 20 by Capacity</option>
-                    </select>
-                </div>
+        <div class="filter-actions">
+            <button class="btn-apply" onclick="applyFilters()">
+                <i class="bi bi-check2"></i> Apply Filters
+            </button>
+            <button class="btn-reset" onclick="resetFilters()">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset
+            </button>
+            <button class="btn-export" onclick="exportReport()">
+                <i class="bi bi-download"></i> Export Report
+            </button>
+        </div>
+        
+        <div class="active-filters" id="activeFiltersDisplay" style="display: none;">
+            <span><i class="bi bi-funnel-fill"></i> Active Filters:</span>
+            <div id="filterTags"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Filter Indicator -->
+<div class="filter-indicator">
+    <span class="badge bg-primary">ZONE: Siliguri</span>
+    <span class="badge bg-secondary">REGION: All Regions</span>
+    <span class="badge bg-info">LEVEL: Zone Wide View</span>
+</div>
+
+<!-- Main Navigation Cards -->
+<div class="section-title">
+    <i class="bi bi-grid-3x3-gap-fill"></i>
+    <h2>SUBSTATION DASHBOARDS</h2>
+</div>
+
+<div class="dashboard-cards">
+    <!-- New Substation Card -->
+    <div class="dashboard-card" onclick="window.location.href='{{ url_for('main.new_substation_dashboard') }}'">
+        <div class="card-icon">
+            <i class="bi bi-building-add"></i>
+        </div>
+        <div class="card-content">
+            <h3>New 33/11 KV Sub-Station</h3>
+            <p>New substation construction projects</p>
+            <div class="card-stats">
+                <span class="stat-badge">
+                    <i class="bi bi-file-text"></i> Total: 5
+                </span>
+                <span class="stat-badge">
+                    <i class="bi bi-check-circle"></i> Active: 3
+                </span>
             </div>
-            
-            <div class="filter-actions">
-                <button class="btn-apply" onclick="applyFilters()">
-                    <i class="bi bi-check2"></i> Apply Filters
-                </button>
-                <button class="btn-reset" onclick="resetFilters()">
-                    <i class="bi bi-arrow-counterclockwise"></i> Reset
-                </button>
-                <button class="btn-export" onclick="exportReport()">
-                    <i class="bi bi-download"></i> Export Report
-                </button>
-            </div>
-            
-            <div class="active-filters" id="activeFiltersDisplay" style="display: none;">
-                <span><i class="bi bi-funnel-fill"></i> Active Filters:</span>
-                <div id="filterTags"></div>
-            </div>
+        </div>
+        <div class="card-arrow">
+            <i class="bi bi-arrow-right-circle-fill"></i>
         </div>
     </div>
 
-    <!-- Active Filter Indicator -->
-    <div class="filter-indicator">
-        <span class="badge bg-primary">ZONE: Siliguri</span>
-        <span class="badge bg-secondary">REGION: All Regions</span>
-        <span class="badge bg-info">LEVEL: Zone Wide View</span>
-    </div>
-
-    <!-- Main Navigation Cards -->
-    <div class="section-title">
-        <i class="bi bi-grid-3x3-gap-fill"></i>
-        <h2>SUBSTATION DASHBOARDS</h2>
-    </div>
-
-    <div class="dashboard-cards">
-        <!-- New Substation Card -->
-        <div class="dashboard-card" onclick="window.location.href='{{ url_for('new_substation_dashboard') }}'">
-            <div class="card-icon">
-                <i class="bi bi-building-add"></i>
-            </div>
-            <div class="card-content">
-                <h3>New 33/11 KV Sub-Station</h3>
-                <p>New substation construction projects</p>
-                <div class="card-stats">
-                    <span class="stat-badge">
-                        <i class="bi bi-file-text"></i> Total: 5
-                    </span>
-                    <span class="stat-badge">
-                        <i class="bi bi-check-circle"></i> Active: 3
-                    </span>
-                </div>
-            </div>
-            <div class="card-arrow">
-                <i class="bi bi-arrow-right-circle-fill"></i>
+    <!-- PTR Augmentation Card -->
+    <div class="dashboard-card" onclick="window.location.href='{{ url_for('main.ptr_augmentation_dashboard') }}'">
+        <div class="card-icon">
+            <i class="bi bi-arrow-up-circle"></i>
+        </div>
+        <div class="card-content">
+            <h3>PTR Augmentation</h3>
+            <p>Power Transformer augmentation projects</p>
+            <div class="card-stats">
+                <span class="stat-badge">
+                    <i class="bi bi-file-text"></i> Total: 8
+                </span>
+                <span class="stat-badge">
+                    <i class="bi bi-check-circle"></i> Completed: 3
+                </span>
             </div>
         </div>
+        <div class="card-arrow">
+            <i class="bi bi-arrow-right-circle-fill"></i>
+        </div>
+    </div>
+</div>
 
-        <!-- PTR Augmentation Card -->
-        <div class="dashboard-card" onclick="window.location.href='{{ url_for('ptr_augmentation_dashboard') }}'">
-            <div class="card-icon">
-                <i class="bi bi-arrow-up-circle"></i>
-            </div>
-            <div class="card-content">
-                <h3>PTR Augmentation</h3>
-                <p>Power Transformer augmentation projects</p>
-                <div class="card-stats">
-                    <span class="stat-badge">
-                        <i class="bi bi-file-text"></i> Total: 8
-                    </span>
-                    <span class="stat-badge">
-                        <i class="bi bi-check-circle"></i> Completed: 3
-                    </span>
-                </div>
-            </div>
-            <div class="card-arrow">
-                <i class="bi bi-arrow-right-circle-fill"></i>
-            </div>
+<!-- Summary Section -->
+<div class="section-title" style="margin-top: 40px;">
+    <i class="bi bi-pie-chart-fill"></i>
+    <h2>SUBSTATION SUMMARY</h2>
+</div>
+
+<div class="content-card">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h4>Total Substations</h4>
+            <div class="stat-value" id="totalSubstations">12</div>
+            <div class="stat-label">Operational: <span id="operationalCount">8</span> | Under Construction: <span id="constructionCount">4</span></div>
+        </div>
+        <div class="stat-card">
+            <h4>Total Capacity</h4>
+            <div class="stat-value" id="totalCapacity">380 MVA</div>
+            <div class="stat-label">33/11 KV Substations</div>
+        </div>
+        <div class="stat-card">
+            <h4>PTR Units</h4>
+            <div class="stat-value" id="totalPTR">24</div>
+            <div class="stat-label">Power Transformers</div>
+        </div>
+        <div class="stat-card">
+            <h4>Augmentation Progress</h4>
+            <div class="stat-value" id="augProgress">65%</div>
+            <div class="stat-label">PTR Augmentation Completed</div>
         </div>
     </div>
 
-    <!-- Summary Section -->
-    <div class="section-title" style="margin-top: 40px;">
-        <i class="bi bi-pie-chart-fill"></i>
-        <h2>SUBSTATION SUMMARY</h2>
-    </div>
-
-    <div class="content-card">
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h4>Total Substations</h4>
-                <div class="stat-value" id="totalSubstations">12</div>
-                <div class="stat-label">Operational: <span id="operationalCount">8</span> | Under Construction: <span id="constructionCount">4</span></div>
-            </div>
-            <div class="stat-card">
-                <h4>Total Capacity</h4>
-                <div class="stat-value" id="totalCapacity">380 MVA</div>
-                <div class="stat-label">33/11 KV Substations</div>
-            </div>
-            <div class="stat-card">
-                <h4>PTR Units</h4>
-                <div class="stat-value" id="totalPTR">24</div>
-                <div class="stat-label">Power Transformers</div>
-            </div>
-            <div class="stat-card">
-                <h4>Augmentation Progress</h4>
-                <div class="stat-value" id="augProgress">65%</div>
-                <div class="stat-label">PTR Augmentation Completed</div>
-            </div>
-        </div>
-
-        <div style="margin-top: 30px;">
-            <h4>Substation List</h4>
-            <div style="overflow-x: auto;">
-                <table class="table table-bordered table-hover" id="substationTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Substation Name</th>
-                            <th>Region</th>
-                            <th>Division</th>
-                            <th>Capacity</th>
-                            <th>PTR Details</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-region="darjeeling" data-division="siliguri-town" data-status="operational">
-                            <td><strong>Siliguri City</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Siliguri Town</td>
-                            <td>33/11 KV, 40 MVA</td>
-                            <td>2×20 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="darjeeling" data-division="siliguri-town" data-status="operational">
-                            <td><strong>Matigara</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Siliguri Town</td>
-                            <td>33/11 KV, 30 MVA</td>
-                            <td>2×15 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="darjeeling" data-division="kurseong" data-status="augmentation">
-                            <td><strong>Kurseong</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Kurseong</td>
-                            <td>33/11 KV, 20 MVA</td>
-                            <td>1×20 MVA</td>
-                            <td><span class="badge bg-warning">Augmentation</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="darjeeling" data-division="darjeeling" data-status="operational">
-                            <td><strong>Darjeeling</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Darjeeling</td>
-                            <td>33/11 KV, 25 MVA</td>
-                            <td>1×25 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="darjeeling" data-division="sub-urban" data-status="operational">
-                            <td><strong>Sub-Urban</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Sub-Urban</td>
-                            <td>33/11 KV, 15 MVA</td>
-                            <td>1×15 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="darjeeling" data-division="kalimpong" data-status="operational">
-                            <td><strong>Kalimpong</strong></td>
-                            <td>Darjeeling</td>
-                            <td>Kalimpong</td>
-                            <td>33/11 KV, 15 MVA</td>
-                            <td>1×15 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="jalpaiguri" data-division="jalpaiguri" data-status="operational">
-                            <td><strong>Jalpaiguri Town</strong></td>
-                            <td>Jalpaiguri</td>
-                            <td>Jalpaiguri</td>
-                            <td>33/11 KV, 30 MVA</td>
-                            <td>2×15 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="jalpaiguri" data-division="mal" data-status="construction">
-                            <td><strong>Mal</strong></td>
-                            <td>Jalpaiguri</td>
-                            <td>Mal</td>
-                            <td>33/11 KV, 20 MVA</td>
-                            <td>1×20 MVA</td>
-                            <td><span class="badge bg-primary">Under Construction</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="coochbehar" data-division="coochbehar" data-status="operational">
-                            <td><strong>Coochbehar</strong></td>
-                            <td>Coochbehar</td>
-                            <td>Coochbehar</td>
-                            <td>33/11 KV, 25 MVA</td>
-                            <td>1×25 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="coochbehar" data-division="mathabhanga" data-status="augmentation">
-                            <td><strong>Mathabhanga</strong></td>
-                            <td>Coochbehar</td>
-                            <td>Mathabhanga</td>
-                            <td>33/11 KV, 15 MVA</td>
-                            <td>1×15 MVA</td>
-                            <td><span class="badge bg-warning">Augmentation</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="coochbehar" data-division="dinhata" data-status="operational">
-                            <td><strong>Dinhata</strong></td>
-                            <td>Coochbehar</td>
-                            <td>Dinhata</td>
-                            <td>33/11 KV, 15 MVA</td>
-                            <td>1×15 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="alipurduar" data-division="alipurduar" data-status="operational">
-                            <td><strong>Alipurduar</strong></td>
-                            <td>Alipurduar</td>
-                            <td>Alipurduar</td>
-                            <td>33/11 KV, 20 MVA</td>
-                            <td>1×20 MVA</td>
-                            <td><span class="badge bg-success">Operational</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                        <tr data-region="alipurduar" data-division="alipurduar" data-status="construction">
-                            <td><strong>Hasimara</strong></td>
-                            <td>Alipurduar</td>
-                            <td>Alipurduar</td>
-                            <td>33/11 KV, 15 MVA</td>
-                            <td>1×15 MVA</td>
-                            <td><span class="badge bg-primary">Under Construction</span></td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-primary">View</a>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    <div style="margin-top: 30px;">
+        <h4>Substation List</h4>
+        <div style="overflow-x: auto;">
+            <table class="table table-bordered table-hover" id="substationTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Substation Name</th>
+                        <th>Region</th>
+                        <th>Division</th>
+                        <th>Capacity</th>
+                        <th>PTR Details</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-region="darjeeling" data-division="siliguri-town" data-status="operational">
+                        <td><strong>Siliguri City</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Siliguri Town</td>
+                        <td>33/11 KV, 40 MVA</td>
+                        <td>2×20 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="darjeeling" data-division="siliguri-town" data-status="operational">
+                        <td><strong>Matigara</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Siliguri Town</td>
+                        <td>33/11 KV, 30 MVA</td>
+                        <td>2×15 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="darjeeling" data-division="kurseong" data-status="augmentation">
+                        <td><strong>Kurseong</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Kurseong</td>
+                        <td>33/11 KV, 20 MVA</td>
+                        <td>1×20 MVA</td>
+                        <td><span class="badge bg-warning">Augmentation</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="darjeeling" data-division="darjeeling" data-status="operational">
+                        <td><strong>Darjeeling</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Darjeeling</td>
+                        <td>33/11 KV, 25 MVA</td>
+                        <td>1×25 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="darjeeling" data-division="sub-urban" data-status="operational">
+                        <td><strong>Sub-Urban</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Sub-Urban</td>
+                        <td>33/11 KV, 15 MVA</td>
+                        <td>1×15 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="darjeeling" data-division="kalimpong" data-status="operational">
+                        <td><strong>Kalimpong</strong></td>
+                        <td>Darjeeling</td>
+                        <td>Kalimpong</td>
+                        <td>33/11 KV, 15 MVA</td>
+                        <td>1×15 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="jalpaiguri" data-division="jalpaiguri" data-status="operational">
+                        <td><strong>Jalpaiguri Town</strong></td>
+                        <td>Jalpaiguri</td>
+                        <td>Jalpaiguri</td>
+                        <td>33/11 KV, 30 MVA</td>
+                        <td>2×15 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="jalpaiguri" data-division="mal" data-status="construction">
+                        <td><strong>Mal</strong></td>
+                        <td>Jalpaiguri</td>
+                        <td>Mal</td>
+                        <td>33/11 KV, 20 MVA</td>
+                        <td>1×20 MVA</td>
+                        <td><span class="badge bg-primary">Under Construction</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="coochbehar" data-division="coochbehar" data-status="operational">
+                        <td><strong>Coochbehar</strong></td>
+                        <td>Coochbehar</td>
+                        <td>Coochbehar</td>
+                        <td>33/11 KV, 25 MVA</td>
+                        <td>1×25 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="coochbehar" data-division="mathabhanga" data-status="augmentation">
+                        <td><strong>Mathabhanga</strong></td>
+                        <td>Coochbehar</td>
+                        <td>Mathabhanga</td>
+                        <td>33/11 KV, 15 MVA</td>
+                        <td>1×15 MVA</td>
+                        <td><span class="badge bg-warning">Augmentation</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="coochbehar" data-division="dinhata" data-status="operational">
+                        <td><strong>Dinhata</strong></td>
+                        <td>Coochbehar</td>
+                        <td>Dinhata</td>
+                        <td>33/11 KV, 15 MVA</td>
+                        <td>1×15 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="alipurduar" data-division="alipurduar" data-status="operational">
+                        <td><strong>Alipurduar</strong></td>
+                        <td>Alipurduar</td>
+                        <td>Alipurduar</td>
+                        <td>33/11 KV, 20 MVA</td>
+                        <td>1×20 MVA</td>
+                        <td><span class="badge bg-success">Operational</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    <tr data-region="alipurduar" data-division="alipurduar" data-status="construction">
+                        <td><strong>Hasimara</strong></td>
+                        <td>Alipurduar</td>
+                        <td>Alipurduar</td>
+                        <td>33/11 KV, 15 MVA</td>
+                        <td>1×15 MVA</td>
+                        <td><span class="badge bg-primary">Under Construction</span></td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

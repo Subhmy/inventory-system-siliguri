@@ -1,0 +1,1114 @@
+<!-- priority_works_overview.html - High Priority Works Dashboard with Filters -->
+<!-- Last Updated: March 13, 2026 -->
+<!-- Updated with main. prefix for all blueprint routes -->
+
+{% extends "base.html" %}
+
+{% block title %}High Priority Works - IMS Siliguri{% endblock %}
+
+{% block content %}
+<div class="priority-works-dashboard">
+    <!-- ==================== HEADER SECTION ==================== -->
+    <div class="dashboard-header">
+        <div class="header-left">
+            <h1>
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                High Priority Works
+            </h1>
+            <p class="subtitle">Siliguri Zone - Critical Projects & Augmentations</p>
+        </div>
+        <div class="header-right">
+            <div class="date-badge">
+                <i class="bi bi-calendar3"></i>
+                <span id="currentDate">{{ now.strftime('%d %B %Y') if now else 'March 13, 2026' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FILTER SECTION ==================== -->
+    <div class="filter-section">
+        <div class="filter-container">
+            <div class="filter-row">
+                <!-- Zone Filter -->
+                <div class="filter-group">
+                    <label for="zoneFilter">
+                        <i class="bi bi-globe2"></i> Zone
+                    </label>
+                    <select id="zoneFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">All Zones</option>
+                        <option value="darjeeling">Darjeeling</option>
+                        <option value="jalpaiguri">Jalpaiguri</option>
+                        <option value="coochbehar">Coochbehar</option>
+                        <option value="alipurduar">Alipurduar</option>
+                    </select>
+                </div>
+
+                <!-- Region Filter -->
+                <div class="filter-group">
+                    <label for="regionFilter">
+                        <i class="bi bi-pin-map"></i> Region
+                    </label>
+                    <select id="regionFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">All Regions</option>
+                        <option value="darjeeling">Darjeeling</option>
+                        <option value="jalpaiguri">Jalpaiguri</option>
+                        <option value="coochbehar">Coochbehar</option>
+                        <option value="alipurduar">Alipurduar</option>
+                    </select>
+                </div>
+
+                <!-- Division Filter -->
+                <div class="filter-group">
+                    <label for="divisionFilter">
+                        <i class="bi bi-diagram-3"></i> Division
+                    </label>
+                    <select id="divisionFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">All Divisions</option>
+                        <option value="siliguri">Siliguri Town</option>
+                        <option value="kurseong">Kurseong</option>
+                        <option value="darjeeling">Darjeeling</option>
+                        <option value="jalpaiguri">Jalpaiguri</option>
+                        <option value="coochbehar">Coochbehar</option>
+                        <option value="alipurduar">Alipurduar</option>
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="filter-group">
+                    <label for="statusFilter">
+                        <i class="bi bi-activity"></i> Status
+                    </label>
+                    <select id="statusFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="planned">Planned</option>
+                    </select>
+                </div>
+
+                <!-- Date Range Filter -->
+                <div class="filter-group">
+                    <label for="dateFilter">
+                        <i class="bi bi-calendar-range"></i> As On
+                    </label>
+                    <input type="date" id="dateFilter" class="filter-select" value="{{ now.strftime('%Y-%m-%d') if now else '2026-03-13' }}" onchange="applyFilters()">
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="filter-actions">
+                    <button class="btn-reset" onclick="resetFilters()" title="Reset Filters">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button class="btn-apply" onclick="applyFilters()">
+                        <i class="bi bi-funnel"></i> Apply
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Filters Display -->
+            <div class="active-filters" id="activeFilters">
+                <span class="filter-badge">All Zones</span>
+                <span class="filter-badge">All Regions</span>
+                <span class="filter-badge">All Divisions</span>
+                <span class="filter-badge">All Status</span>
+                <span class="filter-badge">Date: {{ now.strftime('%d/%m/%Y') if now else '13/03/2026' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN CARDS GRID (7 Cards) ==================== -->
+    <div class="cards-grid" id="cardsGrid">
+        <!-- Card 1: HVDS -->
+        <div class="project-card" data-category="hvds" data-region="all" data-division="all" data-status="in-progress" onclick="navigateTo('hvds_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                <i class="bi bi-bezier2"></i>
+                <span class="card-badge">HVDS</span>
+            </div>
+            <div class="card-body">
+                <h3>High Voltage Distribution System</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">Total Projects</span>
+                        <span class="stat-value" id="hvdsTotal">8</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="hvdsCompleted">3</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">In Progress</span>
+                        <span class="stat-value" id="hvdsProgress">5</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress</span>
+                        <span class="stat-value" id="hvdsPercentage">65%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="hvdsBudget">₹8.2Cr</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 65%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                </div>
+                <div class="status-badge in-progress">
+                    <i class="bi bi-hourglass-split"></i> In Progress
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 2: New Sub-Station Projects -->
+        <div class="project-card" data-category="new-substation" data-region="darjeeling" data-division="siliguri" data-status="in-progress" onclick="navigateTo('new_substation_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                <i class="bi bi-building-add"></i>
+                <span class="card-badge">New Sub-Station</span>
+            </div>
+            <div class="card-body">
+                <h3>New Sub-Station Projects</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">Projects</span>
+                        <span class="stat-value" id="newSubTotal">3</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Capacity</span>
+                        <span class="stat-value" id="newSubCapacity">120 MVA</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress</span>
+                        <span class="stat-value" id="newSubProgress">45%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="newSubBudget">₹6.5Cr</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Target Date</span>
+                        <span class="stat-value" id="newSubTarget">Dec 2026</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 45%; background: linear-gradient(90deg, #e74c3c, #c0392b);"></div>
+                </div>
+                <div class="status-badge in-progress">
+                    <i class="bi bi-hourglass-split"></i> In Progress
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Darjeeling, Siliguri</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 3: PTR Augmentation -->
+        <div class="project-card" data-category="ptr" data-region="jalpaiguri" data-division="jalpaiguri" data-status="in-progress" onclick="navigateTo('ptr_augmentation_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+                <i class="bi bi-arrow-up-circle"></i>
+                <span class="card-badge">PTR Augmentation</span>
+            </div>
+            <div class="card-body">
+                <h3>Power Transformer Upgrades</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">Units</span>
+                        <span class="stat-value" id="ptrTotal">12</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="ptrCompleted">5</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Capacity Increase</span>
+                        <span class="stat-value" id="ptrCapacity">85 MVA</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress</span>
+                        <span class="stat-value" id="ptrProgress">42%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="ptrBudget">₹4.8Cr</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 42%; background: linear-gradient(90deg, #f39c12, #e67e22);"></div>
+                </div>
+                <div class="status-badge in-progress">
+                    <i class="bi bi-hourglass-split"></i> 42% Complete
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Jalpaiguri Region</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 4: New 33KV Line -->
+        <div class="project-card" data-category="new-33kv" data-region="coochbehar" data-division="coochbehar" data-status="planned" onclick="navigateTo('new_33kv_line_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+                <i class="bi bi-plus-circle"></i>
+                <span class="card-badge">New 33KV Line</span>
+            </div>
+            <div class="card-body">
+                <h3>New 33kV Transmission Lines</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">New Lines</span>
+                        <span class="stat-value" id="new33kvCount">2</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Length</span>
+                        <span class="stat-value" id="new33kvLength">28 km</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Towers</span>
+                        <span class="stat-value" id="new33kvTowers">84</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="new33kvBudget">₹3.2Cr</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Start Date</span>
+                        <span class="stat-value" id="new33kvStart">Apr 2026</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 15%; background: linear-gradient(90deg, #3498db, #2980b9);"></div>
+                </div>
+                <div class="status-badge planned">
+                    <i class="bi bi-calendar"></i> Planned
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Coochbehar Region</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 5: Conductor Augmentation (33KV) -->
+        <div class="project-card" data-category="cond-33kv" data-region="darjeeling" data-division="kurseong" data-status="in-progress" onclick="navigateTo('conductor_augmt_33kv_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                <i class="bi bi-arrow-repeat"></i>
+                <span class="card-badge">33KV Conductor</span>
+            </div>
+            <div class="card-body">
+                <h3>33kV Conductor Augmentation</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">Sections</span>
+                        <span class="stat-value" id="cond33kvCount">8</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-value" id="cond33kvLength">42 km</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="cond33kvCompleted">3</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress</span>
+                        <span class="stat-value" id="cond33kvProgress">38%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="cond33kvBudget">₹2.8Cr</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 38%; background: linear-gradient(90deg, #9b59b6, #8e44ad);"></div>
+                </div>
+                <div class="status-badge in-progress">
+                    <i class="bi bi-hourglass-split"></i> 38% Complete
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Darjeeling, Kurseong</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 6: New 11KV Line -->
+        <div class="project-card" data-category="new-11kv" data-region="alipurduar" data-division="alipurduar" data-status="planned" onclick="navigateTo('new_11kv_line_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);">
+                <i class="bi bi-plus-circle"></i>
+                <span class="card-badge">New 11KV Line</span>
+            </div>
+            <div class="card-body">
+                <h3>New 11kV Distribution Lines</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">New Feeders</span>
+                        <span class="stat-value" id="new11kvCount">5</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Length</span>
+                        <span class="stat-value" id="new11kvLength">15 km</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Poles</span>
+                        <span class="stat-value" id="new11kvPoles">225</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="new11kvBudget">₹1.8Cr</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Start Date</span>
+                        <span class="stat-value" id="new11kvStart">May 2026</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 10%; background: linear-gradient(90deg, #2ecc71, #27ae60);"></div>
+                </div>
+                <div class="status-badge planned">
+                    <i class="bi bi-calendar"></i> Planned
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Alipurduar Region</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+
+        <!-- Card 7: Conductor Augmentation (11KV) -->
+        <div class="project-card" data-category="cond-11kv" data-region="jalpaiguri" data-division="mal" data-status="completed" onclick="navigateTo('conductor_augmt_11kv_dashboard')">
+            <div class="card-header" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
+                <i class="bi bi-arrow-repeat"></i>
+                <span class="card-badge">11KV Conductor</span>
+            </div>
+            <div class="card-body">
+                <h3>11kV Conductor Augmentation</h3>
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <span class="stat-label">Sections</span>
+                        <span class="stat-value" id="cond11kvCount">12</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Length</span>
+                        <span class="stat-value" id="cond11kvLength">38 km</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="cond11kvCompleted">12</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Progress</span>
+                        <span class="stat-value" id="cond11kvProgress">100%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Budget</span>
+                        <span class="stat-value" id="cond11kvBudget">₹1.2Cr</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60);"></div>
+                </div>
+                <div class="status-badge completed">
+                    <i class="bi bi-check-circle"></i> Completed
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="location"><i class="bi bi-pin-map"></i> Jalpaiguri, Mal</span>
+                <span class="click-hint">View Details <i class="bi bi-arrow-right"></i></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back to Top Button -->
+<button class="back-to-top" onclick="scrollToTop()">
+    <i class="bi bi-arrow-up"></i>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== NAVIGATION FUNCTION ====================
+    function navigateTo(dashboard) {
+        const routes = {
+            'hvds_dashboard': "{{ url_for('main.hvds_dashboard') }}",
+            'new_substation_dashboard': "{{ url_for('main.new_substation_dashboard') }}",
+            'ptr_augmentation_dashboard': "{{ url_for('main.ptr_augmentation_dashboard') }}",
+            'new_33kv_line_dashboard': "{{ url_for('main.new_33kv_line_dashboard') }}",
+            'conductor_augmt_33kv_dashboard': "{{ url_for('main.conductor_augmt_33kv_dashboard') }}",
+            'new_11kv_line_dashboard': "{{ url_for('main.new_11kv_line_dashboard') }}",
+            'conductor_augmt_11kv_dashboard': "{{ url_for('main.conductor_augmt_11kv_dashboard') }}"
+        };
+        
+        if (routes[dashboard]) {
+            window.location.href = routes[dashboard];
+        }
+    }
+
+    // ==================== FILTER FUNCTIONALITY ====================
+    function applyFilters() {
+        const zone = document.getElementById('zoneFilter').value;
+        const region = document.getElementById('regionFilter').value;
+        const division = document.getElementById('divisionFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const date = document.getElementById('dateFilter').value;
+        
+        // Update active filters display
+        updateActiveFilters(zone, region, division, status, date);
+        
+        // Get all cards
+        const cards = document.querySelectorAll('.project-card');
+        let visibleCount = 0;
+        
+        // Filter cards based on selections
+        cards.forEach(card => {
+            const cardRegion = card.getAttribute('data-region');
+            const cardDivision = card.getAttribute('data-division');
+            const cardStatus = card.getAttribute('data-status');
+            
+            let showCard = true;
+            
+            if (zone !== 'all' && cardRegion !== zone && cardRegion !== 'all') {
+                showCard = false;
+            }
+            
+            if (region !== 'all' && cardRegion !== region && cardRegion !== 'all') {
+                showCard = false;
+            }
+            
+            if (division !== 'all' && cardDivision !== division && cardDivision !== 'all') {
+                showCard = false;
+            }
+            
+            if (status !== 'all' && cardStatus !== status) {
+                showCard = false;
+            }
+            
+            if (showCard) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Optional: Show message if no cards visible
+        const cardsGrid = document.getElementById('cardsGrid');
+        let noResultsMsg = document.getElementById('noResultsMsg');
+        
+        if (visibleCount === 0) {
+            if (!noResultsMsg) {
+                noResultsMsg = document.createElement('div');
+                noResultsMsg.id = 'noResultsMsg';
+                noResultsMsg.className = 'no-results';
+                noResultsMsg.innerHTML = '<i class="bi bi-search"></i> No projects match the selected filters';
+                cardsGrid.parentNode.insertBefore(noResultsMsg, cardsGrid.nextSibling);
+            }
+        } else {
+            if (noResultsMsg) {
+                noResultsMsg.remove();
+            }
+        }
+    }
+
+    function updateActiveFilters(zone, region, division, status, date) {
+        const container = document.getElementById('activeFilters');
+        const zoneName = zone === 'all' ? 'All Zones' : zone.charAt(0).toUpperCase() + zone.slice(1);
+        const regionName = region === 'all' ? 'All Regions' : region.charAt(0).toUpperCase() + region.slice(1);
+        const divisionName = division === 'all' ? 'All Divisions' : division.charAt(0).toUpperCase() + division.slice(1);
+        const statusName = status === 'all' ? 'All Status' : status.replace('-', ' ').charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+        
+        // Format date
+        const dateObj = new Date(date);
+        const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
+        container.innerHTML = `
+            <span class="filter-badge">Zone: ${zoneName}</span>
+            <span class="filter-badge">Region: ${regionName}</span>
+            <span class="filter-badge">Division: ${divisionName}</span>
+            <span class="filter-badge">Status: ${statusName}</span>
+            <span class="filter-badge">As on: ${formattedDate}</span>
+        `;
+    }
+
+    function resetFilters() {
+        document.getElementById('zoneFilter').value = 'all';
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').value = 'all';
+        document.getElementById('statusFilter').value = 'all';
+        
+        // Reset date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateFilter').value = today;
+        
+        applyFilters();
+    }
+
+    // ==================== FETCH LIVE DATA FROM MONGODB ====================
+    function loadPriorityWorksData() {
+        fetch('/api/priority-works/overview')
+            .then(response => response.json())
+            .then(data => {
+                // Update card data with live values
+                if (data.hvds) {
+                    document.getElementById('hvdsTotal').textContent = data.hvds.total || '8';
+                    document.getElementById('hvdsCompleted').textContent = data.hvds.completed || '3';
+                    document.getElementById('hvdsProgress').textContent = data.hvds.in_progress || '5';
+                    document.getElementById('hvdsPercentage').textContent = data.hvds.percentage || '65%';
+                    document.getElementById('hvdsBudget').textContent = data.hvds.budget || '₹8.2Cr';
+                }
+                
+                if (data.newSubstation) {
+                    document.getElementById('newSubTotal').textContent = data.newSubstation.total || '3';
+                    document.getElementById('newSubCapacity').textContent = data.newSubstation.capacity || '120 MVA';
+                    document.getElementById('newSubProgress').textContent = data.newSubstation.progress || '45%';
+                    document.getElementById('newSubBudget').textContent = data.newSubstation.budget || '₹6.5Cr';
+                    document.getElementById('newSubTarget').textContent = data.newSubstation.target || 'Dec 2026';
+                }
+                
+                if (data.ptr) {
+                    document.getElementById('ptrTotal').textContent = data.ptr.total || '12';
+                    document.getElementById('ptrCompleted').textContent = data.ptr.completed || '5';
+                    document.getElementById('ptrCapacity').textContent = data.ptr.capacity || '85 MVA';
+                    document.getElementById('ptrProgress').textContent = data.ptr.progress || '42%';
+                    document.getElementById('ptrBudget').textContent = data.ptr.budget || '₹4.8Cr';
+                }
+                
+                if (data.new33kv) {
+                    document.getElementById('new33kvCount').textContent = data.new33kv.count || '2';
+                    document.getElementById('new33kvLength').textContent = data.new33kv.length || '28 km';
+                    document.getElementById('new33kvTowers').textContent = data.new33kv.towers || '84';
+                    document.getElementById('new33kvBudget').textContent = data.new33kv.budget || '₹3.2Cr';
+                    document.getElementById('new33kvStart').textContent = data.new33kv.start || 'Apr 2026';
+                }
+                
+                if (data.cond33kv) {
+                    document.getElementById('cond33kvCount').textContent = data.cond33kv.count || '8';
+                    document.getElementById('cond33kvLength').textContent = data.cond33kv.length || '42 km';
+                    document.getElementById('cond33kvCompleted').textContent = data.cond33kv.completed || '3';
+                    document.getElementById('cond33kvProgress').textContent = data.cond33kv.progress || '38%';
+                    document.getElementById('cond33kvBudget').textContent = data.cond33kv.budget || '₹2.8Cr';
+                }
+                
+                if (data.new11kv) {
+                    document.getElementById('new11kvCount').textContent = data.new11kv.count || '5';
+                    document.getElementById('new11kvLength').textContent = data.new11kv.length || '15 km';
+                    document.getElementById('new11kvPoles').textContent = data.new11kv.poles || '225';
+                    document.getElementById('new11kvBudget').textContent = data.new11kv.budget || '₹1.8Cr';
+                    document.getElementById('new11kvStart').textContent = data.new11kv.start || 'May 2026';
+                }
+                
+                if (data.cond11kv) {
+                    document.getElementById('cond11kvCount').textContent = data.cond11kv.count || '12';
+                    document.getElementById('cond11kvLength').textContent = data.cond11kv.length || '38 km';
+                    document.getElementById('cond11kvCompleted').textContent = data.cond11kv.completed || '12';
+                    document.getElementById('cond11kvProgress').textContent = data.cond11kv.progress || '100%';
+                    document.getElementById('cond11kvBudget').textContent = data.cond11kv.budget || '₹1.2Cr';
+                }
+            })
+            .catch(error => console.log('Using default data', error));
+    }
+
+    // ==================== SCROLL TO TOP FUNCTION ====================
+    function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load data from MongoDB
+        loadPriorityWorksData();
+        
+        // Set up filter listeners
+        document.getElementById('zoneFilter').addEventListener('change', applyFilters);
+        document.getElementById('regionFilter').addEventListener('change', applyFilters);
+        document.getElementById('divisionFilter').addEventListener('change', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        document.getElementById('dateFilter').addEventListener('change', applyFilters);
+        
+        // Show back to top button on scroll
+        window.onscroll = function() {
+            const button = document.querySelector('.back-to-top');
+            if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+                button.style.display = 'flex';
+            } else {
+                button.style.display = 'none';
+            }
+        };
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Priority Works Dashboard Styles */
+    .priority-works-dashboard {
+        padding: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    /* Header Styles */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-left h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0 0 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-left h1 i {
+        color: #f39c12;
+        font-size: 2.5rem;
+    }
+
+    .subtitle {
+        color: #666;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .date-badge {
+        background: white;
+        padding: 10px 20px;
+        border-radius: 50px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        color: #333;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .date-badge i {
+        color: #f39c12;
+    }
+
+    /* Filter Section Styles */
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .filter-group label i {
+        color: #f39c12;
+        margin-right: 5px;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #333;
+        background: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .filter-select:hover {
+        border-color: #f39c12;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #f39c12;
+        box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .btn-reset {
+        width: 42px;
+        height: 42px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        background: white;
+        color: #666;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-reset:hover {
+        border-color: #f39c12;
+        color: #f39c12;
+        transform: rotate(180deg);
+    }
+
+    .btn-apply {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3);
+    }
+
+    .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .filter-badge {
+        background: #f8f9fa;
+        color: #666;
+        padding: 5px 12px;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        border: 1px solid #e0e0e0;
+    }
+
+    /* No Results Message */
+    .no-results {
+        text-align: center;
+        padding: 50px;
+        background: white;
+        border-radius: 15px;
+        color: #666;
+        font-size: 1.2rem;
+        margin: 20px 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+
+    .no-results i {
+        font-size: 3rem;
+        color: #f39c12;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    .project-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .project-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    .card-header {
+        padding: 20px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: rgba(255,255,255,0.1);
+        transform: rotate(45deg);
+        transition: all 0.3s ease;
+    }
+
+    .project-card:hover .card-header::before {
+        transform: rotate(45deg) translate(10%, 10%);
+    }
+
+    .card-header i {
+        font-size: 2.5rem;
+        position: relative;
+        z-index: 1;
+        transition: transform 0.3s ease;
+    }
+
+    .card-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 5px 15px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        position: relative;
+        z-index: 1;
+        backdrop-filter: blur(5px);
+    }
+
+    .card-body {
+        padding: 25px;
+    }
+
+    .card-body h3 {
+        margin: 0 0 20px 0;
+        font-size: 1.3rem;
+        color: #333;
+    }
+
+    .stats-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: #333;
+        font-size: 1.1rem;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 15px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-badge.in-progress {
+        background: rgba(243, 156, 18, 0.1);
+        color: #e67e22;
+    }
+
+    .status-badge.completed {
+        background: rgba(46, 204, 113, 0.1);
+        color: #27ae60;
+    }
+
+    .status-badge.planned {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .card-footer {
+        padding: 15px 25px;
+        background: #f8f9fa;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .location {
+        color: #666;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .location i {
+        color: #f39c12;
+    }
+
+    .click-hint {
+        color: #f39c12;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .click-hint i {
+        transition: transform 0.3s ease;
+    }
+
+    .project-card:hover .click-hint i {
+        transform: translateX(5px);
+    }
+
+    /* Back to Top Button */
+    .back-to-top {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        cursor: pointer;
+        box-shadow: 0 5px 20px rgba(243, 156, 18, 0.4);
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+    .back-to-top:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(243, 156, 18, 0.6);
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .project-card {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+
+    .project-card:nth-child(1) { animation-delay: 0.1s; }
+    .project-card:nth-child(2) { animation-delay: 0.2s; }
+    .project-card:nth-child(3) { animation-delay: 0.3s; }
+    .project-card:nth-child(4) { animation-delay: 0.4s; }
+    .project-card:nth-child(5) { animation-delay: 0.5s; }
+    .project-card:nth-child(6) { animation-delay: 0.6s; }
+    .project-card:nth-child(7) { animation-delay: 0.7s; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .priority-works-dashboard {
+            padding: 15px;
+        }
+
+        .header-left h1 {
+            font-size: 1.8rem;
+        }
+
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-row {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .date-badge {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
