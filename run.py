@@ -1,5 +1,5 @@
 from app import create_app
-import os  # ← This line is missing!
+import os
 
 app = create_app()
 
