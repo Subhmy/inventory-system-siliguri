@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Dashboard - IMS Siliguri{% endblock %}
+
+{% block content %}
+<!-- Back Navigation -->
+<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+    <a href="{{ url_for('main.general_overview') }}" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
+        onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
+        onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+        <span>Back to General Overview</span>
+    </a>
+</div>
+
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h1><i class="bi bi-box-seam"></i> Inventory Management Dashboard</h1>
+        <p>Siliguri Zone - Stock, Consumption & Allotment Analysis</p>
+    </div>
+    <div class="date-badge">
+        <i class="bi bi-calendar3"></i>
+        <span id="currentDate"></span>
+    </div>
+</div>
+
+<!-- Filter Section -->
+<div class="filter-section">
+    <div class="filter-row">
+        <div class="filter-group">
+            <label><i class="bi bi-pin-map-fill"></i> Region</label>
+            <select id="regionFilter" class="filter-select" onchange="applyFilters()">
+                <option value="all">All Regions</option>
+                <option value="darjeeling">Darjeeling</option>
+                <option value="jalpaiguri">Jalpaiguri</option>
+                <option value="coochbehar">Coochbehar</option>
+                <option value="alipurduar">Alipurduar</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="bi bi-diagram-3"></i> Division</label>
+            <select id="divisionFilter" class="filter-select" onchange="applyFilters()">
+                <option value="all">All Divisions</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="bi bi-calendar3"></i> As On Date</label>
+            <input type="date" id="dateFilter" class="filter-select" value="2026-03-21" onchange="applyFilters()">
+        </div>
+        <div class="filter-actions">
+            <button class="btn-apply" onclick="applyFilters()"><i class="bi bi-funnel"></i> Apply</button>
+            <button class="btn-reset" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+        </div>
+    </div>
+</div>
+<!-- 6 Card Grid -->
+<div class="inventory-grid">
+    <!-- Card 1: Current Stock Level -->
+    <div class="inventory-card" id="stockCard">
+        <div class="card-header-green">
+            <i class="bi bi-box-seam"></i>
+            <span class="card-badge">Stock Summary</span>
+        </div>
+        <div class="card-body">
+            <h3>Current Stock Level</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Total Items</span>
+                    <span class="stat-value" id="totalItems">245</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Value</span>
+                    <span class="stat-value" id="totalValue">₹45.6 Cr</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Categories</span>
+                    <span class="stat-value" id="totalCategories">8</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Warehouses</span>
+                    <span class="stat-value" id="totalWarehouses">12</span>
+                </div>
+            </div>
+            <div class="trend-indicator positive">
+                <i class="bi bi-arrow-up"></i> +5% from last month
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="#" class="details-link" onclick="showDetails('stock')">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Card 2: Critical Stock Items -->
+    <div class="inventory-card" id="criticalCard">
+        <div class="card-header-red">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span class="card-badge">Alert</span>
+        </div>
+        <div class="card-body">
+            <h3>Critical Stock Items</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Low Stock</span>
+                    <span class="stat-value critical" id="lowStock">12</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Out of Stock</span>
+                    <span class="stat-value critical" id="outOfStock">3</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Below Reorder Level</span>
+                    <span class="stat-value critical" id="reorderNeeded">8</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Overstocked</span>
+                    <span class="stat-value" id="overstocked">5</span>
+                </div>
+            </div>
+            <div class="trend-indicator negative">
+                <i class="bi bi-arrow-up"></i> +2 critical items this month
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="#" class="details-link" onclick="showDetails('critical')">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Card 3: Incoming Material (NEW) -->
+    <div class="inventory-card" id="incomingCard">
+        <div class="card-header-orange">
+            <i class="bi bi-arrow-down-circle"></i>
+            <span class="card-badge">Expected</span>
+        </div>
+        <div class="card-body">
+            <h3>Incoming Material</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Expected Deliveries</span>
+                    <span class="stat-value" id="expectedDeliveries">18</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Quantity</span>
+                    <span class="stat-value" id="incomingQuantity">2,450</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Value</span>
+                    <span class="stat-value" id="incomingValue">₹12.4 Cr</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Next Delivery</span>
+                    <span class="stat-value" id="nextDelivery">March 25, 2026</span>
+                </div>
+            </div>
+            <div class="trend-indicator positive">
+                <i class="bi bi-calendar-check"></i> 5 deliveries this week
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="#" class="details-link" onclick="showDetails('incoming')">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Card 4: Material in Transit (NEW) -->
+    <div class="inventory-card" id="transitCard">
+        <div class="card-header-teal">
+            <i class="bi bi-truck"></i>
+            <span class="card-badge">On the Way</span>
+        </div>
+        <div class="card-body">
+            <h3>Material in Transit</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Active Shipments</span>
+                    <span class="stat-value" id="activeShipments">9</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Quantity</span>
+                    <span class="stat-value" id="transitQuantity">1,280</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Value</span>
+                    <span class="stat-value" id="transitValue">₹6.8 Cr</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Transit Time</span>
+                    <span class="stat-value" id="avgTransitTime">3.5 days</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-label">On-Time Delivery Rate</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="ontimeRate" style="width: 94%; background: linear-gradient(90deg, #17a2b8, #20c997);"></div>
+                </div>
+                <div class="progress-percent">94%</div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="#" class="details-link" onclick="showDetails('transit')">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Card 5: Consumption Analysis -->
+    <div class="inventory-card" id="consumptionCard">
+        <div class="card-header-blue">
+            <i class="bi bi-graph-up"></i>
+            <span class="card-badge">Trends</span>
+        </div>
+        <div class="card-body">
+            <h3>Consumption Analysis</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Monthly Consumption</span>
+                    <span class="stat-value" id="monthlyConsumption">124</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Annual Consumption</span>
+                    <span class="stat-value" id="annualConsumption">1,456</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Turnover Rate</span>
+                    <span class="stat-value" id="turnoverRate">12%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Top Consumed Item</span>
+                    <span class="stat-value" id="topItem">Cable (42 units)</span>
+                </div>
+            </div>
+            <div class="trend-indicator positive">
+                <i class="bi bi-arrow-up"></i> +8% vs last month
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="{{ url_for('main.consumption_analysis') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+
+    <!-- Card 6: Allotment Tracker -->
+    <div class="inventory-card" id="allotmentCard">
+        <div class="card-header-purple">
+            <i class="bi bi-truck"></i>
+            <span class="card-badge">Tracking</span>
+        </div>
+        <div class="card-body">
+            <h3>Allotment Tracker</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Pending Allotments</span>
+                    <span class="stat-value warning" id="pendingAllotments">24</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Completed</span>
+                    <span class="stat-value" id="completedAllotments">156</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">In Progress</span>
+                    <span class="stat-value" id="inProgressAllotments">42</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">This Month</span>
+                    <span class="stat-value" id="monthlyAllotments">18</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-label">Completion Rate</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="completionRate" style="width: 72%; background: linear-gradient(90deg, #28a745, #20c997);"></div>
+                </div>
+                <div class="progress-percent">72%</div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <a href="{{ url_for('main.consumption_analysis') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+</div>
+
+<!-- Top Items Section -->
+<div class="top-items-section">
+    <div class="section-title">
+        <i class="bi bi-star-fill"></i>
+        <h2>Top Consumed Materials</h2>
+    </div>
+    <div class="items-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Material Name</th>
+                    <th>Category</th>
+                    <th>Monthly Consumption</th>
+                    <th>Stock Status</th>
+                    <th>Reorder Level</th>
+                </tr>
+            </thead>
+            <tbody id="topItemsTable">
+                <tr><td>ACSR Conductor (Zebra)</td><td>Cables</td><td>42</td><td><span class="badge bg-warning">Low</span></td><td>50</td></tr>
+                <tr><td>Distribution Transformer (100kVA)</td><td>Transformers</td><td>8</td><td><span class="badge bg-success">Adequate</span></td><td>5</td></tr>
+                <tr><td>HT Cable (3x240 sqmm)</td><td>Cables</td><td>1.2 km</td><td><span class="badge bg-danger">Critical</span></td><td>2 km</td></tr>
+                <tr><td>LT Insulator</td><td>Hardware</td><td>245</td><td><span class="badge bg-warning">Low</span></td><td>300</td></tr>
+                <tr><td>Pole (9m)</td><td>Structures</td><td>56</td><td><span class="badge bg-success">Adequate</span></td><td>40</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Recent Allotments Section -->
+<div class="recent-allotments-section">
+    <div class="section-title">
+        <i class="bi bi-clock-history"></i>
+        <h2>Recent Allotments</h2>
+    </div>
+    <div class="items-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Material</th>
+                    <th>Quantity</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Request No</th>
+                </tr>
+            </thead>
+            <tbody id="recentAllotmentsTable">
+                <tr><td>2026-03-20</td><td>ACSR Conductor</td><td>500 m</td><td>Siliguri Division</td><td><span class="badge bg-success">Completed</span></td><td>REQ-001</td></tr>
+                <tr><td>2026-03-19</td><td>Distribution Transformer</td><td>2 Units</td><td>Kurseong Division</td><td><span class="badge bg-warning">In Progress</span></td><td>REQ-002</td></tr>
+                <tr><td>2026-03-18</td><td>HT Cable</td><td>300 m</td><td>Jalpaiguri Division</td><td><span class="badge bg-success">Completed</span></td><td>REQ-003</td></tr>
+                <tr><td>2026-03-17</td><td>Pole (9m)</td><td>15 Units</td><td>Coochbehar Division</td><td><span class="badge bg-secondary">Pending</span></td><td>REQ-004</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function displayCurrentDate() {
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            dateElement.textContent = new Date().toLocaleDateString('en-US', options);
+        }
+    }
+
+    function applyFilters() {
+        const region = document.getElementById('regionFilter').value;
+        const division = document.getElementById('divisionFilter').value;
+        const date = document.getElementById('dateFilter').value;
+        
+        // Show applied filters
+        document.getElementById('activeFilters').innerHTML = `
+            <span class="filter-badge">Region: ${region === 'all' ? 'All' : region}</span>
+            <span class="filter-badge">Division: ${division === 'all' ? 'All' : division}</span>
+            <span class="filter-badge">As on: ${date}</span>
+        `;
+        
+        // In production, fetch filtered data from API
+        fetchInventoryData(region, division, date);
+    }
+
+    function resetFilters() {
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').value = 'all';
+        document.getElementById('dateFilter').value = '2026-03-21';
+        applyFilters();
+    }
+
+    function fetchInventoryData(region, division, date) {
+        // This will connect to API in production
+        console.log(`Fetching inventory data for region: ${region}, division: ${division}, date: ${date}`);
+        // Update card values dynamically
+    }
+
+    function showDetails(cardType) {
+        alert(`Opening ${cardType} details report...\n\nThis will show detailed ${cardType} data with charts and analysis.`);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        displayCurrentDate();
+        applyFilters();
+        
+        // Update divisions based on region
+        const divisions = {
+            'darjeeling': ['Siliguri Town', 'Kurseong', 'Darjeeling'],
+            'jalpaiguri': ['Jalpaiguri', 'Mal'],
+            'coochbehar': ['Coochbehar', 'Mathabhanga', 'Dinhata'],
+            'alipurduar': ['Alipurduar', 'Falakata']
+        };
+        
+        document.getElementById('regionFilter').addEventListener('change', function() {
+            const region = this.value;
+            const divSelect = document.getElementById('divisionFilter');
+            divSelect.innerHTML = '<option value="all">All Divisions</option>';
+            
+            if (region !== 'all' && divisions[region]) {
+                divisions[region].forEach(div => {
+                    divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    .inventory-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .inventory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    .card-header-green, .card-header-red, .card-header-blue, .card-header-purple {
+        padding: 20px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-header-green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .card-header-red { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+    .card-header-blue { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
+    .card-header-purple { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); }
+
+    .card-header-green i, .card-header-red i, .card-header-blue i, .card-header-purple i {
+        font-size: 2rem;
+    }
+    .card-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 5px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+    }
+    .card-body { padding: 25px; }
+    .card-body h3 { margin: 0 0 20px 0; font-size: 1.3rem; color: #333; }
+    .stats-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .stat-label { color: #666; font-size: 0.9rem; }
+    .stat-value { font-weight: 600; color: #333; font-size: 1.1rem; }
+    .stat-value.critical { color: #dc3545; }
+    .stat-value.warning { color: #fd7e14; }
+    .trend-indicator { font-size: 0.8rem; padding: 8px; border-radius: 8px; text-align: center; margin-top: 10px; }
+    .trend-indicator.positive { background: #d4edda; color: #155724; }
+    .trend-indicator.negative { background: #f8d7da; color: #721c24; }
+    .card-footer { padding: 15px 25px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .location { color: #666; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+    .details-link { color: #5fa4ee; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; }
+    .details-link:hover { color: #4a8fd9; }
+    .progress-bar-container { margin-top: 15px; }
+    .progress-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+    .progress-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .progress-percent { font-size: 0.75rem; color: #666; margin-top: 5px; text-align: right; }
+
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    .filter-group { flex: 1; min-width: 150px; }
+    .filter-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #666; font-weight: 500; }
+    .filter-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+        transition: all 0.3s;
+    }
+    .filter-select:focus { outline: none; border-color: #5fa4ee; }
+    .filter-actions { display: flex; gap: 10px; }
+    .btn-apply {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .btn-reset {
+        padding: 10px 20px;
+        background: #e9ecef;
+        color: #495057;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .top-items-section, .recent-allotments-section {
+        margin-top: 40px;
+    }
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .section-title i { font-size: 1.5rem; color: #5fa4ee; }
+    .section-title h2 { font-size: 1.4rem; font-weight: 600; color: #1e2b3a; margin: 0; }
+    .items-table-container {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        border: 1px solid #eef2f6;
+        overflow-x: auto;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 12px 10px; background: #f8fafd; font-size: 0.75rem; font-weight: 600; color: #1e2b3a; border-bottom: 2px solid #eef2f6; }
+    .data-table td { padding: 10px; border-bottom: 1px solid #eef2f6; font-size: 0.85rem; color: #1e2b3a; }
+    .data-table tr:hover { background: #f8fafd; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+    .badge.bg-success { background: #28a745; color: white; }
+    .badge.bg-danger { background: #dc3545; color: white; }
+    .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
+    .badge.bg-secondary { background: #6c757d; color: white; }
+    .welcome-banner {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .welcome-text h1 { font-size: 2rem; font-weight: 700; color: #333; margin-bottom: 10px; }
+    .welcome-text p { color: #666; font-size: 1.1rem; }
+    .date-badge { background: white; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .filter-badge { background: #e9ecef; color: #495057; padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; margin-right: 5px; }
+    @media (max-width: 768px) {
+        .inventory-grid { grid-template-columns: 1fr; }
+        .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
+        .welcome-text h1 { font-size: 1.4rem; }
+        .filter-row { flex-direction: column; }
+        .filter-group { width: 100%; }
+        .filter-actions { width: 100%; }
+    }
+</style>
+{% endblock %}

@@ -1,4 +1,4 @@
-<!-- sidebar.html - Ultra Slim Responsive Sidebar -->
+<!-- sidebar.html - Ultra Slim Responsive Sidebar with Inventory Management -->
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <h3><i class="bi bi-box-seam"></i> IMS Siliguri</h3>
@@ -26,6 +26,12 @@
             <div class="left-content"><i class="bi bi-exclamation-triangle-fill"></i><span>HIGH PRIORITY WORKS</span></div>
             <i class="bi bi-chevron-right"></i>
         </a>
+
+        <!-- INVENTORY MANAGEMENT DASHBOARD -->
+        <a href="{{ url_for('main.inventory_dashboard') }}" class="menu-link inventory">
+            <div class="left-content"><i class="bi bi-box-seam"></i><span>INVENTORY MANAGEMENT</span></div>
+            <i class="bi bi-chevron-right"></i>
+        </a>
     </div>
 
     <div class="user-section">
@@ -51,6 +57,7 @@
 .left-content{display:flex;align-items:center;gap:12px}.menu-link i:first-child{width:24px;color:#5fa4ee}
 .chevron{font-size:.9rem;color:#888;transition:transform .2s}.chevron.rotated{transform:rotate(180deg)}
 .priority{background:linear-gradient(90deg,rgba(243,156,18,.15),transparent);border-left:3px solid #f39c12;margin-top:10px}.priority i:first-child{color:#f39c12!important}
+.inventory{background:linear-gradient(90deg,rgba(40,167,69,.15),transparent);border-left:3px solid #28a745;margin-top:5px}.inventory i:first-child{color:#28a745!important}
 .submenu{max-height:0;overflow:hidden;transition:max-height .3s;background:rgba(0,0,0,.2)}.submenu.open{max-height:300px}
 .submenu-link{display:flex;align-items:center;gap:12px;padding:10px 20px 10px 52px;color:#c0c0c0;text-decoration:none;font-size:.85rem;transition:.2s}.submenu-link:hover{background:#2c3e50;color:#fff}.submenu-link i{width:20px}
 .user-section{padding:20px;border-top:1px solid rgba(255,255,255,.1);margin-top:auto}
@@ -71,5 +78,6 @@ function toggleSidebar(){document.getElementById('sidebar')?.classList.toggle('o
 function closeSidebar(){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('sidebarOverlay')?.classList.remove('show');}
 document.addEventListener('DOMContentLoaded',()=>{let path=window.location.pathname;
 if(path.includes('admin')||path.includes('technical')||path.includes('commercial')){let parent=document.querySelector('.menu-item'),sub=parent?.querySelector('.submenu'),chev=parent?.querySelector('.chevron');if(sub){sub.classList.add('open');if(chev)chev.classList.add('rotated');}}
+if(path.includes('inventory')){let inventoryLink=document.querySelector('.inventory');if(inventoryLink){inventoryLink.style.background='#2c3e50';inventoryLink.style.color='white';}}
 document.querySelectorAll('.menu-link, .submenu-link').forEach(link=>{if(link.getAttribute('href')===path){link.style.background='#2c3e50';link.style.color='white';}});});
 </script>

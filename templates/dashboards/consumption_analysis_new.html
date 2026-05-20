@@ -1,0 +1,938 @@
+{% extends "base.html" %}
+
+{% block title %}Consumption Analysis - IMS Siliguri{% endblock %}
+
+{% block content %}
+<!-- Back Navigation -->
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+    <a href="{{ url_for('main.general_overview') }}" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
+        onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
+        onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+        <span>Back to General Overview</span>
+    </a>
+    
+    <!-- Export Buttons -->
+    <div style="display: flex; gap: 10px;">
+        <button onclick="exportToExcel()" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40, 167, 69, 0.5)';" 
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(40, 167, 69, 0.3)';">
+            <i class="bi bi-file-excel-fill"></i>
+            <span>Export Excel</span>
+        </button>
+        <button onclick="exportToPDF()" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);"
+            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(220, 53, 69, 0.5)';" 
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(220, 53, 69, 0.3)';">
+            <i class="bi bi-file-pdf-fill"></i>
+            <span>Export PDF</span>
+        </button>
+    </div>
+</div>
+
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h1><i class="bi bi-graph-up"></i> Consumption Analysis Dashboard</h1>
+        <p>Siliguri Zone - Material Consumption Trends & Analysis</p>
+    </div>
+    <div class="date-badge">
+        <i class="bi bi-calendar3"></i>
+        <span id="currentDate"></span>
+    </div>
+</div>
+
+<!-- ==================== FILTER SECTION ==================== -->
+<div class="filter-section">
+    <div class="filter-grid">
+        <div class="filter-group">
+            <label><i class="bi bi-globe2"></i> ZONE</label>
+            <select id="zoneFilter" class="filter-select" onchange="onZoneChange()">
+                <option value="all">All Zones</option>
+                <option value="siliguri">Siliguri Zone</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label><i class="bi bi-pin-map"></i> REGION</label>
+            <select id="regionFilter" class="filter-select" onchange="onRegionChange()">
+                <option value="all">All Regions</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label><i class="bi bi-diagram-3"></i> DIVISION</label>
+            <select id="divisionFilter" class="filter-select" onchange="onDivisionChange()">
+                <option value="all">All Divisions</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label><i class="bi bi-calendar-range"></i> PERIOD TYPE</label>
+            <select id="periodType" class="filter-select" onchange="loadData()">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label><i class="bi bi-tags"></i> MATERIAL GROUP</label>
+            <select id="groupFilter" class="filter-select" onchange="onMaterialGroupChange()">
+                <option value="all">All Material Groups</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label><i class="bi bi-box-seam"></i> MATERIAL DESCRIPTION</label>
+            <select id="materialFilter" class="filter-select" onchange="loadData()">
+                <option value="all">All Materials</option>
+            </select>
+        </div>
+    </div>
+    <div class="filter-actions">
+        <button class="btn-reset" onclick="resetFilters()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset All Filters
+        </button>
+    </div>
+</div>
+
+<!-- Error Message Display -->
+<div id="errorMessage" style="display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span id="errorText"></span>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading" class="loading">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+    <p style="margin-top: 15px;">Loading consumption data...</p>
+</div>
+
+<!-- ==================== REPORT CONTAINER FOR EXPORT ==================== -->
+<div id="reportContainer">
+    <!-- KPI SCORE CARDS -->
+    <div class="kpi-title">
+        <i class="bi bi-graph-up"></i>
+        <h2>Consumption Score Card</h2>
+    </div>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <div class="kpi-info">
+                <div class="kpi-label" id="avgLabel">Monthly Average</div>
+                <div class="kpi-value" id="avgConsumption">0</div>
+                <div class="kpi-unit" id="avgUnit">units</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                <i class="bi bi-arrow-up"></i>
+            </div>
+            <div class="kpi-info">
+                <div class="kpi-label">Peak Consumption</div>
+                <div class="kpi-value" id="peakConsumption">0</div>
+                <div class="kpi-unit" id="peakUnit">units</div>
+                <div class="kpi-period" id="peakPeriod">-</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                <i class="bi bi-arrow-down"></i>
+            </div>
+            <div class="kpi-info">
+                <div class="kpi-label">Low Consumption</div>
+                <div class="kpi-value" id="lowConsumption">0</div>
+                <div class="kpi-unit" id="lowUnit">units</div>
+                <div class="kpi-period" id="lowPeriod">-</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <div class="kpi-info">
+                <div class="kpi-label">Zone Contribution</div>
+                <div class="kpi-value" id="zoneContribution">0</div>
+                <div class="kpi-unit">% of Zone</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="kpi-info">
+                <div class="kpi-label">Stock vs Consumption</div>
+                <div class="kpi-value" id="stockVsConsumption">0</div>
+                <div class="kpi-unit">months</div>
+                <div id="stockStatus" class="kpi-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selected Filter Indicator -->
+    <div class="filter-indicator" id="filterIndicator">
+        <span class="badge bg-primary" id="selectedZone">ZONE: All Zones</span>
+        <span class="badge bg-secondary" id="selectedRegion">REGION: All Regions</span>
+        <span class="badge bg-info" id="selectedDivision">DIVISION: All Divisions</span>
+        <span class="badge bg-success" id="selectedPeriod">PERIOD: Monthly</span>
+        <span class="badge bg-warning" id="selectedGroup">GROUP: All Groups</span>
+        <span class="badge bg-dark" id="selectedMaterial">MATERIAL: All Materials</span>
+    </div>
+
+    <!-- Consumption Trend Chart -->
+    <div class="content-card">
+        <div class="section-title">
+            <i class="bi bi-bar-chart-line"></i>
+            <h2>Consumption Trend</h2>
+        </div>
+        <canvas id="trendChart" height="100"></canvas>
+        <div id="noChartData" style="display: none; text-align: center; padding: 50px; color: #666;">
+            <i class="bi bi-bar-chart-line" style="font-size: 3rem;"></i>
+            <p>No consumption data available for the selected filters</p>
+        </div>
+    </div>
+
+    <!-- Top Materials and Material Group Breakdown -->
+    <div class="two-columns">
+        <div class="column">
+            <div class="content-card">
+                <div class="section-title">
+                    <i class="bi bi-trophy-fill"></i>
+                    <h2>Top 10 Consumed Materials</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="topMaterialsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Material Code</th>
+                                <th>Material Name</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topMaterialsBody">
+                            <tr><td colspan="6" class="text-center">Loading...<\/td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="column">
+            <div class="content-card">
+                <div class="section-title">
+                    <i class="bi bi-pie-chart-fill"></i>
+                    <h2>Consumption by Material Group</h2>
+                </div>
+                <canvas id="groupChart" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consumption by Division and Period-wise Breakdown -->
+    <div class="two-columns">
+        <div class="column">
+            <div class="content-card">
+                <div class="section-title">
+                    <i class="bi bi-building"></i>
+                    <h2>Consumption by Division</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="divisionTable">
+                        <thead>
+                            <tr>
+                                <th>Division</th>
+                                <th>Consumption</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="divisionTableBody">
+                            <tr><td colspan="3" class="text-center">Loading...<\/td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="column">
+            <div class="content-card">
+                <div class="section-title">
+                    <i class="bi bi-table"></i>
+                    <h2>Period-wise Consumption</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="periodTable">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Consumption</th>
+                                <th>% Change</th>
+                            </tr>
+                        </thead>
+                        <tbody id="periodTableBody">
+                            <td><td colspan="3" class="text-center">Loading...<\/td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+    let trendChart, groupChart;
+    let currentChartType = 'line';
+    let currentUnit = 'units';
+    let currentPeriodLabel = 'Monthly';
+    let currentChartImage = null;
+    let currentData = null;
+    
+    // ==================== DIVISION TO PLANT CODE MAPPING ====================
+    const divisionToPlantMap = {
+        'Siliguri Town Division': ['3412', '3400'],
+        'Kurseong Division': ['3413'],
+        'Darjeeling Division': ['3414'],
+        'Sub-Urban Division': ['3415'],
+        'Kalimpong Division': ['3471'],
+        'Jalpaiguri Division': ['3422'],
+        'Mal Division': ['3427'],
+        'Coochbehar Division': ['3444'],
+        'Mathabhanga Division': ['3445'],
+        'Dinhata Division': ['3446'],
+        'Alipurduar Division': ['3453'],
+        'Central Store/Cord Road Store': ['3600']
+    };
+    
+    const plantToDivisionMap = {
+        '3412': 'Siliguri Town Division', '3400': 'Siliguri Town Division',
+        '3413': 'Kurseong Division', '3414': 'Darjeeling Division',
+        '3415': 'Sub-Urban Division', '3471': 'Kalimpong Division',
+        '3422': 'Jalpaiguri Division', '3427': 'Mal Division',
+        '3444': 'Coochbehar Division', '3445': 'Mathabhanga Division',
+        '3446': 'Dinhata Division', '3453': 'Alipurduar Division',
+        '3600': 'Central Store/Cord Road Store'
+    };
+    
+    const regionDivisions = {
+        'darjeeling': ['Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division'],
+        'kalimpong': ['Kalimpong Division'],
+        'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
+        'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
+        'alipurduar': ['Alipurduar Division'],
+        'others': ['Central Store/Cord Road Store']
+    };
+    
+    const allRegions = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'others'];
+    const regionDisplayNames = {
+        'darjeeling': 'Darjeeling', 'kalimpong': 'Kalimpong', 'jalpaiguri': 'Jalpaiguri',
+        'coochbehar': 'Coochbehar', 'alipurduar': 'Alipurduar', 'others': 'Others'
+    };
+    
+    const divisionValueMap = {
+        'siliguri-town-division': 'Siliguri Town Division', 'kurseong-division': 'Kurseong Division',
+        'darjeeling-division': 'Darjeeling Division', 'sub-urban-division': 'Sub-Urban Division',
+        'kalimpong-division': 'Kalimpong Division', 'jalpaiguri-division': 'Jalpaiguri Division',
+        'mal-division': 'Mal Division', 'coochbehar-division': 'Coochbehar Division',
+        'mathabhanga-division': 'Mathabhanga Division', 'dinhata-division': 'Dinhata Division',
+        'alipurduar-division': 'Alipurduar Division', 'central-store-cord-road-store': 'Central Store/Cord Road Store'
+    };
+
+    function showLoading() { document.getElementById('loading').style.display = 'flex'; }
+    function hideLoading() { document.getElementById('loading').style.display = 'none'; }
+    
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        document.getElementById('errorText').textContent = message;
+        errorDiv.style.display = 'block';
+        setTimeout(() => { errorDiv.style.display = 'none'; }, 5000);
+    }
+
+    function updatePeriodLabel(periodType) {
+        const avgLabel = document.getElementById('avgLabel');
+        switch(periodType) {
+            case 'monthly': avgLabel.textContent = 'Monthly Average'; currentPeriodLabel = 'Monthly'; break;
+            case 'quarterly': avgLabel.textContent = 'Quarterly Average'; currentPeriodLabel = 'Quarterly'; break;
+            case 'yearly': avgLabel.textContent = 'Yearly Average'; currentPeriodLabel = 'Yearly'; break;
+            default: avgLabel.textContent = 'Period-wise Average';
+        }
+    }
+
+    function updateUnitDisplay(unit) {
+        if (unit && unit !== 'units' && unit !== 'Units') {
+            currentUnit = unit;
+            document.getElementById('avgUnit').textContent = unit;
+            document.getElementById('peakUnit').textContent = unit;
+            document.getElementById('lowUnit').textContent = unit;
+        } else {
+            currentUnit = 'units';
+            document.getElementById('avgUnit').textContent = 'units';
+            document.getElementById('peakUnit').textContent = 'units';
+            document.getElementById('lowUnit').textContent = 'units';
+        }
+    }
+
+    function captureChartImage() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const canvas = document.getElementById('trendChart');
+                if (canvas) {
+                    currentChartImage = canvas.toDataURL('image/png');
+                }
+                resolve();
+            }, 500);
+        });
+    }
+
+    function exportToExcel() {
+        if (!currentData) {
+            showError('No data to export. Please load data first.');
+            return;
+        }
+        
+        const wb = XLSX.utils.book_new();
+        
+        // Sheet 1: KPI Summary
+        const kpiData = [
+            ['CONSUMPTION ANALYSIS REPORT'],
+            ['Generated on:', new Date().toLocaleString()],
+            ['Filters:', `Zone: ${document.getElementById('selectedZone').innerText}, Period: ${document.getElementById('selectedPeriod').innerText}, Group: ${document.getElementById('selectedGroup').innerText}, Material: ${document.getElementById('selectedMaterial').innerText}`],
+            [],
+            ['KPI METRICS'],
+            ['Metric', 'Value', 'Unit'],
+            [`${currentPeriodLabel} Average`, document.getElementById('avgConsumption').innerText, currentUnit],
+            ['Peak Consumption', document.getElementById('peakConsumption').innerText, currentUnit],
+            ['Low Consumption', document.getElementById('lowConsumption').innerText, currentUnit],
+            ['Zone Contribution', document.getElementById('zoneContribution').innerText, '%'],
+            ['Stock vs Consumption', document.getElementById('stockVsConsumption').innerText, 'months']
+        ];
+        const kpiSheet = XLSX.utils.aoa_to_sheet(kpiData);
+        XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPI Summary');
+        
+        // Sheet 2: Top 10 Materials
+        const topMaterialsData = [['TOP 10 CONSUMED MATERIALS']];
+        topMaterialsData.push(['#', 'Material Code', 'Material Name', 'Quantity', 'Unit', '% of Total']);
+        const topRows = document.querySelectorAll('#topMaterialsBody tr');
+        topRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && cells[0].innerText !== 'No material data available') {
+                topMaterialsData.push([
+                    cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '',
+                    cells[3]?.innerText || '', cells[4]?.innerText || '', cells[5]?.innerText || ''
+                ]);
+            }
+        });
+        const topSheet = XLSX.utils.aoa_to_sheet(topMaterialsData);
+        XLSX.utils.book_append_sheet(wb, topSheet, 'Top 10 Materials');
+        
+        // Sheet 3: Consumption by Division
+        const divisionData = [['CONSUMPTION BY DIVISION']];
+        divisionData.push(['Division', 'Consumption', '% of Total']);
+        const divRows = document.querySelectorAll('#divisionTableBody tr');
+        divRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && cells[0].innerText !== 'No division data available') {
+                divisionData.push([cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '']);
+            }
+        });
+        const divSheet = XLSX.utils.aoa_to_sheet(divisionData);
+        XLSX.utils.book_append_sheet(wb, divSheet, 'Division Consumption');
+        
+        // Sheet 4: Period-wise Consumption
+        const periodData = [['PERIOD-WISE CONSUMPTION']];
+        periodData.push(['Period', 'Consumption', '% Change']);
+        const periodRows = document.querySelectorAll('#periodTableBody tr');
+        periodRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && cells[0].innerText !== 'No period data available') {
+                periodData.push([cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '']);
+            }
+        });
+        const periodSheet = XLSX.utils.aoa_to_sheet(periodData);
+        XLSX.utils.book_append_sheet(wb, periodSheet, 'Period-wise Consumption');
+        
+        // Save file
+        const fileName = `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+    }
+    
+    async function exportToPDF() {
+        if (!currentData) {
+            showError('No data to export. Please load data first.');
+            return;
+        }
+        
+        showLoading();
+        await captureChartImage();
+        
+        const element = document.getElementById('reportContainer');
+        const opt = {
+            margin: [0.5, 0.5, 0.5, 0.5],
+            filename: `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+            image: { type: 'png', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+        };
+        
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showError('Failed to generate PDF. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function onZoneChange() {
+        const zone = document.getElementById('zoneFilter').value;
+        const regionSelect = document.getElementById('regionFilter');
+        regionSelect.innerHTML = '<option value="all">All Regions</option>';
+        const regionsToShow = zone === 'all' ? allRegions : allRegions.filter(r => r !== 'others');
+        regionsToShow.forEach(region => {
+            regionSelect.innerHTML += `<option value="${region}">${regionDisplayNames[region]}</option>`;
+        });
+        document.getElementById('selectedZone').innerHTML = `ZONE: ${zone === 'all' ? 'All Zones' : 'Siliguri Zone'}`;
+        onRegionChange();
+    }
+    
+    function onRegionChange() {
+        const region = document.getElementById('regionFilter').value;
+        const divisionSelect = document.getElementById('divisionFilter');
+        divisionSelect.innerHTML = '<option value="all">All Divisions</option>';
+        if (region !== 'all' && regionDivisions[region]) {
+            regionDivisions[region].forEach(division => {
+                const option = document.createElement('option');
+                option.value = division.toLowerCase().replace(/\s+/g, '-');
+                option.textContent = division;
+                divisionSelect.appendChild(option);
+            });
+        } else if (region === 'all') {
+            allRegions.forEach(reg => {
+                if (regionDivisions[reg]) {
+                    regionDivisions[reg].forEach(division => {
+                        const option = document.createElement('option');
+                        option.value = division.toLowerCase().replace(/\s+/g, '-');
+                        option.textContent = division;
+                        divisionSelect.appendChild(option);
+                    });
+                }
+            });
+        }
+        document.getElementById('selectedRegion').innerHTML = `REGION: ${region === 'all' ? 'All Regions' : regionDisplayNames[region]}`;
+        onDivisionChange();
+    }
+    
+    function onDivisionChange() {
+        const divisionValue = document.getElementById('divisionFilter').value;
+        let displayName = 'All Divisions';
+        if (divisionValue !== 'all') {
+            displayName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
+        }
+        document.getElementById('selectedDivision').innerHTML = `DIVISION: ${displayName}`;
+        const periodType = document.getElementById('periodType').value;
+        document.getElementById('selectedPeriod').innerHTML = `PERIOD: ${periodType.toUpperCase()}`;
+        updatePeriodLabel(periodType);
+        const selectedGroup = document.getElementById('groupFilter').options[document.getElementById('groupFilter').selectedIndex]?.text || 'All Groups';
+        document.getElementById('selectedGroup').innerHTML = `GROUP: ${selectedGroup}`;
+        loadData();
+    }
+    
+    async function loadMaterialGroups() {
+        try {
+            const response = await fetch('/api/consumption/material-groups');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const groups = await response.json();
+            const groupSelect = document.getElementById('groupFilter');
+            groupSelect.innerHTML = '<option value="all">All Material Groups</option>';
+            if (groups && groups.length > 0) {
+                groups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group;
+                    option.textContent = group;
+                    groupSelect.appendChild(option);
+                });
+            }
+        } catch (error) { console.error('Error loading material groups:', error); }
+    }
+    
+    async function loadMaterialsByGroup(materialGroup) {
+        try {
+            let url = '/api/consumption/materials';
+            if (materialGroup && materialGroup !== 'all') url += `?group=${encodeURIComponent(materialGroup)}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const materials = await response.json();
+            const materialSelect = document.getElementById('materialFilter');
+            materialSelect.innerHTML = '<option value="all">All Materials</option>';
+            if (materials && materials.length > 0) {
+                materials.forEach(material => {
+                    const option = document.createElement('option');
+                    option.value = material.material_code || material.code;
+                    const displayName = material.material_name || material.name || material.material_code || material.code;
+                    option.textContent = displayName.length > 60 ? displayName.substring(0, 60) + '...' : displayName;
+                    option.title = displayName;
+                    materialSelect.appendChild(option);
+                });
+            }
+        } catch (error) { console.error('Error loading materials:', error); }
+    }
+    
+    async function onMaterialGroupChange() {
+        const selectedGroup = document.getElementById('groupFilter').value;
+        await loadMaterialsByGroup(selectedGroup);
+        loadData();
+    }
+    
+    async function loadFilterOptions() {
+        await loadMaterialGroups();
+        await loadMaterialsByGroup('all');
+    }
+    
+    async function loadData() {
+        showLoading();
+        
+        const periodType = document.getElementById('periodType').value;
+        const divisionValue = document.getElementById('divisionFilter').value;
+        const materialGroup = document.getElementById('groupFilter').value;
+        const materialCode = document.getElementById('materialFilter').value;
+        
+        let plant = 'all';
+        let selectedDivisionName = 'All Divisions';
+        if (divisionValue !== 'all') {
+            selectedDivisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
+            const plantCodes = divisionToPlantMap[selectedDivisionName];
+            if (plantCodes && plantCodes.length > 0) plant = plantCodes[0];
+        }
+        
+        const payload = {
+            period: periodType,
+            plant: plant,
+            material_group: materialGroup === 'all' ? 'all' : materialGroup,
+            material_code: materialCode === 'all' ? 'all' : materialCode,
+            year: new Date().getFullYear()
+        };
+        
+        console.log("API Payload:", payload);
+        
+        try {
+            const response = await fetch('/api/consumption/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            console.log("API Response:", data);
+            if (data.error) throw new Error(data.error);
+            
+            currentData = data;
+            
+            const consumptionData = data.consumption_data || [];
+            const quantities = consumptionData.map(d => d.quantity).filter(q => q > 0);
+            
+            if (data.top_materials && data.top_materials.length > 0 && data.top_materials[0].unit) {
+                updateUnitDisplay(data.top_materials[0].unit);
+            } else {
+                updateUnitDisplay('units');
+            }
+            
+            updatePeriodLabel(periodType);
+            
+            const avgQuantity = quantities.length > 0 ? quantities.reduce((a, b) => a + b, 0) / quantities.length : 0;
+            const peakQuantity = quantities.length > 0 ? Math.max(...quantities) : 0;
+            const lowQuantity = quantities.length > 0 ? Math.min(...quantities) : 0;
+            const peakItem = consumptionData.find(d => d.quantity === peakQuantity);
+            const lowItem = consumptionData.find(d => d.quantity === lowQuantity);
+            
+            document.getElementById('avgConsumption').textContent = avgQuantity.toFixed(1).toLocaleString();
+            document.getElementById('peakConsumption').textContent = peakQuantity.toLocaleString();
+            document.getElementById('lowConsumption').textContent = lowQuantity.toLocaleString();
+            document.getElementById('peakPeriod').innerHTML = `<small>${peakItem ? peakItem.period : '-'}</small>`;
+            document.getElementById('lowPeriod').innerHTML = `<small>${lowItem ? lowItem.period : '-'}</small>`;
+            
+            let zoneContribution = 100;
+            if (plant !== 'all' && data.summary.total_consumption > 0) {
+                const allPayload = {...payload, plant: 'all'};
+                const allResponse = await fetch('/api/consumption/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(allPayload)
+                });
+                const allData = await allResponse.json();
+                if (allData.summary.total_consumption > 0) {
+                    zoneContribution = (data.summary.total_consumption / allData.summary.total_consumption) * 100;
+                }
+            }
+            document.getElementById('zoneContribution').textContent = zoneContribution.toFixed(1);
+            
+            const totalConsumption = data.summary.total_consumption || 0;
+            const stockVsConsumption = avgQuantity > 0 ? (500 / avgQuantity).toFixed(1) : 0;
+            document.getElementById('stockVsConsumption').textContent = stockVsConsumption;
+            
+            const stockStatus = document.getElementById('stockStatus');
+            if (stockVsConsumption < 3 && stockVsConsumption > 0) {
+                stockStatus.innerHTML = '<span class="status-critical">⚠️ Critical Stock</span>';
+                stockStatus.style.color = '#dc3545';
+            } else if (stockVsConsumption < 6 && stockVsConsumption > 0) {
+                stockStatus.innerHTML = '<span class="status-warning">⚠️ Low Stock</span>';
+                stockStatus.style.color = '#ffc107';
+            } else if (stockVsConsumption > 0) {
+                stockStatus.innerHTML = '<span class="status-good">✓ Adequate Stock</span>';
+                stockStatus.style.color = '#28a745';
+            } else {
+                stockStatus.innerHTML = '<span class="status-no-data">— No Data</span>';
+                stockStatus.style.color = '#6c757d';
+            }
+            
+            // Update Trend Chart
+            if (trendChart) trendChart.destroy();
+            if (consumptionData.length > 0) {
+                const ctx = document.getElementById('trendChart').getContext('2d');
+                trendChart = new Chart(ctx, {
+                    type: currentChartType,
+                    data: {
+                        labels: consumptionData.map(d => d.period),
+                        datasets: [{
+                            label: `Consumption (${currentUnit})`,
+                            data: quantities,
+                            borderColor: '#667eea',
+                            backgroundColor: currentChartType === 'line' ? 'rgba(102, 126, 234, 0.1)' : '#667eea',
+                            fill: currentChartType === 'line',
+                            tension: 0.4,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+                });
+                document.getElementById('noChartData').style.display = 'none';
+            } else {
+                document.getElementById('noChartData').style.display = 'block';
+            }
+            
+            // Update Top Materials Table
+            const topBody = document.getElementById('topMaterialsBody');
+            const total = data.summary.total_consumption;
+            const topMaterials = data.top_materials || [];
+            
+            if (topMaterials.length > 0 && total > 0) {
+                topBody.innerHTML = topMaterials.slice(0, 10).map((m, index) => `
+                    <tr>
+                        <td><strong>${index + 1}</strong></td>
+                        <td><code>${m.material_code || '-'}</code></td>
+                        <td><strong>${(m.material_name || 'Unknown').substring(0, 45)}${(m.material_name || '').length > 45 ? '...' : ''}</strong></td>
+                        <td><strong>${(m.quantity || 0).toLocaleString()}</strong></td>
+                        <td>${m.unit || currentUnit}</td>
+                        <td>
+                            <div class="progress" style="height: 6px;"><div class="progress-bar bg-primary" style="width: ${((m.quantity || 0) / total) * 100}%"></div></div>
+                            <small>${(((m.quantity || 0) / total) * 100).toFixed(1)}%</small>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                topBody.innerHTML = '<td><td colspan="6" class="text-center">No material data available</td></tr>';
+            }
+            
+            // Update Group Chart
+            if (groupChart) groupChart.destroy();
+            const groupData = data.group_consumption || [];
+            if (groupData.length > 0) {
+                const groupCtx = document.getElementById('groupChart').getContext('2d');
+                groupChart = new Chart(groupCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: groupData.map(g => g.material_group),
+                        datasets: [{
+                            data: groupData.map(g => g.quantity),
+                            backgroundColor: ['#667eea', '#764ba2', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#fd7e14', '#6f42c1', '#20c997', '#e83e8c']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'right' } } }
+                });
+            } else {
+                const groupCtx = document.getElementById('groupChart').getContext('2d');
+                groupChart = new Chart(groupCtx, { type: 'pie', data: { labels: ['No Data'], datasets: [{ data: [1], backgroundColor: ['#e9ecef'] }] }, options: { responsive: true } });
+            }
+            
+            // Update Division Table
+            const divisionTableBody = document.getElementById('divisionTableBody');
+            const plantData = data.plant_consumption || [];
+            if (plantData.length > 0) {
+                const divisionMap = {};
+                plantData.forEach(item => {
+                    const divisionName = plantToDivisionMap[item.plant] || item.plant;
+                    divisionMap[divisionName] = (divisionMap[divisionName] || 0) + item.quantity;
+                });
+                const sortedDivisions = Object.entries(divisionMap)
+                    .map(([division, quantity]) => ({ division, quantity }))
+                    .sort((a, b) => b.quantity - a.quantity);
+                const divisionTotal = sortedDivisions.reduce((sum, d) => sum + d.quantity, 0);
+                divisionTableBody.innerHTML = sortedDivisions.map(item => `
+                    <tr>
+                        <td><strong>${item.division}</strong></td>
+                        <td>${item.quantity.toLocaleString()} ${currentUnit}</td>
+                        <td>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-primary" style="width: ${(item.quantity / divisionTotal) * 100}%"></div>
+                            </div>
+                            <small>${((item.quantity / divisionTotal) * 100).toFixed(1)}%</small>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                divisionTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No division data available</td></tr>';
+            }
+            
+            // Update Period Table
+            const periodBody = document.getElementById('periodTableBody');
+            if (consumptionData.length > 0) {
+                periodBody.innerHTML = consumptionData.map((item, idx) => {
+                    let percentChange = 0, changeClass = '', changeIcon = '';
+                    if (idx > 0) {
+                        const prev = consumptionData[idx - 1].quantity;
+                        percentChange = prev !== 0 ? ((item.quantity - prev) / prev) * 100 : 0;
+                        changeClass = percentChange >= 0 ? 'text-success' : 'text-danger';
+                        changeIcon = percentChange >= 0 ? '▲' : '▼';
+                    }
+                    return `<tr>
+                        <td><strong>${item.period}</strong></td>
+                        <td>${item.quantity.toLocaleString()} ${currentUnit}</td>
+                        <td class="${changeClass}">${idx > 0 ? `${changeIcon} ${Math.abs(percentChange).toFixed(1)}%` : '-'}</td>
+                    </tr>`;
+                }).join('');
+            } else {
+                periodBody.innerHTML = '<tr><td colspan="3" class="text-center">No period data available</td></tr>';
+            }
+            
+            const selectedMaterial = document.getElementById('materialFilter').options[document.getElementById('materialFilter').selectedIndex]?.text || 'All Materials';
+            document.getElementById('selectedMaterial').innerHTML = `MATERIAL: ${selectedMaterial.length > 40 ? selectedMaterial.substring(0, 40) + '...' : selectedMaterial}`;
+            
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showError(`Failed to load consumption data: ${error.message}`);
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    function toggleChartType() {
+        currentChartType = currentChartType === 'line' ? 'bar' : 'line';
+        const icon = document.getElementById('chartTypeIcon');
+        icon.className = currentChartType === 'line' ? 'bi bi-bar-chart' : 'bi bi-graph-up';
+        loadData();
+    }
+    
+    function resetFilters() {
+        document.getElementById('zoneFilter').value = 'all';
+        document.getElementById('periodType').value = 'monthly';
+        document.getElementById('groupFilter').value = 'all';
+        document.getElementById('materialFilter').value = 'all';
+        onZoneChange();
+        loadMaterialsByGroup('all');
+        updatePeriodLabel('monthly');
+    }
+    
+    function displayCurrentDate() {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', options);
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        displayCurrentDate();
+        onZoneChange();
+        loadFilterOptions();
+        updatePeriodLabel('monthly');
+    });
+</script>
+
+<style>
+    .filter-section { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .filter-group label { display: block; margin-bottom: 8px; font-size: 0.7rem; font-weight: 700; color: #1e2b3a; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-group label i { color: #667eea; margin-right: 6px; }
+    .filter-select { width: 100%; padding: 12px 15px; border: 2px solid #eef2f6; border-radius: 12px; font-size: 0.9rem; background: white; cursor: pointer; transition: all 0.3s ease; }
+    .filter-select:hover { border-color: #667eea; }
+    .filter-actions { display: flex; justify-content: flex-end; }
+    .btn-reset { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; padding: 10px 24px; border-radius: 10px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease; }
+    .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,117,125,0.3); }
+    .kpi-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .kpi-title i { font-size: 1.5rem; color: #667eea; }
+    .kpi-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #1e2b3a; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
+    .kpi-card { background: white; border-radius: 16px; padding: 18px; display: flex; align-items: center; gap: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: all 0.3s ease; }
+    .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+    .kpi-icon { width: 55px; height: 55px; border-radius: 15px; display: flex; align-items: center; justify-content: center; }
+    .kpi-icon i { font-size: 1.5rem; color: white; }
+    .kpi-info { flex: 1; }
+    .kpi-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    .kpi-value { font-size: 1.6rem; font-weight: 800; color: #1e2b3a; line-height: 1.2; }
+    .kpi-unit { font-size: 0.7rem; color: #6c757d; margin-left: 5px; }
+    .kpi-period { font-size: 0.7rem; color: #6c757d; margin-top: 3px; }
+    .kpi-status { font-size: 0.7rem; margin-top: 3px; }
+    .filter-indicator { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+    .filter-indicator .badge { padding: 8px 15px; font-size: 0.75rem; font-weight: 500; border-radius: 20px; }
+    .badge-dark { background: linear-gradient(135deg, #343a40, #23272b); color: white; }
+    .content-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+    .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; }
+    .section-title i { font-size: 1.3rem; color: #667eea; }
+    .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; color: #1e2b3a; }
+    .ms-auto { margin-left: auto; }
+    .btn-toggle { background: #f0f4fa; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; }
+    .btn-toggle:hover { background: #e5ecf5; }
+    .two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { padding: 12px; text-align: left; background: #f8fafd; font-size: 0.7rem; font-weight: 700; border-bottom: 2px solid #eef2f6; }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f6; font-size: 0.85rem; }
+    .data-table tr:hover { background: #f8fafd; }
+    .loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+    .progress { background: #eef2f6; border-radius: 10px; overflow: hidden; }
+    .progress-bar { background: linear-gradient(135deg, #667eea, #764ba2); transition: width 0.5s ease; }
+    .text-success { color: #28a745; }
+    .text-danger { color: #dc3545; }
+    .text-center { text-align: center; }
+    @media (max-width: 768px) { .two-columns { grid-template-columns: 1fr; } .filter-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

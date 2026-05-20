@@ -45,6 +45,24 @@ def priority_works_overview():
     user = session.get('user')
     return render_template('priority_works_overview.html', user=user)
 
+# ==================== INVENTORY MANAGEMENT DASHBOARD ====================
+
+@main_bp.route('/inventory-dashboard')
+@login_required
+def inventory_dashboard():
+    """Inventory Management Dashboard - Stock, Critical Items, Consumption, Allotment"""
+    user = session.get('user')
+    return render_template('inventory_dashboard.html', user=user)
+
+# ==================== CONSUMPTION ANALYSIS DETAIL DASHBOARD ====================
+
+@main_bp.route('/consumption-analysis')
+@login_required
+def consumption_analysis():
+    """Consumption Analysis Detail Dashboard"""
+    user = session.get('user')
+    return render_template('dashboards/consumption_analysis_new.html', user=user)
+
 # ==================== TECHNICAL DASHBOARD ROUTES ====================
 
 @main_bp.route('/substation-dashboard')
@@ -118,3 +136,7 @@ def conductor_augmt_11kv_dashboard():
     """11KV Conductor Augmentation dashboard"""
     user = session.get('user')
     return render_template('dashboards/Conductor_Augmt_11_Line_dashboard.html', user=user)
+@main_bp.route('/test-consumption')
+@login_required
+def test_consumption():
+    return "<h1>Test Page - Consumption Analysis Works!</h1>"

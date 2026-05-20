@@ -1,239 +1,153 @@
 """
-API Routes for data fetching
-Complete version with all endpoints
-Last Updated: March 13, 2026
+API Routes - Using consumption_summary collection
+Consumption data is pre-aggregated from transactions_summary
+Last Updated: May 20, 2026 - FIXED: Period-based aggregation for Top Materials
 """
 
 from flask import Blueprint, jsonify, session, request
 from app.utils.decorators import login_required
 from app.models.mongo_utils import get_db
+from datetime import datetime
+from collections import defaultdict
+import pandas as pd
 
 api_bp = Blueprint('api', __name__)
 
-# ==================== FILTER OPTIONS ENDPOINTS ====================
+# ==================== HELPER FUNCTIONS ====================
+
+def safe_json_response(data, status=200):
+    try:
+        return jsonify(data), status
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def parse_period(period_str):
+    """Parse period string to extract date components"""
+    try:
+        if '/' in period_str:
+            parts = period_str.split('/')
+            if len(parts) == 3:
+                return {
+                    'year': int(parts[2]),
+                    'month': int(parts[0]),
+                    'quarter': (int(parts[0]) - 1) // 3 + 1
+                }
+        elif '-' in period_str:
+            parts = period_str.split('-')
+            if len(parts) == 2:
+                return {
+                    'year': int(parts[0]),
+                    'month': int(parts[1]),
+                    'quarter': (int(parts[1]) - 1) // 3 + 1
+                }
+        return {'year': 2024, 'month': 1, 'quarter': 1}
+    except:
+        return {'year': 2024, 'month': 1, 'quarter': 1}
+
+
+# ==================== EXISTING FILTER ENDPOINTS ====================
 
 @api_bp.route('/api/filter-options')
 @login_required
 def get_filter_options():
-    """Get filter dropdown options for all dashboards"""
     try:
         db = get_db()
         if db is None:
-            return jsonify({
-                "zones": [{"id": "zone_siliguri", "name": "Siliguri Zone"}],
-                "regions": [],
-                "divisions": []
-            }), 200
+            return safe_json_response({"zones": [{"id": "zone_siliguri", "name": "Siliguri Zone"}], "regions": [], "divisions": []})
         
         centers = list(db.centers.find({}))
+        regions = sorted({c.get('region') for c in centers if c.get('region')})
+        divisions = sorted({c.get('division') for c in centers if c.get('division')})
         
-        regions = sorted(list(set(c.get('region') for c in centers if c.get('region'))))
-        divisions = sorted(list(set(c.get('division') for c in centers if c.get('division'))))
-        
-        zones = [{
-            "id": "zone_siliguri",
-            "name": "Siliguri Zone"
-        }]
-        
-        return jsonify({
-            "zones": zones,
+        return safe_json_response({
+            "zones": [{"id": "zone_siliguri", "name": "Siliguri Zone"}],
             "regions": [{"id": r, "name": r} for r in regions],
             "divisions": [{"id": d, "name": d} for d in divisions]
-        }), 200
+        })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
+
 
 @api_bp.route('/api/zones')
 @login_required
 def get_zones():
-    """Get all zones with cumulative totals"""
     try:
         db = get_db()
         if db is None:
-            return jsonify([{
-                "_id": "zone_siliguri",
-                "name": "Siliguri Zone",
-                "incharge": "Chief Engineer",
-                "total_consumers": 0,
-                "total_staff": 0,
-                "total_dtr": 0,
-                "center_count": 0
-            }]), 200
+            return safe_json_response([{"_id": "zone_siliguri", "name": "Siliguri Zone", "incharge": "Chief Engineer", "total_consumers": 0, "total_staff": 0, "total_dtr": 0, "center_count": 0}])
         
         centers = list(db.centers.find({}))
-        
         if centers:
-            total_consumers = sum(c.get('total_consumers', 0) for c in centers)
-            total_staff = sum(c.get('total_staff', 0) for c in centers)
-            total_dtr = sum(c.get('total_dtr', 0) for c in centers)
-            
-            zones = [{
+            return safe_json_response([{
                 "_id": "zone_siliguri",
                 "name": "Siliguri Zone",
                 "incharge": "Chief Engineer",
-                "total_consumers": total_consumers,
-                "total_staff": total_staff,
-                "total_dtr": total_dtr,
+                "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
+                "total_staff": sum(c.get('total_staff', 0) for c in centers),
+                "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
                 "center_count": len(centers)
-            }]
-        else:
-            zones = [{
-                "_id": "zone_siliguri",
-                "name": "Siliguri Zone",
-                "incharge": "Chief Engineer",
-                "total_consumers": 0,
-                "total_staff": 0,
-                "total_dtr": 0,
-                "center_count": 0
-            }]
-            
-        return jsonify(zones), 200
+            }])
+        return safe_json_response([{"_id": "zone_siliguri", "name": "Siliguri Zone", "incharge": "Chief Engineer", "total_consumers": 0, "total_staff": 0, "total_dtr": 0, "center_count": 0}])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
 
-# ==================== REGION ENDPOINTS ====================
 
 @api_bp.route('/api/regions')
 @login_required
 def get_regions():
-    """Get all regions"""
     try:
         db = get_db()
         if db is None:
-            return jsonify([]), 200
-            
+            return safe_json_response([])
         centers = list(db.centers.find({}))
-        regions = list(set(c.get('region') for c in centers if c.get('region')))
-        regions.sort()
-        
-        return jsonify([{"id": r, "name": r} for r in regions]), 200
+        regions = sorted({c.get('region') for c in centers if c.get('region')})
+        return safe_json_response([{"id": r, "name": r} for r in regions])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
 
-@api_bp.route('/api/region/<region_id>')
-@login_required
-def get_region_details(region_id):
-    """Get detailed information for a specific region"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"error": "Database not connected"}), 500
-        
-        centers = list(db.centers.find({"region": region_id}))
-        
-        return jsonify({
-            "name": region_id,
-            "type": "region",
-            "total_centers": len(centers),
-            "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
-            "total_staff": sum(c.get('total_staff', 0) for c in centers),
-            "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
-            "centers": centers
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==================== DIVISION ENDPOINTS ====================
 
 @api_bp.route('/api/divisions')
 @login_required
 def get_divisions():
-    """Get all divisions"""
     try:
         db = get_db()
         if db is None:
-            return jsonify([]), 200
-            
+            return safe_json_response([])
         centers = list(db.centers.find({}))
-        divisions = list(set(c.get('division') for c in centers if c.get('division')))
-        divisions.sort()
-        
-        return jsonify([{"id": d, "name": d} for d in divisions]), 200
+        divisions = sorted({c.get('division') for c in centers if c.get('division')})
+        return safe_json_response([{"id": d, "name": d} for d in divisions])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
 
-@api_bp.route('/api/division/<division_id>')
-@login_required
-def get_division_details(division_id):
-    """Get detailed information for a specific division"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"error": "Database not connected"}), 500
-        
-        centers = list(db.centers.find({"division": division_id}))
-        
-        return jsonify({
-            "name": division_id,
-            "type": "division",
-            "total_centers": len(centers),
-            "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
-            "total_staff": sum(c.get('total_staff', 0) for c in centers),
-            "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
-            "centers": centers
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==================== CENTER ENDPOINTS ====================
 
 @api_bp.route('/api/centers')
 @login_required
 def get_centers():
-    """Get all centers"""
     try:
         db = get_db()
         if db is None:
-            return jsonify([]), 200
-            
+            return safe_json_response([])
         centers = list(db.centers.find({}))
-        for center in centers:
-            center['_id'] = str(center['_id'])
-        
-        return jsonify(centers), 200
+        for c in centers:
+            c['_id'] = str(c['_id'])
+        return safe_json_response(centers)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
 
-@api_bp.route('/api/center/<center_name>')
-@login_required
-def get_center_details(center_name):
-    """Get detailed information for a specific center"""
-    try:
-        db = get_db()
-        if db is None:
-            return jsonify({"error": "Database not connected"}), 500
-        
-        center = db.centers.find_one({"name": center_name})
-        if center:
-            center['_id'] = str(center['_id'])
-            return jsonify(center), 200
-        else:
-            return jsonify({"error": "Center not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-# ==================== ADMIN DASHBOARD ENDPOINTS ====================
+# ==================== ADMIN DASHBOARD ====================
 
 @api_bp.route('/api/admin/data', methods=['POST'])
 @login_required
 def get_admin_data():
-    """Get admin dashboard data with filters"""
     try:
         filters = request.json or {}
         db = get_db()
-        
         if db is None:
-            return jsonify({
-                'kpi': {'regions': 0, 'divisions': 0, 'substations': 0, 'staff': 0, 'consumers': 0},
-                'regions': [],
-                'divisions': []
-            }), 200
+            return safe_json_response({'kpi': {'regions': 0, 'divisions': 0, 'substations': 0, 'staff': 0, 'consumers': 0}, 'regions': [], 'divisions': []})
         
-        # Build query based on filters
         query = {}
-        if filters.get('zone') and filters['zone'] != 'all':
-            # Zone filter logic here if needed
-            pass
         if filters.get('region') and filters['region'] != 'all':
             query['region'] = filters['region']
         if filters.get('division') and filters['division'] != 'all':
@@ -241,579 +155,447 @@ def get_admin_data():
         
         centers = list(db.centers.find(query))
         
-        # Calculate KPIs
-        unique_regions = len(set(c.get('region') for c in centers if c.get('region')))
-        unique_divisions = len(set(c.get('division') for c in centers if c.get('division')))
+        unique_regions = len({c.get('region') for c in centers if c.get('region')})
+        unique_divisions = len({c.get('division') for c in centers if c.get('division')})
         total_dtr = sum(c.get('total_dtr', 0) for c in centers)
         total_staff = sum(c.get('total_staff', 0) for c in centers)
         total_consumers = sum(c.get('total_consumers', 0) for c in centers)
         
-        # Format regions data
         region_dict = {}
-        for center in centers:
-            region = center.get('region')
+        for c in centers:
+            region = c.get('region')
             if region:
                 if region not in region_dict:
-                    region_dict[region] = {
-                        'name': region,
-                        'divisions': set(),
-                        'substations': 0,
-                        'staff': 0,
-                        'incharge': 'Regional Manager',
-                        'contact': 'N/A'
-                    }
-                region_dict[region]['divisions'].add(center.get('division'))
-                region_dict[region]['substations'] += center.get('total_dtr', 0)
-                region_dict[region]['staff'] += center.get('total_staff', 0)
+                    region_dict[region] = {'name': region, 'divisions': set(), 'substations': 0, 'staff': 0, 'incharge': 'Regional Manager', 'contact': 'N/A'}
+                region_dict[region]['divisions'].add(c.get('division'))
+                region_dict[region]['substations'] += c.get('total_dtr', 0)
+                region_dict[region]['staff'] += c.get('total_staff', 0)
         
-        regions_data = []
-        for region_name, data in region_dict.items():
-            regions_data.append({
-                'name': region_name,
-                'divisions': len(data['divisions']),
-                'substations': data['substations'],
-                'staff': data['staff'],
-                'incharge': data['incharge'],
-                'contact': data['contact']
-            })
+        regions_data = [{'name': r, 'divisions': len(d['divisions']), 'substations': d['substations'], 'staff': d['staff'], 'incharge': d['incharge'], 'contact': d['contact']} for r, d in region_dict.items()]
+        divisions_data = [{'sl': i+1, 'name': c.get('division', 'N/A'), 'region': c.get('region', 'N/A'), 'substations': c.get('total_dtr', 0), 'aed': c.get('incharge', 'N/A'), 'contact': c.get('incharge_contact', 'N/A'), 'email': c.get('incharge_email', 'N/A'), 'staff': c.get('total_staff', 0), 'tech': c.get('total_staff', 0)} for i, c in enumerate(centers)]
         
-        # Format divisions data
-        divisions_data = []
-        sl = 1
-        for center in centers:
-            divisions_data.append({
-                'sl': sl,
-                'name': center.get('division', 'N/A'),
-                'region': center.get('region', 'N/A'),
-                'substations': center.get('total_dtr', 0),
-                'aed': center.get('incharge', 'N/A'),
-                'contact': center.get('incharge_contact', 'N/A'),
-                'email': center.get('incharge_email', 'N/A'),
-                'staff': center.get('total_staff', 0),
-                'tech': center.get('total_staff', 0)
-            })
-            sl += 1
-        
-        return jsonify({
-            'kpi': {
-                'regions': unique_regions,
-                'divisions': unique_divisions,
-                'substations': total_dtr,
-                'staff': total_staff,
-                'consumers': total_consumers
-            },
-            'regions': regions_data,
-            'divisions': divisions_data
-        }), 200
+        return safe_json_response({'kpi': {'regions': unique_regions, 'divisions': unique_divisions, 'substations': total_dtr, 'staff': total_staff, 'consumers': total_consumers}, 'regions': regions_data, 'divisions': divisions_data})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return safe_json_response({"error": str(e)})
 
-# ==================== TECHNICAL DASHBOARD ENDPOINTS ====================
 
-@api_bp.route('/api/technical/data', methods=['POST'])
+# ==================== CONSUMPTION ANALYSIS - FIXED ====================
+
+@api_bp.route('/api/consumption/overview')
 @login_required
-def get_technical_data():
-    """Get technical dashboard data"""
+def get_consumption_overview():
     try:
-        filters = request.json or {}
         db = get_db()
-        
         if db is None:
-            # Return sample data if no database
-            return jsonify({
-                'kpi': {
-                    'ptr_units': 48,
-                    'ptr_capacity': 520,
-                    'dtr_units': 845,
-                    'dtr_capacity': 42.5,
-                    'line_33kv': 78.5,
-                    'towers': 245,
-                    'feeders_11kv': 86,
-                    'feeder_length': 486
-                }
-            }), 200
+            return safe_json_response({'total_consumption': 0, 'avg_monthly': 0, 'top_material': 'No data', 'active_plants': 0})
         
-        # Fetch data from collections
-        substations = list(db.substation_33_11kv.find({}))
-        lines33kv = list(db.line_33kv.find({}))
-        lines11kv = list(db.line_11kv.find({}))
+        pipeline = [
+            {'$group': {
+                '_id': None,
+                'total_consumption': {'$sum': '$quantity'},
+                'unique_materials': {'$addToSet': '$material_code'},
+            }}
+        ]
         
-        data = {
-            'kpi': {
-                'ptr_units': len(substations),
-                'ptr_capacity': sum(s.get('capacity_mva', 0) for s in substations),
-                'dtr_units': sum(s.get('dtr_count', 0) for s in substations),
-                'dtr_capacity': 42.5,  # Placeholder
-                'line_33kv': sum(l.get('length_km', 0) for l in lines33kv),
-                'towers': sum(l.get('towers', 0) for l in lines33kv),
-                'feeders_11kv': len(lines11kv),
-                'feeder_length': sum(l.get('length_km', 0) for l in lines11kv)
-            }
-        }
+        result = list(db.consumption_summary.aggregate(pipeline))
         
-        return jsonify(data), 200
+        if result and result[0].get('total_consumption', 0) > 0:
+            total = result[0].get('total_consumption', 0)
+            
+            top_pipeline = [
+                {'$group': {
+                    '_id': {'code': '$material_code', 'name': '$material_name'},
+                    'quantity': {'$sum': '$quantity'}
+                }},
+                {'$sort': {'quantity': -1}},
+                {'$limit': 1}
+            ]
+            top_result = list(db.consumption_summary.aggregate(top_pipeline))
+            top_material = top_result[0]['_id']['name'] if top_result else 'No data'
+            
+            return safe_json_response({
+                'total_consumption': round(total, 2),
+                'avg_monthly': round(total / 12, 2),
+                'top_material': top_material,
+                'active_plants': 12,
+                'warnings': {'stock_only': 0, 'no_stock': 0}
+            })
+        
+        return safe_json_response({
+            'total_consumption': 0,
+            'avg_monthly': 0,
+            'top_material': 'No data',
+            'active_plants': 0,
+            'warnings': {'stock_only': 0, 'no_stock': 0}
+        })
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in get_consumption_overview: {e}")
+        return safe_json_response({
+            'total_consumption': 0,
+            'avg_monthly': 0,
+            'top_material': 'Error',
+            'active_plants': 0
+        })
 
-# ==================== COMMERCIAL DASHBOARD ENDPOINTS ====================
 
-@api_bp.route('/api/commercial/data', methods=['POST'])
+@api_bp.route('/api/consumption/data', methods=['POST'])
 @login_required
-def get_commercial_data():
-    """Get commercial dashboard data"""
+def get_consumption_data():
+    """
+    Get detailed consumption data with proper period-based aggregation.
+    When quarterly selected: aggregates monthly data into quarters
+    When yearly selected: aggregates monthly data into years
+    Top materials are calculated based on the selected period type
+    """
     try:
-        filters = request.json or {}
+        data = request.json or {}
+        period_type = data.get('period', 'monthly')
+        plant = data.get('plant', 'all')
+        material_group = data.get('material_group', 'all')
+        material_code = data.get('material_code', 'all')
         
-        # Sample commercial data
-        data = {
-            'kpi': {
-                'input': 185.6,
-                'demand': 168.2,
-                'collection': 42.5,
-                'collection_eff': 94.2
-            },
+        db = get_db()
+        if db is None:
+            return safe_json_response({'consumption_data': [], 'summary': {'total_consumption': 0}})
+        
+        # Build query
+        query = {}
+        
+        if plant and plant != 'all':
+            query['plant'] = plant
+        
+        if material_group and material_group != 'all':
+            query['material_group'] = material_group
+        
+        if material_code and material_code != 'all':
+            query['material_code'] = material_code
+        
+        print(f"Query: {query}")
+        
+        # Get ALL data matching filters
+        all_data = list(db.consumption_summary.find(query))
+        
+        if not all_data:
+            print("No data found for query")
+            return safe_json_response({
+                'consumption_data': [],
+                'top_materials': [],
+                'group_consumption': [],
+                'plant_consumption': [],
+                'summary': {'total_consumption': 0}
+            })
+        
+        df = pd.DataFrame(all_data)
+        df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
+        
+        # Parse period to get year, month, quarter
+        parsed_periods = df['period'].apply(parse_period)
+        df['year'] = parsed_periods.apply(lambda x: x['year'])
+        df['month'] = parsed_periods.apply(lambda x: x['month'])
+        df['quarter'] = parsed_periods.apply(lambda x: x['quarter'])
+        
+        print(f"Total records: {len(df)}")
+        print(f"Years in data: {sorted(df['year'].unique())}")
+        print(f"Total quantity sum: {df['quantity'].sum()}")
+        
+        # Aggregate based on period_type
+        if period_type == 'quarterly':
+            # First, aggregate monthly data to quarterly level
+            df['period_key'] = df['year'].astype(str) + '-Q' + df['quarter'].astype(str)
+            
+            # For trend chart: group by quarter
+            trend_agg = df.groupby('period_key').agg({'quantity': 'sum'}).reset_index()
+            trend_agg = trend_agg.sort_values('period_key')
+            consumption_data = [{'period': row['period_key'], 'quantity': round(row['quantity'], 2)} 
+                              for _, row in trend_agg.iterrows()]
+            
+            # For top materials: FIRST aggregate to quarterly level, THEN sum across quarters per material
+            # This ensures each quarter's consumption is counted once per material
+            quarterly_df = df.groupby(['period_key', 'material_code', 'material_name', 'unit', 'material_group', 'plant']).agg({'quantity': 'sum'}).reset_index()
+            
+            # Now sum across all quarters for top materials
+            top_agg = quarterly_df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
+            top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
+            top_materials = [{
+                'material_code': str(row['material_code']),
+                'material_name': row['material_name'] or 'Unknown',
+                'quantity': round(row['quantity'], 2),
+                'unit': row['unit'] or 'Units'
+            } for _, row in top_agg.iterrows()]
+            
+            # Material groups: aggregate quarterly data
+            group_agg = quarterly_df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
+            group_agg = group_agg.sort_values('quantity', ascending=False)
+            group_consumption = [{
+                'material_group': row['material_group'] or 'Uncategorized',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in group_agg.iterrows()]
+            
+            # Plants: aggregate quarterly data
+            plant_agg = quarterly_df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
+            plant_consumption = [{
+                'plant': row['plant'] or 'Unknown',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
+            
+            total_consumption = quarterly_df['quantity'].sum()
+            
+        elif period_type == 'yearly':
+            # First, aggregate monthly data to yearly level
+            df['period_key'] = df['year'].astype(str)
+            
+            # For trend chart: group by year
+            trend_agg = df.groupby('year').agg({'quantity': 'sum'}).reset_index()
+            trend_agg = trend_agg.sort_values('year')
+            consumption_data = [{'period': str(row['year']), 'quantity': round(row['quantity'], 2)} 
+                              for _, row in trend_agg.iterrows()]
+            
+            # For top materials: FIRST aggregate to yearly level, THEN sum across years per material
+            yearly_df = df.groupby(['year', 'material_code', 'material_name', 'unit', 'material_group', 'plant']).agg({'quantity': 'sum'}).reset_index()
+            
+            # Now sum across all years for top materials
+            top_agg = yearly_df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
+            top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
+            top_materials = [{
+                'material_code': str(row['material_code']),
+                'material_name': row['material_name'] or 'Unknown',
+                'quantity': round(row['quantity'], 2),
+                'unit': row['unit'] or 'Units'
+            } for _, row in top_agg.iterrows()]
+            
+            # Material groups: aggregate yearly data
+            group_agg = yearly_df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
+            group_agg = group_agg.sort_values('quantity', ascending=False)
+            group_consumption = [{
+                'material_group': row['material_group'] or 'Uncategorized',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in group_agg.iterrows()]
+            
+            # Plants: aggregate yearly data
+            plant_agg = yearly_df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
+            plant_consumption = [{
+                'plant': row['plant'] or 'Unknown',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
+            
+            total_consumption = yearly_df['quantity'].sum()
+            
+        else:  # monthly
+            # Use data as is, grouped by period
+            trend_agg = df.groupby('period').agg({'quantity': 'sum'}).reset_index()
+            trend_agg = trend_agg.sort_values('period')
+            consumption_data = [{'period': row['period'], 'quantity': round(row['quantity'], 2)} 
+                              for _, row in trend_agg.iterrows()]
+            
+            # Top materials: sum across all months
+            top_agg = df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
+            top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
+            top_materials = [{
+                'material_code': str(row['material_code']),
+                'material_name': row['material_name'] or 'Unknown',
+                'quantity': round(row['quantity'], 2),
+                'unit': row['unit'] or 'Units'
+            } for _, row in top_agg.iterrows()]
+            
+            # Material groups
+            group_agg = df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
+            group_agg = group_agg.sort_values('quantity', ascending=False)
+            group_consumption = [{
+                'material_group': row['material_group'] or 'Uncategorized',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in group_agg.iterrows()]
+            
+            # Plants
+            plant_agg = df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
+            plant_consumption = [{
+                'plant': row['plant'] or 'Unknown',
+                'quantity': round(row['quantity'], 2)
+            } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
+            
+            total_consumption = df['quantity'].sum()
+        
+        print(f"Period type: {period_type}")
+        print(f"Consumption data periods: {len(consumption_data)}")
+        print(f"Total consumption: {total_consumption}")
+        print(f"Top materials count: {len(top_materials)}")
+        
+        response = {
+            'consumption_data': consumption_data,
+            'top_materials': top_materials,
+            'group_consumption': group_consumption,
+            'plant_consumption': plant_consumption,
             'summary': {
-                'atc_loss': 18.5,
-                'atc_loss_change': 2.1,
-                'td_loss': 12.3,
-                'td_loss_change': -1.2,
-                'collection_eff': 94.2,
-                'collection_eff_change': 3.1,
-                'outstanding': 8.2,
-                'outstanding_change': 0.5
+                'total_consumption': round(total_consumption, 2),
+                'period_type': period_type,
+                'material_group': material_group,
+                'material_code': material_code,
+                'plant': plant
             }
         }
         
-        return jsonify(data), 200
+        return safe_json_response(response)
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in get_consumption_data: {e}")
+        import traceback
+        traceback.print_exc()
+        return safe_json_response({
+            'consumption_data': [],
+            'top_materials': [],
+            'group_consumption': [],
+            'plant_consumption': [],
+            'summary': {'total_consumption': 0}
+        })
 
-# ==================== OFFICE DETAILS ENDPOINT ====================
 
-@api_bp.route('/api/office-details')
+@api_bp.route('/api/consumption/plants')
 @login_required
-def get_office_details():
-    """Get detailed information for a specific office (zone/region/division/center)"""
+def get_consumption_plants():
     try:
-        office_type = request.args.get('type')
-        office_id = request.args.get('id')
-        
         db = get_db()
-        
         if db is None:
-            return jsonify({"error": "Database not connected"}), 500
+            return safe_json_response([])
         
-        if office_type == 'zone':
-            centers = list(db.centers.find({}))
-            return jsonify({
-                "name": "Siliguri Zone",
-                "type": "zone",
-                "total_centers": len(centers),
-                "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
-                "total_staff": sum(c.get('total_staff', 0) for c in centers),
-                "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
-                "centers": centers
-            }), 200
-            
-        elif office_type == 'region':
-            centers = list(db.centers.find({"region": office_id}))
-            return jsonify({
-                "name": office_id,
-                "type": "region",
-                "total_centers": len(centers),
-                "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
-                "total_staff": sum(c.get('total_staff', 0) for c in centers),
-                "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
-                "centers": centers
-            }), 200
-            
-        elif office_type == 'division':
-            centers = list(db.centers.find({"division": office_id}))
-            return jsonify({
-                "name": office_id,
-                "type": "division",
-                "total_centers": len(centers),
-                "total_consumers": sum(c.get('total_consumers', 0) for c in centers),
-                "total_staff": sum(c.get('total_staff', 0) for c in centers),
-                "total_dtr": sum(c.get('total_dtr', 0) for c in centers),
-                "centers": centers
-            }), 200
-            
-        elif office_type == 'center':
-            center = db.centers.find_one({"name": office_id})
-            if center:
-                center['_id'] = str(center['_id'])
-                return jsonify(center), 200
-            else:
-                return jsonify({"error": "Center not found"}), 404
-        else:
-            return jsonify({"error": "Invalid office type"}), 400
-            
+        plants = db.consumption_summary.distinct('plant')
+        plants = [p for p in plants if p and p != 'all']
+        plant_list = [{'code': p, 'name': p} for p in sorted(plants)]
+        
+        return safe_json_response(plant_list)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in get_consumption_plants: {e}")
+        return safe_json_response([])
 
-# ==================== PRIORITY WORKS API ENDPOINTS ====================
+
+@api_bp.route('/api/consumption/material-groups')
+@login_required
+def get_consumption_material_groups():
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        groups = db.consumption_summary.distinct('material_group')
+        groups = [g for g in groups if g and g != 'Uncategorized']
+        
+        return safe_json_response(sorted(groups))
+    except Exception as e:
+        print(f"Error in get_consumption_material_groups: {e}")
+        return safe_json_response([])
+
+
+@api_bp.route('/api/consumption/materials')
+@login_required
+def get_consumption_materials():
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        group = request.args.get('group', None)
+        
+        query = {}
+        if group and group != 'all' and group != 'undefined':
+            query['material_group'] = group
+        
+        pipeline = [
+            {'$match': query} if query else {'$match': {}},
+            {'$match': {'material_code': {'$exists': True, '$ne': None, '$ne': ''}}},
+            {'$group': {
+                '_id': {
+                    'code': '$material_code',
+                    'name': '$material_name',
+                    'group': '$material_group',
+                    'unit': '$unit'
+                }
+            }},
+            {'$sort': {'_id.name': 1}}
+        ]
+        
+        materials_raw = list(db.consumption_summary.aggregate(pipeline))
+        
+        materials = []
+        for m in materials_raw:
+            if m['_id']['code']:
+                materials.append({
+                    'material_code': str(m['_id']['code']),
+                    'material_name': m['_id']['name'] or str(m['_id']['code']),
+                    'material_group': m['_id']['group'] or 'Uncategorized',
+                    'unit': m['_id']['unit'] or 'Units'
+                })
+        
+        return safe_json_response(materials[:1000])
+        
+    except Exception as e:
+        print(f"Error in get_consumption_materials: {e}")
+        return safe_json_response([])
+
+
+# ==================== INVENTORY DASHBOARD ENDPOINTS ====================
+
+@api_bp.route('/api/inventory/current-stock')
+@login_required
+def get_current_stock():
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        stock = list(db.current_stock.find({}, {'_id': 0}))
+        return safe_json_response(stock)
+    except Exception as e:
+        return safe_json_response({"error": str(e)})
+
+
+@api_bp.route('/api/inventory/critical-items')
+@login_required
+def get_critical_items():
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        pipeline = [
+            {'$lookup': {
+                'from': 'material_master',
+                'localField': 'material_code',
+                'foreignField': 'Material_Code',
+                'as': 'material'
+            }},
+            {'$addFields': {
+                'min_stock': {'$ifNull': [{'$arrayElemAt': ['$material.calculated_min_stock', 0]}, 0]}
+            }},
+            {'$match': {
+                '$expr': {'$lt': ['$current_stock', '$min_stock']}
+            }}
+        ]
+        
+        critical = list(db.current_stock.aggregate(pipeline))
+        for item in critical:
+            item['_id'] = str(item['_id'])
+        
+        return safe_json_response(critical)
+    except Exception as e:
+        return safe_json_response({"error": str(e)})
+
+
+# ==================== LEGACY ENDPOINTS ====================
+
+@api_bp.route('/api/dashboard/administrative', methods=['POST'])
+@login_required
+def get_dashboard_administrative():
+    return get_admin_data()
+
 
 @api_bp.route('/api/priority-works/overview')
 @login_required
 def get_priority_works_overview():
-    """Get data for Priority Works Overview cards"""
-    try:
-        db = get_db()
-        if db is None:
-            # Return default data if no database connection
-            data = {
-                'hvds': {'total': 8, 'completed': 3, 'in_progress': 5, 'percentage': '65%', 'budget': '₹8.2Cr'},
-                'newSubstation': {'total': 3, 'capacity': '120 MVA', 'progress': '45%', 'budget': '₹6.5Cr', 'target': 'Dec 2026'},
-                'ptr': {'total': 12, 'completed': 5, 'capacity': '85 MVA', 'progress': '42%', 'budget': '₹4.8Cr'},
-                'new33kv': {'count': 2, 'length': '28 km', 'towers': 84, 'budget': '₹3.2Cr', 'start': 'Apr 2026'},
-                'cond33kv': {'count': 8, 'length': '42 km', 'completed': 3, 'progress': '38%', 'budget': '₹2.8Cr'},
-                'new11kv': {'count': 5, 'length': '15 km', 'poles': 225, 'budget': '₹1.8Cr', 'start': 'May 2026'},
-                'cond11kv': {'count': 12, 'length': '38 km', 'completed': 12, 'progress': '100%', 'budget': '₹1.2Cr'}
-            }
-            return jsonify(data), 200
-            
-        # TODO: Fetch from MongoDB collections when ready
-        # For now, return default data
-        data = {
-            'hvds': {'total': 8, 'completed': 3, 'in_progress': 5, 'percentage': '65%', 'budget': '₹8.2Cr'},
-            'newSubstation': {'total': 3, 'capacity': '120 MVA', 'progress': '45%', 'budget': '₹6.5Cr', 'target': 'Dec 2026'},
-            'ptr': {'total': 12, 'completed': 5, 'capacity': '85 MVA', 'progress': '42%', 'budget': '₹4.8Cr'},
-            'new33kv': {'count': 2, 'length': '28 km', 'towers': 84, 'budget': '₹3.2Cr', 'start': 'Apr 2026'},
-            'cond33kv': {'count': 8, 'length': '42 km', 'completed': 3, 'progress': '38%', 'budget': '₹2.8Cr'},
-            'new11kv': {'count': 5, 'length': '15 km', 'poles': 225, 'budget': '₹1.8Cr', 'start': 'May 2026'},
-            'cond11kv': {'count': 12, 'length': '38 km', 'completed': 12, 'progress': '100%', 'budget': '₹1.2Cr'}
-        }
-        
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ==================== DASHBOARD ADMINISTRATIVE API ====================
-
-# ==================== DETAILED DASHBOARD API ENDPOINTS ====================
-
-@api_bp.route('/api/substation/data', methods=['POST'])
-@login_required
-def get_substation_data():
-    """Get detailed substation dashboard data"""
-    try:
-        db = get_db()
-        filters = request.json or {}
-        
-        if db is None:
-            return jsonify({
-                'kpi': {
-                    'total_substations': 24,
-                    'total_ptrs': 48,
-                    'total_dtrs': 845,
-                    'total_capacity': 520,
-                    'active_substations': 22,
-                    'under_maintenance': 2
-                },
-                'substations': []
-            }), 200
-        
-        query = {}
-        if filters.get('region') and filters['region'] != 'all':
-            query['region'] = filters['region']
-        if filters.get('division') and filters['division'] != 'all':
-            query['division'] = filters['division']
-        
-        substations = list(db.substation_33_11kv.find(query))
-        
-        for sub in substations:
-            sub['_id'] = str(sub['_id'])
-        
-        total_ptrs = sum(s.get('ptr_count', 0) for s in substations)
-        total_dtrs = sum(s.get('dtr_count', 0) for s in substations)
-        total_capacity = sum(s.get('capacity_mva', 0) for s in substations)
-        
-        return jsonify({
-            'kpi': {
-                'total_substations': len(substations),
-                'total_ptrs': total_ptrs,
-                'total_dtrs': total_dtrs,
-                'total_capacity': total_capacity,
-                'active_substations': len([s for s in substations if s.get('status') == 'Active']),
-                'under_maintenance': len([s for s in substations if s.get('status') == 'Maintenance'])
-            },
-            'substations': substations
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/line-33kv/data', methods=['POST'])
-@login_required
-def get_line_33kv_data():
-    """Get detailed 33kV line dashboard data"""
-    try:
-        db = get_db()
-        filters = request.json or {}
-        
-        if db is None:
-            return jsonify({
-                'kpi': {
-                    'total_lines': 18,
-                    'total_length': 78.5,
-                    'total_towers': 245,
-                    'avg_length': 4.36,
-                    'augmentation_progress': 45,
-                    'lines_completed': 3
-                },
-                'lines': []
-            }), 200
-        
-        query = {}
-        if filters.get('region') and filters['region'] != 'all':
-            query['region'] = filters['region']
-        if filters.get('division') and filters['division'] != 'all':
-            query['division'] = filters['division']
-        
-        lines = list(db.line_33kv.find(query))
-        
-        for line in lines:
-            line['_id'] = str(line['_id'])
-        
-        total_length = sum(l.get('length_km', 0) for l in lines)
-        total_towers = sum(l.get('towers', 0) for l in lines)
-        
-        return jsonify({
-            'kpi': {
-                'total_lines': len(lines),
-                'total_length': total_length,
-                'total_towers': total_towers,
-                'avg_length': round(total_length / len(lines), 2) if lines else 0,
-                'augmentation_progress': 45,
-                'lines_completed': len([l for l in lines if l.get('status') == 'Completed'])
-            },
-            'lines': lines
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/line-11kv/data', methods=['POST'])
-@login_required
-def get_line_11kv_data():
-    """Get detailed 11kV line dashboard data"""
-    try:
-        db = get_db()
-        filters = request.json or {}
-        
-        if db is None:
-            return jsonify({
-                'kpi': {
-                    'total_feeders': 42,
-                    'total_length': 486,
-                    'total_poles': 1250,
-                    'avg_length': 11.57,
-                    'operational_feeders': 38,
-                    'under_maintenance': 4
-                },
-                'feeders': []
-            }), 200
-        
-        query = {}
-        if filters.get('region') and filters['region'] != 'all':
-            query['region'] = filters['region']
-        if filters.get('division') and filters['division'] != 'all':
-            query['division'] = filters['division']
-        
-        feeders = list(db.line_11kv.find(query))
-        
-        for feeder in feeders:
-            feeder['_id'] = str(feeder['_id'])
-        
-        total_length = sum(f.get('length_km', 0) for f in feeders)
-        total_poles = sum(f.get('poles', 0) for f in feeders)
-        
-        return jsonify({
-            'kpi': {
-                'total_feeders': len(feeders),
-                'total_length': total_length,
-                'total_poles': total_poles,
-                'avg_length': round(total_length / len(feeders), 2) if feeders else 0,
-                'operational_feeders': len([f for f in feeders if f.get('status') == 'Operational']),
-                'under_maintenance': len([f for f in feeders if f.get('status') == 'Maintenance'])
-            },
-            'feeders': feeders
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/hvds/data', methods=['POST'])
-@login_required
-def get_hvds_data():
-    """Get detailed HVDS dashboard data"""
-    try:
-        data = {
-            'kpi': {
-                'total_projects': 8,
-                'completed': 3,
-                'in_progress': 5,
-                'total_budget': 8.2,
-                'progress': 65,
-                'target_date': 'Dec 2026'
-            },
-            'projects': [
-                {'name': 'Siliguri HVDS Phase 1', 'status': 'Completed', 'progress': 100, 'budget': 1.2},
-                {'name': 'Siliguri HVDS Phase 2', 'status': 'In Progress', 'progress': 75, 'budget': 1.5},
-                {'name': 'Jalpaiguri HVDS', 'status': 'In Progress', 'progress': 60, 'budget': 1.8},
-                {'name': 'Coochbehar HVDS', 'status': 'In Progress', 'progress': 45, 'budget': 1.2},
-                {'name': 'Alipurduar HVDS', 'status': 'In Progress', 'progress': 30, 'budget': 0.9},
-                {'name': 'Darjeeling HVDS', 'status': 'Planned', 'progress': 0, 'budget': 1.6}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/new-substation/data', methods=['POST'])
-@login_required
-def get_new_substation_data():
-    """Get detailed new substation projects data"""
-    try:
-        data = {
-            'kpi': {
-                'total_projects': 3,
-                'total_capacity': 120,
-                'completed': 0,
-                'in_progress': 3,
-                'progress': 45,
-                'total_budget': 6.5
-            },
-            'projects': [
-                {'name': 'Siliguri New SS', 'capacity': 40, 'status': 'In Progress', 'progress': 50, 'budget': 2.2},
-                {'name': 'Jalpaiguri New SS', 'capacity': 40, 'status': 'In Progress', 'progress': 40, 'budget': 2.1},
-                {'name': 'Coochbehar New SS', 'capacity': 40, 'status': 'In Progress', 'progress': 45, 'budget': 2.2}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/ptr/data', methods=['POST'])
-@login_required
-def get_ptr_data():
-    """Get detailed PTR augmentation data"""
-    try:
-        data = {
-            'kpi': {
-                'total_units': 12,
-                'completed': 5,
-                'in_progress': 7,
-                'capacity_increase': 85,
-                'progress': 42,
-                'total_budget': 4.8
-            },
-            'projects': [
-                {'name': 'City Center PTR', 'capacity': 10, 'status': 'Completed', 'progress': 100, 'budget': 0.4},
-                {'name': 'Siliguri Town PTR', 'capacity': 8, 'status': 'In Progress', 'progress': 70, 'budget': 0.5},
-                {'name': 'Jalpaiguri PTR', 'capacity': 12, 'status': 'In Progress', 'progress': 45, 'budget': 0.6}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/new-33kv-line/data', methods=['POST'])
-@login_required
-def get_new_33kv_line_data():
-    """Get detailed new 33kV line projects data"""
-    try:
-        data = {
-            'kpi': {
-                'total_lines': 2,
-                'total_length': 28,
-                'total_towers': 84,
-                'progress': 15,
-                'total_budget': 3.2
-            },
-            'projects': [
-                {'name': 'Siliguri-Bagdogra 33kV', 'length': 15, 'towers': 45, 'status': 'Planned', 'progress': 10, 'budget': 1.8},
-                {'name': 'Jalpaiguri-Mal 33kV', 'length': 13, 'towers': 39, 'status': 'Planned', 'progress': 20, 'budget': 1.4}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/conductor-33kv/data', methods=['POST'])
-@login_required
-def get_conductor_33kv_data():
-    """Get detailed 33kV conductor augmentation data"""
-    try:
-        data = {
-            'kpi': {
-                'total_sections': 8,
-                'total_length': 42,
-                'completed': 3,
-                'in_progress': 5,
-                'progress': 38,
-                'total_budget': 2.8
-            },
-            'sections': [
-                {'name': 'Siliguri Section', 'length': 5.2, 'status': 'Completed', 'progress': 100, 'budget': 0.35},
-                {'name': 'Kurseong Section', 'length': 4.8, 'status': 'Completed', 'progress': 100, 'budget': 0.32},
-                {'name': 'Darjeeling Section', 'length': 6.5, 'status': 'In Progress', 'progress': 65, 'budget': 0.45}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/new-11kv-line/data', methods=['POST'])
-@login_required
-def get_new_11kv_line_data():
-    """Get detailed new 11kV line projects data"""
-    try:
-        data = {
-            'kpi': {
-                'total_feeders': 5,
-                'total_length': 15,
-                'total_poles': 225,
-                'progress': 10,
-                'total_budget': 1.8
-            },
-            'projects': [
-                {'name': 'Siliguri Industrial Feeder', 'length': 3.2, 'poles': 48, 'status': 'Planned', 'progress': 5, 'budget': 0.38},
-                {'name': 'Jalpaiguri Township', 'length': 2.8, 'poles': 42, 'status': 'Planned', 'progress': 8, 'budget': 0.34}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route('/api/conductor-11kv/data', methods=['POST'])
-@login_required
-def get_conductor_11kv_data():
-    """Get detailed 11kV conductor augmentation data"""
-    try:
-        data = {
-            'kpi': {
-                'total_sections': 12,
-                'total_length': 38,
-                'completed': 12,
-                'in_progress': 0,
-                'progress': 100,
-                'total_budget': 1.2
-            },
-            'sections': [
-                {'name': 'Siliguri Town Section', 'length': 3.5, 'status': 'Completed', 'progress': 100, 'budget': 0.11},
-                {'name': 'Jalpaiguri Section', 'length': 4.2, 'status': 'Completed', 'progress': 100, 'budget': 0.13},
-                {'name': 'Mal Section', 'length': 2.8, 'status': 'Completed', 'progress': 100, 'budget': 0.09}
-            ]
-        }
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return safe_json_response({
+        'hvds': {'total': 8, 'completed': 3, 'in_progress': 5, 'percentage': '65%', 'budget': '₹8.2Cr'},
+        'newSubstation': {'total': 3, 'capacity': '120 MVA', 'progress': '45%', 'budget': '₹6.5Cr', 'target': 'Dec 2026'},
+        'ptr': {'total': 12, 'completed': 5, 'capacity': '85 MVA', 'progress': '42%', 'budget': '₹4.8Cr'},
+        'new33kv': {'count': 2, 'length': '28 km', 'towers': 84, 'budget': '₹3.2Cr', 'start': 'Apr 2026'},
+        'cond33kv': {'count': 8, 'length': '42 km', 'completed': 3, 'progress': '38%', 'budget': '₹2.8Cr'},
+        'new11kv': {'count': 5, 'length': '15 km', 'poles': 225, 'budget': '₹1.8Cr', 'start': 'May 2026'},
+        'cond11kv': {'count': 12, 'length': '38 km', 'completed': 12, 'progress': '100%', 'budget': '₹1.2Cr'}
+    })
