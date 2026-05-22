@@ -63,6 +63,15 @@ def consumption_analysis():
     user = session.get('user')
     return render_template('dashboards/consumption_analysis_new.html', user=user)
 
+# ==================== CURRENT STOCK POSITION DASHBOARD ====================
+
+@main_bp.route('/current-stock-position')
+@login_required
+def current_stock_position():
+    """Current Stock Position Dashboard"""
+    user = session.get('user')
+    return render_template('dashboards/current_stock_position.html', user=user)
+
 # ==================== TECHNICAL DASHBOARD ROUTES ====================
 
 @main_bp.route('/substation-dashboard')
@@ -136,6 +145,9 @@ def conductor_augmt_11kv_dashboard():
     """11KV Conductor Augmentation dashboard"""
     user = session.get('user')
     return render_template('dashboards/Conductor_Augmt_11_Line_dashboard.html', user=user)
+
+# ==================== TEST ROUTE ====================
+
 @main_bp.route('/test-consumption')
 @login_required
 def test_consumption():

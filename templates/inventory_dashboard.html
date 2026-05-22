@@ -66,9 +66,10 @@
         </div>
     </div>
 </div>
+
 <!-- 6 Card Grid -->
 <div class="inventory-grid">
-    <!-- Card 1: Current Stock Level -->
+    <!-- Card 1: Current Stock Level - LINKED to current_stock_position -->
     <div class="inventory-card" id="stockCard">
         <div class="card-header-green">
             <i class="bi bi-box-seam"></i>
@@ -100,7 +101,7 @@
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="#" class="details-link" onclick="showDetails('stock')">View Details <i class="bi bi-arrow-right"></i></a>
+            <a href="{{ url_for('main.current_stock_position') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
         </div>
     </div>
 
@@ -136,11 +137,11 @@
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="#" class="details-link" onclick="showDetails('critical')">View Details <i class="bi bi-arrow-right"></i></a>
+            <a href="{{ url_for('main.current_stock_position') }}?filter=critical" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
         </div>
     </div>
 
-    <!-- Card 3: Incoming Material (NEW) -->
+    <!-- Card 3: Incoming Material -->
     <div class="inventory-card" id="incomingCard">
         <div class="card-header-orange">
             <i class="bi bi-arrow-down-circle"></i>
@@ -176,7 +177,7 @@
         </div>
     </div>
 
-    <!-- Card 4: Material in Transit (NEW) -->
+    <!-- Card 4: Material in Transit -->
     <div class="inventory-card" id="transitCard">
         <div class="card-header-teal">
             <i class="bi bi-truck"></i>
@@ -288,7 +289,7 @@
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="{{ url_for('main.consumption_analysis') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+            <a href="#" class="details-link" onclick="showDetails('allotment')">View Details <i class="bi bi-arrow-right"></i></a>
         </div>
     </div>
 </div>
@@ -382,9 +383,7 @@
     }
 
     function fetchInventoryData(region, division, date) {
-        // This will connect to API in production
         console.log(`Fetching inventory data for region: ${region}, division: ${division}, date: ${date}`);
-        // Update card values dynamically
     }
 
     function showDetails(cardType) {
@@ -416,6 +415,7 @@
         });
     });
 </script>
+
 {% endblock %}
 
 {% block extra_css %}
@@ -441,7 +441,7 @@
         box-shadow: 0 20px 40px rgba(0,0,0,0.15);
     }
 
-    .card-header-green, .card-header-red, .card-header-blue, .card-header-purple {
+    .card-header-green, .card-header-red, .card-header-blue, .card-header-purple, .card-header-orange, .card-header-teal {
         padding: 20px;
         color: white;
         display: flex;
@@ -452,8 +452,11 @@
     .card-header-red { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
     .card-header-blue { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
     .card-header-purple { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); }
+    .card-header-orange { background: linear-gradient(135deg, #fd7e14 0%, #e67e22 100%); }
+    .card-header-teal { background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); }
 
-    .card-header-green i, .card-header-red i, .card-header-blue i, .card-header-purple i {
+    .card-header-green i, .card-header-red i, .card-header-blue i, .card-header-purple i,
+    .card-header-orange i, .card-header-teal i {
         font-size: 2rem;
     }
     .card-badge {

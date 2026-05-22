@@ -255,7 +255,7 @@
                         <tbody id="topMaterialsBody">
                             <tr><td colspan="6" class="text-center">Loading...<\/td></tr>
                         </tbody>
-                    </table>
+                    </td>
                 </div>
             </div>
         </div>
@@ -320,7 +320,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
@@ -328,23 +328,22 @@
     let currentChartType = 'line';
     let currentUnit = 'units';
     let currentPeriodLabel = 'Monthly';
-    let currentChartImage = null;
     let currentData = null;
     
-    // ==================== DIVISION TO PLANT CODE MAPPING ====================
+    // Division to Plant Code Mapping
     const divisionToPlantMap = {
-        'Siliguri Town Division': ['3412', '3400'],
-        'Kurseong Division': ['3413'],
-        'Darjeeling Division': ['3414'],
-        'Sub-Urban Division': ['3415'],
-        'Kalimpong Division': ['3471'],
-        'Jalpaiguri Division': ['3422'],
-        'Mal Division': ['3427'],
-        'Coochbehar Division': ['3444'],
-        'Mathabhanga Division': ['3445'],
-        'Dinhata Division': ['3446'],
-        'Alipurduar Division': ['3453'],
-        'Central Store/Cord Road Store': ['3600']
+        'Siliguri Town Division': '3412',
+        'Kurseong Division': '3413',
+        'Darjeeling Division': '3414',
+        'Sub-Urban Division': '3415',
+        'Kalimpong Division': '3471',
+        'Jalpaiguri Division': '3422',
+        'Mal Division': '3427',
+        'Coochbehar Division': '3444',
+        'Mathabhanga Division': '3445',
+        'Dinhata Division': '3446',
+        'Alipurduar Division': '3453',
+        'Central Store/Cord Road Store': '3600'
     };
     
     const plantToDivisionMap = {
@@ -412,118 +411,6 @@
             document.getElementById('avgUnit').textContent = 'units';
             document.getElementById('peakUnit').textContent = 'units';
             document.getElementById('lowUnit').textContent = 'units';
-        }
-    }
-
-    function captureChartImage() {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const canvas = document.getElementById('trendChart');
-                if (canvas) {
-                    currentChartImage = canvas.toDataURL('image/png');
-                }
-                resolve();
-            }, 500);
-        });
-    }
-
-    function exportToExcel() {
-        if (!currentData) {
-            showError('No data to export. Please load data first.');
-            return;
-        }
-        
-        const wb = XLSX.utils.book_new();
-        
-        // Sheet 1: KPI Summary
-        const kpiData = [
-            ['CONSUMPTION ANALYSIS REPORT'],
-            ['Generated on:', new Date().toLocaleString()],
-            ['Filters:', `Zone: ${document.getElementById('selectedZone').innerText}, Period: ${document.getElementById('selectedPeriod').innerText}, Group: ${document.getElementById('selectedGroup').innerText}, Material: ${document.getElementById('selectedMaterial').innerText}`],
-            [],
-            ['KPI METRICS'],
-            ['Metric', 'Value', 'Unit'],
-            [`${currentPeriodLabel} Average`, document.getElementById('avgConsumption').innerText, currentUnit],
-            ['Peak Consumption', document.getElementById('peakConsumption').innerText, currentUnit],
-            ['Low Consumption', document.getElementById('lowConsumption').innerText, currentUnit],
-            ['Zone Contribution', document.getElementById('zoneContribution').innerText, '%'],
-            ['Stock vs Consumption', document.getElementById('stockVsConsumption').innerText, 'months']
-        ];
-        const kpiSheet = XLSX.utils.aoa_to_sheet(kpiData);
-        XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPI Summary');
-        
-        // Sheet 2: Top 10 Materials
-        const topMaterialsData = [['TOP 10 CONSUMED MATERIALS']];
-        topMaterialsData.push(['#', 'Material Code', 'Material Name', 'Quantity', 'Unit', '% of Total']);
-        const topRows = document.querySelectorAll('#topMaterialsBody tr');
-        topRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 0 && cells[0].innerText !== 'No material data available') {
-                topMaterialsData.push([
-                    cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '',
-                    cells[3]?.innerText || '', cells[4]?.innerText || '', cells[5]?.innerText || ''
-                ]);
-            }
-        });
-        const topSheet = XLSX.utils.aoa_to_sheet(topMaterialsData);
-        XLSX.utils.book_append_sheet(wb, topSheet, 'Top 10 Materials');
-        
-        // Sheet 3: Consumption by Division
-        const divisionData = [['CONSUMPTION BY DIVISION']];
-        divisionData.push(['Division', 'Consumption', '% of Total']);
-        const divRows = document.querySelectorAll('#divisionTableBody tr');
-        divRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 0 && cells[0].innerText !== 'No division data available') {
-                divisionData.push([cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '']);
-            }
-        });
-        const divSheet = XLSX.utils.aoa_to_sheet(divisionData);
-        XLSX.utils.book_append_sheet(wb, divSheet, 'Division Consumption');
-        
-        // Sheet 4: Period-wise Consumption
-        const periodData = [['PERIOD-WISE CONSUMPTION']];
-        periodData.push(['Period', 'Consumption', '% Change']);
-        const periodRows = document.querySelectorAll('#periodTableBody tr');
-        periodRows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 0 && cells[0].innerText !== 'No period data available') {
-                periodData.push([cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '']);
-            }
-        });
-        const periodSheet = XLSX.utils.aoa_to_sheet(periodData);
-        XLSX.utils.book_append_sheet(wb, periodSheet, 'Period-wise Consumption');
-        
-        // Save file
-        const fileName = `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-    }
-    
-    async function exportToPDF() {
-        if (!currentData) {
-            showError('No data to export. Please load data first.');
-            return;
-        }
-        
-        showLoading();
-        await captureChartImage();
-        
-        const element = document.getElementById('reportContainer');
-        const opt = {
-            margin: [0.5, 0.5, 0.5, 0.5],
-            filename: `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
-            image: { type: 'png', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, logging: false },
-            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
-        };
-        
-        try {
-            await html2pdf().set(opt).from(element).save();
-        } catch (error) {
-            console.error('PDF export error:', error);
-            showError('Failed to generate PDF. Please try again.');
-        } finally {
-            hideLoading();
         }
     }
 
@@ -640,23 +527,22 @@
         const materialGroup = document.getElementById('groupFilter').value;
         const materialCode = document.getElementById('materialFilter').value;
         
+        // IMPORTANT: Convert division to plant code for filtering
         let plant = 'all';
-        let selectedDivisionName = 'All Divisions';
         if (divisionValue !== 'all') {
-            selectedDivisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
-            const plantCodes = divisionToPlantMap[selectedDivisionName];
-            if (plantCodes && plantCodes.length > 0) plant = plantCodes[0];
+            const divisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
+            plant = divisionToPlantMap[divisionName] || 'all';
         }
         
         const payload = {
             period: periodType,
-            plant: plant,
+            plant: plant,  // Now uses the selected division's plant code
             material_group: materialGroup === 'all' ? 'all' : materialGroup,
             material_code: materialCode === 'all' ? 'all' : materialCode,
             year: new Date().getFullYear()
         };
         
-        console.log("API Payload:", payload);
+        console.log("API Payload with plant filter:", payload);
         
         try {
             const response = await fetch('/api/consumption/data', {
@@ -682,6 +568,7 @@
             
             updatePeriodLabel(periodType);
             
+            // Calculate average from the filtered data
             const avgQuantity = quantities.length > 0 ? quantities.reduce((a, b) => a + b, 0) / quantities.length : 0;
             const peakQuantity = quantities.length > 0 ? Math.max(...quantities) : 0;
             const lowQuantity = quantities.length > 0 ? Math.min(...quantities) : 0;
@@ -694,6 +581,7 @@
             document.getElementById('peakPeriod').innerHTML = `<small>${peakItem ? peakItem.period : '-'}</small>`;
             document.getElementById('lowPeriod').innerHTML = `<small>${lowItem ? lowItem.period : '-'}</small>`;
             
+            // Zone Contribution - calculate based on selected plant vs all plants
             let zoneContribution = 100;
             if (plant !== 'all' && data.summary.total_consumption > 0) {
                 const allPayload = {...payload, plant: 'all'};
@@ -773,7 +661,7 @@
                     </tr>
                 `).join('');
             } else {
-                topBody.innerHTML = '<td><td colspan="6" class="text-center">No material data available</td></tr>';
+                topBody.innerHTML = '<tr><td colspan="6" class="text-center">No material data available for selected division</td></td>';
             }
             
             // Update Group Chart
@@ -823,7 +711,7 @@
                     </tr>
                 `).join('');
             } else {
-                divisionTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No division data available</td></tr>';
+                divisionTableBody.innerHTML = '<td><td colspan="3" class="text-center">No division data available</td></tr>';
             }
             
             // Update Period Table
@@ -858,15 +746,83 @@
         }
     }
     
-    function toggleChartType() {
-        currentChartType = currentChartType === 'line' ? 'bar' : 'line';
-        const icon = document.getElementById('chartTypeIcon');
-        icon.className = currentChartType === 'line' ? 'bi bi-bar-chart' : 'bi bi-graph-up';
-        loadData();
+    function exportToExcel() {
+        if (!currentData) {
+            showError('No data to export. Please load data first.');
+            return;
+        }
+        
+        const wb = XLSX.utils.book_new();
+        
+        const kpiData = [
+            ['CONSUMPTION ANALYSIS REPORT'],
+            ['Generated on:', new Date().toLocaleString()],
+            ['Filters:', `Division: ${document.getElementById('selectedDivision').innerText}, Period: ${document.getElementById('selectedPeriod').innerText}, Group: ${document.getElementById('selectedGroup').innerText}, Material: ${document.getElementById('selectedMaterial').innerText}`],
+            [],
+            ['KPI METRICS'],
+            ['Metric', 'Value', 'Unit'],
+            [`${currentPeriodLabel} Average`, document.getElementById('avgConsumption').innerText, currentUnit],
+            ['Peak Consumption', document.getElementById('peakConsumption').innerText, currentUnit],
+            ['Low Consumption', document.getElementById('lowConsumption').innerText, currentUnit],
+            ['Zone Contribution', document.getElementById('zoneContribution').innerText, '%'],
+            ['Stock vs Consumption', document.getElementById('stockVsConsumption').innerText, 'months']
+        ];
+        const kpiSheet = XLSX.utils.aoa_to_sheet(kpiData);
+        XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPI Summary');
+        
+        // Add Top Materials Sheet
+        const topMaterialsData = [['TOP 10 CONSUMED MATERIALS']];
+        topMaterialsData.push(['#', 'Material Code', 'Material Name', 'Quantity', 'Unit', '% of Total']);
+        const topRows = document.querySelectorAll('#topMaterialsBody tr');
+        topRows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length > 0 && cells[0].innerText !== 'No material data available for selected division') {
+                topMaterialsData.push([
+                    cells[0]?.innerText || '', cells[1]?.innerText || '', cells[2]?.innerText || '',
+                    cells[3]?.innerText || '', cells[4]?.innerText || '', cells[5]?.innerText || ''
+                ]);
+            }
+        });
+        if (topMaterialsData.length > 2) {
+            const topSheet = XLSX.utils.aoa_to_sheet(topMaterialsData);
+            XLSX.utils.book_append_sheet(wb, topSheet, 'Top 10 Materials');
+        }
+        
+        const fileName = `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+    }
+    
+    async function exportToPDF() {
+        if (!currentData) {
+            showError('No data to export. Please load data first.');
+            return;
+        }
+        
+        showLoading();
+        
+        const element = document.getElementById('reportContainer');
+        const opt = {
+            margin: [0.5, 0.5, 0.5, 0.5],
+            filename: `Consumption_Report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+            image: { type: 'png', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+        };
+        
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showError('Failed to generate PDF. Please try again.');
+        } finally {
+            hideLoading();
+        }
     }
     
     function resetFilters() {
         document.getElementById('zoneFilter').value = 'all';
+        document.getElementById('regionFilter').value = 'all';
+        document.getElementById('divisionFilter').value = 'all';
         document.getElementById('periodType').value = 'monthly';
         document.getElementById('groupFilter').value = 'all';
         document.getElementById('materialFilter').value = 'all';
