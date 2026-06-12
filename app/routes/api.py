@@ -1,7 +1,8 @@
 """
 API Routes - Using consumption_summary collection
 Consumption data is pre-aggregated from transactions_summary
-Last Updated: May 21, 2026 - ADDED Monthly Average Endpoint for Stock Position
+Last Updated: June 03, 2026 - FIXED: Plant-level monthly average for Stock Position
+ADDED: Division-wise monthly average endpoint for zone/region level views
 """
 
 from flask import Blueprint, jsonify, session, request
@@ -531,16 +532,15 @@ def get_consumption_materials():
         return safe_json_response([])
 
 
-# ==================== MONTHLY AVERAGE CONSUMPTION ENDPOINT (NEW) ====================
-# Used by Stock Position Dashboard to get accurate monthly averages
+# ==================== MONTHLY AVERAGE CONSUMPTION ENDPOINTS ====================
 
 @api_bp.route('/api/consumption/monthly-average')
 @login_required
 def get_monthly_average_consumption():
     """
-    Get monthly average consumption per material
-    Calculates average monthly consumption for each material
-    Used by Current Stock Position Dashboard for accurate Min Stock and Reorder Level
+    Get monthly average consumption per material for a specific plant
+    Returns nested structure: material_code -> plant -> average data
+    Used for division-specific views in Stock Position Dashboard
     """
     try:
         plant = request.args.get('plant', 'all')
@@ -551,18 +551,79 @@ def get_monthly_average_consumption():
         if db is None:
             return safe_json_response({})
         
-        # Build query for monthly data
+        # Build query for monthly data from consumption_summary
         query = {'period_type': 'monthly'}
-        if plant and plant != 'all':
+        
+        # IMPORTANT: Filter by plant if specified (not 'all')
+        if plant and plant != 'all' and plant != 'undefined':
             query['plant'] = plant
-        if material_group and material_group != 'all':
+        
+        if material_group and material_group != 'all' and material_group != 'undefined':
             query['material_group'] = material_group
-        if material_code and material_code != 'all':
+        
+        if material_code and material_code != 'all' and material_code != 'undefined':
             query['material_code'] = material_code
         
-        # Aggregate to get monthly average per material using MongoDB $avg
+        print(f"Monthly Average Query: {query}")
+        
+        # Aggregate to get monthly average per material AND per plant
         pipeline = [
             {'$match': query},
+            {'$group': {
+                '_id': {
+                    'material_code': '$material_code',
+                    'material_name': '$material_name',
+                    'unit': '$unit',
+                    'material_group': '$material_group',
+                    'plant': '$plant'
+                },
+                'total_consumption': {'$sum': '$quantity'},
+                'month_count': {'$sum': 1},
+                'monthly_avg': {'$avg': '$quantity'}
+            }},
+            {'$project': {
+                'material_code': '$_id.material_code',
+                'material_name': '$_id.material_name',
+                'unit': '$_id.unit',
+                'material_group': '$_id.material_group',
+                'plant': '$_id.plant',
+                'total_consumption': 1,
+                'month_count': 1,
+                'monthly_avg': 1
+            }}
+        ]
+        
+        results = list(db.consumption_summary.aggregate(pipeline))
+        print(f"Found {len(results)} monthly average records")
+        
+        # Build response map - keyed by material_code, then by plant
+        avg_map = {}
+        for r in results:
+            material_code_key = str(r['material_code'])
+            plant_key = str(r.get('plant', 'all'))
+            
+            if material_code_key not in avg_map:
+                avg_map[material_code_key] = {}
+            
+            avg_map[material_code_key][plant_key] = {
+                'monthly_avg': round(r['monthly_avg'], 2),
+                'total_consumption': round(r['total_consumption'], 2),
+                'month_count': r['month_count'],
+                'material_name': r['material_name'],
+                'unit': r['unit'],
+                'material_group': r['material_group'],
+                'plant': plant_key
+            }
+        
+        # Also add zone-level averages (plant='all') as fallback for materials
+        zone_query = {'period_type': 'monthly'}
+        if material_group and material_group != 'all':
+            zone_query['material_group'] = material_group
+        if material_code and material_code != 'all':
+            zone_query['material_code'] = material_code
+        
+        zone_pipeline = [
+            {'$match': zone_query},
             {'$group': {
                 '_id': {
                     'material_code': '$material_code',
@@ -582,29 +643,185 @@ def get_monthly_average_consumption():
                 'total_consumption': 1,
                 'month_count': 1,
                 'monthly_avg': 1
-            }},
-            {'$sort': {'material_code': 1}}
+            }}
         ]
         
-        results = list(db.consumption_summary.aggregate(pipeline))
+        zone_results = list(db.consumption_summary.aggregate(zone_pipeline))
         
-        # Build response map
-        avg_map = {}
-        for r in results:
-            avg_map[str(r['material_code'])] = {
+        for r in zone_results:
+            material_code_key = str(r['material_code'])
+            if material_code_key not in avg_map:
+                avg_map[material_code_key] = {}
+            avg_map[material_code_key]['all'] = {
                 'monthly_avg': round(r['monthly_avg'], 2),
                 'total_consumption': round(r['total_consumption'], 2),
                 'month_count': r['month_count'],
                 'material_name': r['material_name'],
                 'unit': r['unit'],
-                'material_group': r['material_group']
+                'material_group': r['material_group'],
+                'plant': 'all'
             }
         
-        print(f"Monthly average API: Found {len(avg_map)} materials")
+        print(f"Returning averages for {len(avg_map)} materials")
         return safe_json_response(avg_map)
         
     except Exception as e:
         print(f"Error in get_monthly_average_consumption: {e}")
+        import traceback
+        traceback.print_exc()
+        return safe_json_response({})
+
+
+# ==================== NEW ENDPOINT: MONTHLY AVERAGE BY MULTIPLE PLANTS ====================
+# Used by Stock Position Dashboard for zone/region level views to get division-wise averages
+
+@api_bp.route('/api/consumption/monthly-average-by-plant')
+@login_required
+def get_monthly_average_by_plant():
+    """
+    Get monthly average consumption per material for MULTIPLE plants.
+    Returns nested structure: material_code -> plant_code -> average data
+    Used for zone/region level views where multiple divisions are selected.
+    
+    Query parameters:
+    - plants: comma-separated list of plant codes (e.g., '3412,3413,3414')
+    - material_group: filter by material group
+    - material_code: filter by specific material
+    """
+    try:
+        plants_param = request.args.get('plants', '')
+        material_group = request.args.get('material_group', 'all')
+        material_code = request.args.get('material_code', 'all')
+        
+        # Parse plants list
+        plants_list = []
+        if plants_param and plants_param != 'all':
+            plants_list = [p.strip() for p in plants_param.split(',') if p.strip()]
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({})
+        
+        # Build query for monthly data
+        query = {'period_type': 'monthly'}
+        
+        # IMPORTANT: Filter by plants if specified
+        if plants_list:
+            query['plant'] = {'$in': plants_list}
+        
+        if material_group and material_group != 'all' and material_group != 'undefined':
+            query['material_group'] = material_group
+        
+        if material_code and material_code != 'all' and material_code != 'undefined':
+            query['material_code'] = material_code
+        
+        print(f"Monthly Average By Plant Query: {query}")
+        print(f"Plants list: {plants_list}")
+        
+        # Aggregate to get monthly average per material AND per plant
+        pipeline = [
+            {'$match': query},
+            {'$group': {
+                '_id': {
+                    'material_code': '$material_code',
+                    'material_name': '$material_name',
+                    'unit': '$unit',
+                    'material_group': '$material_group',
+                    'plant': '$plant'
+                },
+                'total_consumption': {'$sum': '$quantity'},
+                'month_count': {'$sum': 1},
+                'monthly_avg': {'$avg': '$quantity'}
+            }},
+            {'$project': {
+                'material_code': '$_id.material_code',
+                'material_name': '$_id.material_name',
+                'unit': '$_id.unit',
+                'material_group': '$_id.material_group',
+                'plant': '$_id.plant',
+                'total_consumption': 1,
+                'month_count': 1,
+                'monthly_avg': 1
+            }}
+        ]
+        
+        results = list(db.consumption_summary.aggregate(pipeline))
+        print(f"Found {len(results)} monthly average records for plants: {plants_list}")
+        
+        # Build response map - keyed by material_code, then by plant
+        avg_map = {}
+        for r in results:
+            material_code_key = str(r['material_code'])
+            plant_key = str(r.get('plant', 'unknown'))
+            
+            if material_code_key not in avg_map:
+                avg_map[material_code_key] = {}
+            
+            avg_map[material_code_key][plant_key] = {
+                'monthly_avg': round(r['monthly_avg'], 2),
+                'total_consumption': round(r['total_consumption'], 2),
+                'month_count': r['month_count'],
+                'material_name': r['material_name'] or str(r['material_code']),
+                'unit': r['unit'] or 'Units',
+                'material_group': r['material_group'] or 'Uncategorized',
+                'plant': plant_key
+            }
+        
+        # If no results found for specific plants, try to get zone-level averages as fallback
+        if not results and plants_list:
+            print("No results for specific plants, trying zone-level fallback")
+            fallback_query = {'period_type': 'monthly'}
+            if material_group and material_group != 'all':
+                fallback_query['material_group'] = material_group
+            if material_code and material_code != 'all':
+                fallback_query['material_code'] = material_code
+            
+            fallback_pipeline = [
+                {'$match': fallback_query},
+                {'$group': {
+                    '_id': {
+                        'material_code': '$material_code',
+                        'material_name': '$material_name',
+                        'unit': '$unit',
+                        'material_group': '$material_group'
+                    },
+                    'total_consumption': {'$sum': '$quantity'},
+                    'month_count': {'$sum': 1},
+                    'monthly_avg': {'$avg': '$quantity'}
+                }},
+                {'$project': {
+                    'material_code': '$_id.material_code',
+                    'material_name': '$_id.material_name',
+                    'unit': '$_id.unit',
+                    'material_group': '$_id.material_group',
+                    'total_consumption': 1,
+                    'month_count': 1,
+                    'monthly_avg': 1
+                }}
+            ]
+            
+            fallback_results = list(db.consumption_summary.aggregate(fallback_pipeline))
+            
+            for r in fallback_results:
+                material_code_key = str(r['material_code'])
+                if material_code_key not in avg_map:
+                    avg_map[material_code_key] = {}
+                # Add with plant='all' as fallback
+                avg_map[material_code_key]['all'] = {
+                    'monthly_avg': round(r['monthly_avg'], 2),
+                    'total_consumption': round(r['total_consumption'], 2),
+                    'month_count': r['month_count'],
+                    'material_name': r['material_name'] or str(r['material_code']),
+                    'unit': r['unit'] or 'Units',
+                    'material_group': r['material_group'] or 'Uncategorized',
+                    'plant': 'all'
+                }
+        
+        print(f"Returning averages for {len(avg_map)} materials")
+        return safe_json_response(avg_map)
+        
+    except Exception as e:
+        print(f"Error in get_monthly_average_by_plant: {e}")
         import traceback
         traceback.print_exc()
         return safe_json_response({})
@@ -623,15 +840,22 @@ def get_current_stock():
         
         stock = list(db.current_stock.find({}, {'_id': 0}))
         
+        # Clean plant codes - ensure they are strings without decimals
+        for item in stock:
+            if 'plant' in item:
+                item['plant'] = str(item['plant']).replace('.0', '')
+        
         # If no data, return sample data for testing
         if not stock:
             sample_stock = [
                 {'material_code': '102010611', 'material_name': 'M.S. CHANNEL 75 X 40MM', 'material_description': 'M.S. CHANNEL 75 X 40MM', 'material_group': 'MSCHANNEL', 'plant': '3400', 'current_stock': 203.341, 'unit': 'MT'},
+                {'material_code': '102010611', 'material_name': 'M.S. CHANNEL 75 X 40MM', 'material_description': 'M.S. CHANNEL 75 X 40MM', 'material_group': 'MSCHANNEL', 'plant': '3412', 'current_stock': 14.805, 'unit': 'MT'},
                 {'material_code': '101011011', 'material_name': 'M.S ANGLE 50 X 50 X 6MM', 'material_description': 'M.S ANGLE 50 X 50 X 6MM', 'material_group': 'MSANGLE', 'plant': '3400', 'current_stock': 221.527, 'unit': 'MT'},
                 {'material_code': '101011011', 'material_name': 'M.S ANGLE 50 X 50 X 6MM', 'material_description': 'M.S ANGLE 50 X 50 X 6MM', 'material_group': 'MSANGLE', 'plant': '3412', 'current_stock': 18.323, 'unit': 'MT'},
             ]
             return safe_json_response(sample_stock)
         
+        print(f"Returning {len(stock)} stock records")
         return safe_json_response(stock)
     except Exception as e:
         print(f"Error in get_current_stock: {e}")

@@ -242,8 +242,44 @@
 
 <script>
     let currentStockData = [];
-    let rawStockData = [];
-    let monthlyAvgMap = {};
+    let monthlyAvgApiData = {};
+    
+    // Material groups to EXCLUDE from display - DELETE these permanently
+    const EXCLUDED_MATERIAL_GROUPS = [
+        'monthly=', 
+        'monthly=27', 
+        'monthly= (27 month)', 
+        'qterly=', 
+        'qterly=3', 
+        'quarterly=3',
+        'quarterly=',
+        'yearly',
+        'yearly='
+    ];
+    
+    // Function to check if material group should be excluded
+    function isMaterialGroupExcluded(materialGroup) {
+        if (!materialGroup || materialGroup === null || materialGroup === '') return false;
+        
+        const groupLower = materialGroup.toString().toLowerCase().trim();
+        
+        // Check exact matches and partial matches
+        for (let excluded of EXCLUDED_MATERIAL_GROUPS) {
+            const excludedLower = excluded.toLowerCase();
+            if (groupLower === excludedLower || groupLower.includes(excludedLower)) {
+                console.log(`Excluding material group: "${materialGroup}" (matched: ${excluded})`);
+                return true;
+            }
+        }
+        
+        // Also check if it contains patterns like "monthly=" or "quarterly="
+        if (groupLower.includes('monthly') && groupLower.includes('=')) return true;
+        if (groupLower.includes('quarterly') && groupLower.includes('=')) return true;
+        if (groupLower.includes('qterly') && groupLower.includes('=')) return true;
+        if (groupLower === 'yearly') return true;
+        
+        return false;
+    }
     
     // Division to Plant Code Mapping
     const divisionToPlantMap = {
@@ -275,7 +311,8 @@
         'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
         'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
         'alipurduar': ['Alipurduar Division'],
-        'others': ['Central Store/Cord Road Store']
+        'others': ['Central Store/Cord Road Store'],
+        'siliguri_zone': ['Siliguri Zonal Store']
     };
     
     const allDivisionsList = [
@@ -285,10 +322,10 @@
         'Siliguri Zonal Store'
     ];
     
-    const allRegions = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'others'];
+    const allRegions = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'others', 'siliguri_zone'];
     const regionDisplayNames = {
         'darjeeling': 'Darjeeling', 'kalimpong': 'Kalimpong', 'jalpaiguri': 'Jalpaiguri',
-        'coochbehar': 'Coochbehar', 'alipurduar': 'Alipurduar', 'others': 'Others'
+        'coochbehar': 'Coochbehar', 'alipurduar': 'Alipurduar', 'others': 'Others', 'siliguri_zone': 'Siliguri Zone'
     };
     
     const divisionValueMap = {
@@ -317,12 +354,25 @@
         errorDiv.style.display = 'block';
         setTimeout(() => errorDiv.style.display = 'none', 5000);
     }
+    
+    // CEILING ROUNDING: Always rounds UP to next whole number
+    // 10.01 → 11, 10.5 → 11, 10.9 → 11, 10.0 → 10
+    function customRound(value) {
+        if (value === 0 || isNaN(value) || value === null) return 0;
+        return Math.ceil(value);
+    }
 
+    // Cascading Filter: Zone -> Region -> Division
     function onZoneChange() {
         const zone = document.getElementById('zoneFilter').value;
         const regionSelect = document.getElementById('regionFilter');
         regionSelect.innerHTML = '<option value="all">All Regions</option>';
-        const regionsToShow = zone === 'all' ? allRegions : allRegions.filter(r => r !== 'others');
+        
+        let regionsToShow = allRegions;
+        if (zone === 'siliguri') {
+            regionsToShow = allRegions.filter(r => r !== 'others');
+        }
+        
         regionsToShow.forEach(region => {
             regionSelect.innerHTML += `<option value="${region}">${regionDisplayNames[region]}</option>`;
         });
@@ -349,8 +399,7 @@
                 divisionSelect.appendChild(option);
             });
         }
-        
-        onDivisionChange();
+        loadStockData();
     }
     
     function onDivisionChange() {
@@ -362,18 +411,24 @@
         } else {
             showGuidance(`Showing stock data for ALL Divisions. Monthly average consumption is calculated PER DIVISION based on their own consumption data.`);
         }
-        
         loadStockData();
     }
     
     async function loadMaterialGroups() {
         try {
             const response = await fetch('/api/consumption/material-groups');
-            const groups = await response.json();
+            let groups = await response.json();
+            
+            // Filter out excluded material groups
+            const originalCount = groups.length;
+            groups = groups.filter(group => !isMaterialGroupExcluded(group));
+            
+            console.log(`Material groups: ${originalCount} total, ${groups.length} after filtering`);
+            
             const groupSelect = document.getElementById('groupFilter');
             groupSelect.innerHTML = '<option value="all">All Material Groups</option>';
             if (groups && groups.length > 0) {
-                groups.forEach(group => {
+                groups.sort().forEach(group => {
                     const option = document.createElement('option');
                     option.value = group;
                     option.textContent = group;
@@ -391,7 +446,13 @@
                 url += `?group=${encodeURIComponent(materialGroup)}`;
             }
             const response = await fetch(url);
-            const materials = await response.json();
+            let materials = await response.json();
+            
+            // Filter out materials from excluded groups
+            const originalCount = materials.length;
+            materials = materials.filter(material => !isMaterialGroupExcluded(material.material_group));
+            
+            console.log(`Materials: ${originalCount} total, ${materials.length} after filtering`);
             
             const materialSelect = document.getElementById('materialFilter');
             materialSelect.innerHTML = '<option value="all">All Materials</option>';
@@ -413,74 +474,105 @@
         loadStockData();
     }
     
-    async function loadMonthlyAverageForPlant(plant, materialGroup, materialCode) {
+    async function loadMonthlyAveragesFromAPI(plants, materialGroup, materialCode) {
         try {
-            let url = `/api/consumption/monthly-average?`;
-            if (plant && plant !== 'all') url += `plant=${plant}&`;
-            if (materialGroup && materialGroup !== 'all') url += `material_group=${encodeURIComponent(materialGroup)}&`;
-            if (materialCode && materialCode !== 'all') url += `material_code=${materialCode}&`;
+            let url = `/api/consumption/monthly-average-by-plant?`;
             
+            if (plants && plants !== 'all' && plants.length > 0) {
+                const plantParam = Array.isArray(plants) ? plants.join(',') : plants;
+                url += `plants=${plantParam}&`;
+            }
+            
+            if (materialGroup && materialGroup !== 'all') {
+                url += `material_group=${encodeURIComponent(materialGroup)}&`;
+            }
+            if (materialCode && materialCode !== 'all') {
+                url += `material_code=${materialCode}&`;
+            }
+            
+            console.log("Fetching monthly averages from:", url);
             const response = await fetch(url);
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error(`Error loading monthly average for plant ${plant}:`, error);
+            console.error('Error fetching monthly averages:', error);
             return {};
         }
     }
     
-    async function loadMonthlyAveragesForAllStocks(stockData, materialGroup, materialCode) {
-        const uniquePlants = [...new Set(stockData.map(item => item.plant))];
-        console.log("Unique plants in stock:", uniquePlants);
-        
-        const allAverages = {};
-        
-        for (const plant of uniquePlants) {
-            if (plant && plant !== 'all') {
-                console.log(`Fetching monthly average for plant: ${plant}`);
-                const plantAverages = await loadMonthlyAverageForPlant(plant, materialGroup, materialCode);
-                Object.assign(allAverages, plantAverages);
-            }
-        }
-        
-        const zoneAverages = await loadMonthlyAverageForPlant('all', materialGroup, materialCode);
-        Object.assign(allAverages, zoneAverages);
-        
-        console.log("Total monthly averages loaded:", Object.keys(allAverages).length);
-        return allAverages;
-    }
-    
     function calculateReorderLevel(plant, monthlyAvg) {
-        // Siliguri Zonal Store (plant 3400) gets 3 months reorder level
-        // Other divisions get 1 month reorder level
         if (plant === '3400') {
-            return Math.ceil(monthlyAvg * 3);
+            return customRound(monthlyAvg * 3);
         } else {
-            return Math.ceil(monthlyAvg * 1);
+            return customRound(monthlyAvg * 1);
         }
     }
     
     async function loadStockData() {
         showLoading();
         
+        const zoneValue = document.getElementById('zoneFilter').value;
+        const regionValue = document.getElementById('regionFilter').value;
         const divisionValue = document.getElementById('divisionFilter').value;
         const materialGroup = document.getElementById('groupFilter').value;
         const materialCode = document.getElementById('materialFilter').value;
         
-        let selectedPlant = 'all';
-        let selectedDivisionName = 'All Divisions';
+        let plantsToFetch = [];
+        
         if (divisionValue !== 'all') {
-            selectedDivisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
-            selectedPlant = divisionToPlantMap[selectedDivisionName] || 'all';
+            const divisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
+            const plantCode = divisionToPlantMap[divisionName];
+            if (plantCode) {
+                plantsToFetch = [plantCode];
+            }
+        } else if (regionValue !== 'all' && regionDivisions[regionValue]) {
+            const divisions = regionDivisions[regionValue];
+            plantsToFetch = divisions.map(div => divisionToPlantMap[div]).filter(p => p);
+        } else if (zoneValue === 'siliguri') {
+            const siliguriRegions = allRegions.filter(r => r !== 'others');
+            const allDivisionsInZone = [];
+            siliguriRegions.forEach(reg => {
+                if (regionDivisions[reg]) {
+                    allDivisionsInZone.push(...regionDivisions[reg]);
+                }
+            });
+            plantsToFetch = [...new Set(allDivisionsInZone.map(div => divisionToPlantMap[div]).filter(p => p))];
+        } else {
+            plantsToFetch = Object.values(divisionToPlantMap);
         }
         
         try {
+            monthlyAvgApiData = await loadMonthlyAveragesFromAPI(plantsToFetch, materialGroup, materialCode);
+            
             const stockResponse = await fetch('/api/inventory/current-stock');
             let stockData = await stockResponse.json();
             
-            let filteredStock = stockData;
-            if (selectedPlant !== 'all') {
-                filteredStock = stockData.filter(item => String(item.plant) === String(selectedPlant));
+            // Add division name and filter out excluded material groups
+            let filteredStock = stockData.map(item => {
+                const divisionName = plantToDivisionMap[String(item.plant)] || item.plant || 'Unknown';
+                return { ...item, division_name: divisionName };
+            }).filter(item => !isMaterialGroupExcluded(item.material_group));
+            
+            // Apply filters
+            if (zoneValue === 'siliguri') {
+                const siliguriRegions = allRegions.filter(r => r !== 'others');
+                const siliguriDivisions = [];
+                siliguriRegions.forEach(reg => {
+                    if (regionDivisions[reg]) {
+                        siliguriDivisions.push(...regionDivisions[reg]);
+                    }
+                });
+                filteredStock = filteredStock.filter(item => siliguriDivisions.includes(item.division_name));
+            }
+            
+            if (regionValue !== 'all' && regionDivisions[regionValue]) {
+                const divisionsInRegion = regionDivisions[regionValue];
+                filteredStock = filteredStock.filter(item => divisionsInRegion.includes(item.division_name));
+            }
+            
+            if (divisionValue !== 'all') {
+                const divisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
+                filteredStock = filteredStock.filter(item => item.division_name === divisionName);
             }
             
             if (materialGroup !== 'all') {
@@ -491,57 +583,41 @@
                 filteredStock = filteredStock.filter(item => String(item.material_code) === String(materialCode));
             }
             
-            console.log(`Filtered stock count: ${filteredStock.length}`);
-            
-            let monthlyAvgMapData = {};
-            
-            if (selectedPlant !== 'all') {
-                monthlyAvgMapData = await loadMonthlyAverageForPlant(selectedPlant, materialGroup, materialCode);
-            } else {
-                monthlyAvgMapData = await loadMonthlyAveragesForAllStocks(filteredStock, materialGroup, materialCode);
-            }
-            
-            monthlyAvgMap = monthlyAvgMapData;
-            
             // Calculate metrics
             const stockWithMetrics = filteredStock.map((item, index) => {
-                const avgData = monthlyAvgMap[item.material_code] || {};
-                let monthlyAvg = avgData.monthly_avg || 0;
+                let monthlyAvg = 0;
+                const materialCodeKey = item.material_code;
+                const plantCode = String(item.plant);
+                const divisionName = item.division_name;
                 
-                // Round up monthly average to nearest whole number
-                monthlyAvg = Math.ceil(monthlyAvg);
+                const materialAvgData = monthlyAvgApiData[materialCodeKey];
                 
-                // Known material averages fallback
-                if (item.material_code === '102010611') {
-                    if (item.plant === '3400') {
-                        monthlyAvg = 12;  // Rounded up from 11.05
-                    } else if (item.plant === '3412') {
-                        monthlyAvg = 7;   // Rounded up from 6.70
-                    }
-                } else if (item.material_code === '101011011') {
-                    if (item.plant === '3400') {
-                        monthlyAvg = 14;  // Rounded up from 13.92
+                if (materialAvgData) {
+                    if (materialAvgData[plantCode]) {
+                        monthlyAvg = materialAvgData[plantCode].monthly_avg;
+                    } else if (materialAvgData[divisionName]) {
+                        monthlyAvg = materialAvgData[divisionName].monthly_avg;
+                    } else {
+                        const plantKeys = Object.keys(materialAvgData).filter(key => key !== 'material_code' && key !== 'material_name');
+                        if (plantKeys.length > 0) {
+                            monthlyAvg = materialAvgData[plantKeys[0]].monthly_avg;
+                        }
                     }
                 }
                 
-                // Calculate reorder level based on division type
-                const reorderLevel = calculateReorderLevel(item.plant, monthlyAvg);
+                monthlyAvg = customRound(monthlyAvg);
+                const reorderLevel = calculateReorderLevel(plantCode, monthlyAvg);
                 const currentStock = item.current_stock || 0;
                 const stockMonths = monthlyAvg > 0 ? (currentStock / monthlyAvg).toFixed(1) : 0;
-                
-                // CRITICAL condition: Current Stock <= Monthly Avg
                 const isCritical = (currentStock <= monthlyAvg && monthlyAvg > 0);
                 const status = isCritical ? 'Critical' : 'Normal';
                 const statusClass = status === 'Critical' ? 'status-critical' : 'status-normal';
-                const divisionName = plantToDivisionMap[String(item.plant)] || item.plant || 'Unknown';
                 const shortage = isCritical ? (monthlyAvg - currentStock).toFixed(2) : 0;
-                
-                console.log(`Material ${item.material_code} Plant ${item.plant}: monthly_avg=${monthlyAvg}, current=${currentStock}, reorder=${reorderLevel}, status=${status}`);
                 
                 return { 
                     ...item, 
                     sl: index + 1, 
-                    division_name: divisionName, 
+                    division_name: divisionName,
                     monthly_avg: monthlyAvg,
                     reorder_level: reorderLevel, 
                     stock_months: stockMonths, 
@@ -554,9 +630,13 @@
             currentStockData = stockWithMetrics;
             filterTable();
             
+            const totalMaterials = stockWithMetrics.length;
+            const criticalCount = stockWithMetrics.filter(m => m.status === 'Critical').length;
+            showGuidance(`✅ Loaded ${totalMaterials} materials. ${criticalCount} items are critical and need attention.`);
+            
         } catch (error) {
             console.error('Error:', error);
-            document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="12" class="text-center">Error loading data</td></td>';
+            document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="12" class="text-center">Error loading data<\/td></tr>';
             showError('Failed to load stock data: ' + error.message);
         } finally {
             hideLoading();
@@ -567,11 +647,11 @@
         const statusFilter = document.getElementById('statusFilter').value;
         const sortBy = document.getElementById('sortFilter').value;
         
-        let filteredData = currentStockData;
+        let filteredData = [...currentStockData];
         if (statusFilter === 'critical') {
-            filteredData = currentStockData.filter(item => item.status === 'Critical');
+            filteredData = filteredData.filter(item => item.status === 'Critical');
         } else if (statusFilter === 'normal') {
-            filteredData = currentStockData.filter(item => item.status === 'Normal');
+            filteredData = filteredData.filter(item => item.status === 'Normal');
         }
         
         // Apply sorting

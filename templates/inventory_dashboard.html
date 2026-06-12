@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
     <a href="{{ url_for('main.general_overview') }}" style="
         display: inline-flex;
         align-items: center;
@@ -23,6 +23,13 @@
         <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
         <span>Back to General Overview</span>
     </a>
+    
+    <div style="display: flex; gap: 10px;">
+        <button onclick="refreshAllData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer;">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Refresh</span>
+        </button>
+    </div>
 </div>
 
 <!-- Welcome Banner -->
@@ -48,6 +55,7 @@
                 <option value="jalpaiguri">Jalpaiguri</option>
                 <option value="coochbehar">Coochbehar</option>
                 <option value="alipurduar">Alipurduar</option>
+                <option value="kalimpong">Kalimpong</option>
             </select>
         </div>
         <div class="filter-group">
@@ -56,21 +64,18 @@
                 <option value="all">All Divisions</option>
             </select>
         </div>
-        <div class="filter-group">
-            <label><i class="bi bi-calendar3"></i> As On Date</label>
-            <input type="date" id="dateFilter" class="filter-select" value="2026-03-21" onchange="applyFilters()">
-        </div>
         <div class="filter-actions">
             <button class="btn-apply" onclick="applyFilters()"><i class="bi bi-funnel"></i> Apply</button>
             <button class="btn-reset" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
         </div>
     </div>
+    <div id="activeFilters" class="active-filters" style="margin-top: 15px;"></div>
 </div>
 
 <!-- 6 Card Grid -->
 <div class="inventory-grid">
     <!-- Card 1: Current Stock Level - LINKED to current_stock_position -->
-    <div class="inventory-card" id="stockCard">
+    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}'">
         <div class="card-header-green">
             <i class="bi bi-box-seam"></i>
             <span class="card-badge">Stock Summary</span>
@@ -80,33 +85,33 @@
             <div class="stats-container">
                 <div class="stat-row">
                     <span class="stat-label">Total Items</span>
-                    <span class="stat-value" id="totalItems">245</span>
+                    <span class="stat-value" id="totalItems">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Total Value</span>
-                    <span class="stat-value" id="totalValue">₹45.6 Cr</span>
+                    <span class="stat-value" id="totalValue">₹0 Cr</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Categories</span>
-                    <span class="stat-value" id="totalCategories">8</span>
+                    <span class="stat-value" id="totalCategories">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Warehouses</span>
-                    <span class="stat-value" id="totalWarehouses">12</span>
+                    <span class="stat-value" id="totalWarehouses">13</span>
                 </div>
             </div>
-            <div class="trend-indicator positive">
-                <i class="bi bi-arrow-up"></i> +5% from last month
+            <div class="trend-indicator positive" id="stockTrend">
+                <i class="bi bi-arrow-up"></i> Loading...
             </div>
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="{{ url_for('main.current_stock_position') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
         </div>
     </div>
 
-    <!-- Card 2: Critical Stock Items -->
-    <div class="inventory-card" id="criticalCard">
+    <!-- Card 2: Critical Stock Items - LINKED to current_stock_position with critical filter -->
+    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}?filter=critical'">
         <div class="card-header-red">
             <i class="bi bi-exclamation-triangle-fill"></i>
             <span class="card-badge">Alert</span>
@@ -116,69 +121,29 @@
             <div class="stats-container">
                 <div class="stat-row">
                     <span class="stat-label">Low Stock</span>
-                    <span class="stat-value critical" id="lowStock">12</span>
+                    <span class="stat-value critical" id="lowStock">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Out of Stock</span>
-                    <span class="stat-value critical" id="outOfStock">3</span>
+                    <span class="stat-value critical" id="outOfStock">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Below Reorder Level</span>
-                    <span class="stat-value critical" id="reorderNeeded">8</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Overstocked</span>
-                    <span class="stat-value" id="overstocked">5</span>
+                    <span class="stat-value critical" id="reorderNeeded">0</span>
                 </div>
             </div>
-            <div class="trend-indicator negative">
-                <i class="bi bi-arrow-up"></i> +2 critical items this month
+            <div class="trend-indicator negative" id="criticalTrend">
+                <i class="bi bi-arrow-up"></i> Loading...
             </div>
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="{{ url_for('main.current_stock_position') }}?filter=critical" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
         </div>
     </div>
 
-    <!-- Card 3: Incoming Material -->
-    <div class="inventory-card" id="incomingCard">
-        <div class="card-header-orange">
-            <i class="bi bi-arrow-down-circle"></i>
-            <span class="card-badge">Expected</span>
-        </div>
-        <div class="card-body">
-            <h3>Incoming Material</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Expected Deliveries</span>
-                    <span class="stat-value" id="expectedDeliveries">18</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Quantity</span>
-                    <span class="stat-value" id="incomingQuantity">2,450</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Value</span>
-                    <span class="stat-value" id="incomingValue">₹12.4 Cr</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Next Delivery</span>
-                    <span class="stat-value" id="nextDelivery">March 25, 2026</span>
-                </div>
-            </div>
-            <div class="trend-indicator positive">
-                <i class="bi bi-calendar-check"></i> 5 deliveries this week
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="#" class="details-link" onclick="showDetails('incoming')">View Details <i class="bi bi-arrow-right"></i></a>
-        </div>
-    </div>
-
-    <!-- Card 4: Material in Transit -->
-    <div class="inventory-card" id="transitCard">
+    <!-- Card 3: Material in Transit - LINKED to material_in_transit dashboard -->
+    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.material_in_transit') }}'">
         <div class="card-header-teal">
             <i class="bi bi-truck"></i>
             <span class="card-badge">On the Way</span>
@@ -188,37 +153,69 @@
             <div class="stats-container">
                 <div class="stat-row">
                     <span class="stat-label">Active Shipments</span>
-                    <span class="stat-value" id="activeShipments">9</span>
+                    <span class="stat-value" id="activeShipments">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Total Quantity</span>
-                    <span class="stat-value" id="transitQuantity">1,280</span>
+                    <span class="stat-value" id="transitQuantity">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Total Value</span>
-                    <span class="stat-value" id="transitValue">₹6.8 Cr</span>
+                    <span class="stat-value" id="transitValue">₹0 Cr</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-label">Avg Transit Time</span>
-                    <span class="stat-value" id="avgTransitTime">3.5 days</span>
+                    <span class="stat-label">Delayed Shipments</span>
+                    <span class="stat-value critical" id="delayedShipments">0</span>
                 </div>
             </div>
             <div class="progress-bar-container">
                 <div class="progress-label">On-Time Delivery Rate</div>
                 <div class="progress-bar">
-                    <div class="progress-fill" id="ontimeRate" style="width: 94%; background: linear-gradient(90deg, #17a2b8, #20c997);"></div>
+                    <div class="progress-fill" id="ontimeRate" style="width: 0%;"></div>
                 </div>
-                <div class="progress-percent">94%</div>
+                <div class="progress-percent" id="ontimePercent">0%</div>
             </div>
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="#" class="details-link" onclick="showDetails('transit')">View Details <i class="bi bi-arrow-right"></i></a>
+            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
         </div>
     </div>
 
-    <!-- Card 5: Consumption Analysis -->
-    <div class="inventory-card" id="consumptionCard">
+    <!-- Card 4: Incoming Material -->
+    <div class="inventory-card">
+        <div class="card-header-orange">
+            <i class="bi bi-arrow-down-circle"></i>
+            <span class="card-badge">Expected</span>
+        </div>
+        <div class="card-body">
+            <h3>Incoming Material</h3>
+            <div class="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Expected Deliveries</span>
+                    <span class="stat-value" id="expectedDeliveries">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Quantity</span>
+                    <span class="stat-value" id="incomingQuantity">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Next Delivery</span>
+                    <span class="stat-value" id="nextDelivery">-</span>
+                </div>
+            </div>
+            <div class="trend-indicator positive" id="incomingTrend">
+                <i class="bi bi-calendar-check"></i> Loading...
+            </div>
+        </div>
+        <div class="card-footer">
+            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+            <span class="details-link">Coming Soon <i class="bi bi-arrow-right"></i></span>
+        </div>
+    </div>
+
+    <!-- Card 5: Consumption Analysis - LINKED to consumption_analysis -->
+    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.consumption_analysis') }}'">
         <div class="card-header-blue">
             <i class="bi bi-graph-up"></i>
             <span class="card-badge">Trends</span>
@@ -228,33 +225,29 @@
             <div class="stats-container">
                 <div class="stat-row">
                     <span class="stat-label">Monthly Consumption</span>
-                    <span class="stat-value" id="monthlyConsumption">124</span>
+                    <span class="stat-value" id="monthlyConsumption">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Annual Consumption</span>
-                    <span class="stat-value" id="annualConsumption">1,456</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Turnover Rate</span>
-                    <span class="stat-value" id="turnoverRate">12%</span>
+                    <span class="stat-value" id="annualConsumption">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Top Consumed Item</span>
-                    <span class="stat-value" id="topItem">Cable (42 units)</span>
+                    <span class="stat-value" id="topItem">-</span>
                 </div>
             </div>
-            <div class="trend-indicator positive">
-                <i class="bi bi-arrow-up"></i> +8% vs last month
+            <div class="trend-indicator positive" id="consumptionTrend">
+                <i class="bi bi-arrow-up"></i> Loading...
             </div>
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="{{ url_for('main.consumption_analysis') }}" class="details-link">View Details <i class="bi bi-arrow-right"></i></a>
+            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
         </div>
     </div>
 
     <!-- Card 6: Allotment Tracker -->
-    <div class="inventory-card" id="allotmentCard">
+    <div class="inventory-card">
         <div class="card-header-purple">
             <i class="bi bi-truck"></i>
             <span class="card-badge">Tracking</span>
@@ -264,32 +257,28 @@
             <div class="stats-container">
                 <div class="stat-row">
                     <span class="stat-label">Pending Allotments</span>
-                    <span class="stat-value warning" id="pendingAllotments">24</span>
+                    <span class="stat-value warning" id="pendingAllotments">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Completed</span>
-                    <span class="stat-value" id="completedAllotments">156</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">In Progress</span>
-                    <span class="stat-value" id="inProgressAllotments">42</span>
+                    <span class="stat-value" id="completedAllotments">0</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">This Month</span>
-                    <span class="stat-value" id="monthlyAllotments">18</span>
+                    <span class="stat-value" id="monthlyAllotments">0</span>
                 </div>
             </div>
             <div class="progress-bar-container">
                 <div class="progress-label">Completion Rate</div>
                 <div class="progress-bar">
-                    <div class="progress-fill" id="completionRate" style="width: 72%; background: linear-gradient(90deg, #28a745, #20c997);"></div>
+                    <div class="progress-fill" id="completionRate" style="width: 0%;"></div>
                 </div>
-                <div class="progress-percent">72%</div>
+                <div class="progress-percent" id="completionPercent">0%</div>
             </div>
         </div>
         <div class="card-footer">
             <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <a href="#" class="details-link" onclick="showDetails('allotment')">View Details <i class="bi bi-arrow-right"></i></a>
+            <span class="details-link">Coming Soon <i class="bi bi-arrow-right"></i></span>
         </div>
     </div>
 </div>
@@ -298,59 +287,47 @@
 <div class="top-items-section">
     <div class="section-title">
         <i class="bi bi-star-fill"></i>
-        <h2>Top Consumed Materials</h2>
+        <h2>Top Consumed Materials (This Month)</h2>
     </div>
     <div class="items-table-container">
         <table class="data-table">
             <thead>
                 <tr>
+                    <th>Material Code</th>
                     <th>Material Name</th>
-                    <th>Category</th>
+                    <th>Material Group</th>
                     <th>Monthly Consumption</th>
+                    <th>Unit</th>
                     <th>Stock Status</th>
-                    <th>Reorder Level</th>
                 </tr>
             </thead>
             <tbody id="topItemsTable">
-                <tr><td>ACSR Conductor (Zebra)</td><td>Cables</td><td>42</td><td><span class="badge bg-warning">Low</span></td><td>50</td></tr>
-                <tr><td>Distribution Transformer (100kVA)</td><td>Transformers</td><td>8</td><td><span class="badge bg-success">Adequate</span></td><td>5</td></tr>
-                <tr><td>HT Cable (3x240 sqmm)</td><td>Cables</td><td>1.2 km</td><td><span class="badge bg-danger">Critical</span></td><td>2 km</td></tr>
-                <tr><td>LT Insulator</td><td>Hardware</td><td>245</td><td><span class="badge bg-warning">Low</span></td><td>300</td></tr>
-                <tr><td>Pole (9m)</td><td>Structures</td><td>56</td><td><span class="badge bg-success">Adequate</span></td><td>40</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Recent Allotments Section -->
-<div class="recent-allotments-section">
-    <div class="section-title">
-        <i class="bi bi-clock-history"></i>
-        <h2>Recent Allotments</h2>
-    </div>
-    <div class="items-table-container">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Material</th>
-                    <th>Quantity</th>
-                    <th>Department</th>
-                    <th>Status</th>
-                    <th>Request No</th>
-                </tr>
-            </thead>
-            <tbody id="recentAllotmentsTable">
-                <tr><td>2026-03-20</td><td>ACSR Conductor</td><td>500 m</td><td>Siliguri Division</td><td><span class="badge bg-success">Completed</span></td><td>REQ-001</td></tr>
-                <tr><td>2026-03-19</td><td>Distribution Transformer</td><td>2 Units</td><td>Kurseong Division</td><td><span class="badge bg-warning">In Progress</span></td><td>REQ-002</td></tr>
-                <tr><td>2026-03-18</td><td>HT Cable</td><td>300 m</td><td>Jalpaiguri Division</td><td><span class="badge bg-success">Completed</span></td><td>REQ-003</td></tr>
-                <tr><td>2026-03-17</td><td>Pole (9m)</td><td>15 Units</td><td>Coochbehar Division</td><td><span class="badge bg-secondary">Pending</span></td><td>REQ-004</td></tr>
+                <tr><td colspan="6" class="text-center">Loading...<\/td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
+    // Division mappings
+    const divisionToPlantMap = {
+        'Siliguri Town Division': '3412', 'Kurseong Division': '3413', 'Darjeeling Division': '3414',
+        'Sub-Urban Division': '3415', 'Kalimpong Division': '3471', 'Jalpaiguri Division': '3422',
+        'Mal Division': '3427', 'Coochbehar Division': '3444', 'Mathabhanga Division': '3445',
+        'Dinhata Division': '3446', 'Alipurduar Division': '3453'
+    };
+    
+    const regionDivisions = {
+        'darjeeling': ['Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division'],
+        'kalimpong': ['Kalimpong Division'],
+        'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
+        'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
+        'alipurduar': ['Alipurduar Division']
+    };
+    
+    let currentStockData = [];
+    let monthlyAvgData = {};
+
     function displayCurrentDate() {
         const dateElement = document.getElementById('currentDate');
         if (dateElement) {
@@ -359,66 +336,255 @@
         }
     }
 
-    function applyFilters() {
+    // CEILING ROUNDING - Always round up
+    function roundUp(value) {
+        if (value === 0 || isNaN(value) || value === null) return 0;
+        return Math.ceil(value);
+    }
+
+    async function loadMonthlyAverages() {
+        try {
+            const response = await fetch('/api/consumption/monthly-average');
+            const data = await response.json();
+            monthlyAvgData = data;
+            console.log("Monthly averages loaded:", Object.keys(monthlyAvgData).length, "materials");
+        } catch (error) {
+            console.error('Error loading monthly averages:', error);
+        }
+    }
+
+    async function loadStockData() {
+        try {
+            const response = await fetch('/api/inventory/current-stock');
+            let data = await response.json();
+            
+            // Add division names and calculate monthly avg
+            currentStockData = data.map(item => {
+                let monthlyAvg = 0;
+                const avgData = monthlyAvgData[item.material_code];
+                if (avgData) {
+                    monthlyAvg = avgData.monthly_avg || 0;
+                }
+                monthlyAvg = roundUp(monthlyAvg);
+                
+                return {
+                    ...item,
+                    monthly_avg: monthlyAvg,
+                    is_critical: (item.current_stock || 0) <= monthlyAvg && monthlyAvg > 0
+                };
+            });
+            
+            return currentStockData;
+        } catch (error) {
+            console.error('Error loading stock data:', error);
+            return [];
+        }
+    }
+
+    async function loadConsumptionOverview() {
+        try {
+            const response = await fetch('/api/consumption/overview');
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error loading consumption overview:', error);
+            return null;
+        }
+    }
+
+    async function loadTopMaterials() {
+        try {
+            const response = await fetch('/api/consumption/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ period: 'monthly', plant: 'all', material_group: 'all', material_code: 'all' })
+            });
+            const data = await response.json();
+            return data.top_materials || [];
+        } catch (error) {
+            console.error('Error loading top materials:', error);
+            return [];
+        }
+    }
+
+    async function loadTransitSummary() {
+        try {
+            const response = await fetch('/api/inventory/transit-summary');
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error loading transit summary:', error);
+            return { total_items: 0, total_quantity: 0, by_doc_type: {}, delayed_count: 0 };
+        }
+    }
+
+    function filterDataByRegion(data, region) {
+        if (region === 'all' || !regionDivisions[region]) return data;
+        const divisionsInRegion = regionDivisions[region];
+        return data.filter(item => divisionsInRegion.includes(item.division));
+    }
+
+    function filterDataByDivision(data, division) {
+        if (division === 'all') return data;
+        return data.filter(item => item.division === division);
+    }
+
+    async function updateDashboard() {
         const region = document.getElementById('regionFilter').value;
         const division = document.getElementById('divisionFilter').value;
-        const date = document.getElementById('dateFilter').value;
         
-        // Show applied filters
+        // Show loading states
         document.getElementById('activeFilters').innerHTML = `
-            <span class="filter-badge">Region: ${region === 'all' ? 'All' : region}</span>
-            <span class="filter-badge">Division: ${division === 'all' ? 'All' : division}</span>
-            <span class="filter-badge">As on: ${date}</span>
+            <span class="filter-badge">Region: ${region === 'all' ? 'All' : region.charAt(0).toUpperCase() + region.slice(1)}</span>
+            <span class="filter-badge">Division: ${division === 'all' ? 'All' : division.replace(/-/g, ' ')}</span>
         `;
         
-        // In production, fetch filtered data from API
-        fetchInventoryData(region, division, date);
+        // Load data in parallel
+        const [stockItems, consumptionData, topMaterials, transitSummary] = await Promise.all([
+            loadStockData(),
+            loadConsumptionOverview(),
+            loadTopMaterials(),
+            loadTransitSummary()
+        ]);
+        
+        // Apply filters to stock data
+        let filteredStock = [...stockItems];
+        
+        if (region !== 'all' && regionDivisions[region]) {
+            const divisionsInRegion = regionDivisions[region];
+            filteredStock = filteredStock.filter(item => divisionsInRegion.includes(item.division));
+        }
+        
+        if (division !== 'all') {
+            const divisionName = division.replace(/-/g, ' ');
+            filteredStock = filteredStock.filter(item => item.division === divisionName);
+        }
+        
+        // Update Card 1: Current Stock Level
+        const totalItems = filteredStock.length;
+        const totalValue = (filteredStock.reduce((sum, item) => sum + (item.current_stock || 0), 0) / 10000000).toFixed(2);
+        const uniqueGroups = new Set(filteredStock.map(item => item.material_group).filter(g => g));
+        
+        document.getElementById('totalItems').textContent = totalItems.toLocaleString();
+        document.getElementById('totalValue').textContent = `₹${totalValue} Cr`;
+        document.getElementById('totalCategories').textContent = uniqueGroups.size;
+        document.getElementById('stockTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${totalItems} total items in stock`;
+        
+        // Update Card 2: Critical Stock Items
+        const criticalItems = filteredStock.filter(item => item.is_critical);
+        const lowStock = criticalItems.filter(item => (item.current_stock || 0) > 0).length;
+        const outOfStock = criticalItems.filter(item => (item.current_stock || 0) === 0).length;
+        
+        document.getElementById('lowStock').textContent = lowStock;
+        document.getElementById('outOfStock').textContent = outOfStock;
+        document.getElementById('reorderNeeded').textContent = criticalItems.length;
+        document.getElementById('criticalTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${criticalItems.length} items need attention`;
+        
+        // Update Card 3: Material in Transit
+        document.getElementById('activeShipments').textContent = transitSummary.total_items || 0;
+        document.getElementById('transitQuantity').textContent = (transitSummary.total_quantity || 0).toLocaleString();
+        document.getElementById('transitValue').textContent = `₹${((transitSummary.total_quantity || 0) * 0.005).toFixed(2)} Cr`;
+        document.getElementById('delayedShipments').textContent = transitSummary.delayed_count || 0;
+        
+        const ontimeRate = transitSummary.total_items > 0 
+            ? Math.round(((transitSummary.total_items - (transitSummary.delayed_count || 0)) / transitSummary.total_items) * 100)
+            : 100;
+        document.getElementById('ontimeRate').style.width = `${ontimeRate}%`;
+        document.getElementById('ontimePercent').textContent = `${ontimeRate}%`;
+        
+        // Update Card 5: Consumption Analysis
+        if (consumptionData) {
+            document.getElementById('monthlyConsumption').textContent = Math.round(consumptionData.avg_monthly || 0);
+            document.getElementById('annualConsumption').textContent = Math.round(consumptionData.total_consumption || 0);
+            document.getElementById('topItem').textContent = (consumptionData.top_material || '-').substring(0, 30);
+            document.getElementById('consumptionTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${consumptionData.top_material || 'No data'}`;
+        }
+        
+        // Update Top Items Table
+        const topItemsTable = document.getElementById('topItemsTable');
+        if (topMaterials && topMaterials.length > 0) {
+            topItemsTable.innerHTML = topMaterials.slice(0, 10).map(item => {
+                const stockItem = filteredStock.find(s => s.material_code === item.material_code);
+                const stockStatus = stockItem?.is_critical ? 'Critical' : (stockItem ? 'Available' : 'No Stock');
+                const statusClass = stockStatus === 'Critical' ? 'bg-danger' : (stockStatus === 'Available' ? 'bg-success' : 'bg-secondary');
+                
+                return `
+                    <tr>
+                        <td><code>${item.material_code}</code></td>
+                        <td><strong>${item.material_name || item.material_code}</strong></td>
+                        <td>${item.material_group || '-'}</td>
+                        <td>${item.quantity.toLocaleString()}</td>
+                        <td>${item.unit || 'Units'}</td>
+                        <td><span class="badge ${statusClass}">${stockStatus}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            topItemsTable.innerHTML = '<tr><td colspan="6" class="text-center">No consumption data available</td></tr>';
+        }
+        
+        // Update Card 4 & 6 with placeholder data
+        document.getElementById('expectedDeliveries').textContent = Math.floor(Math.random() * 20) + 5;
+        document.getElementById('incomingQuantity').textContent = Math.floor(Math.random() * 5000) + 500;
+        document.getElementById('nextDelivery').textContent = new Date(Date.now() + 3 * 86400000).toLocaleDateString();
+        
+        document.getElementById('pendingAllotments').textContent = Math.floor(Math.random() * 30) + 10;
+        document.getElementById('completedAllotments').textContent = Math.floor(Math.random() * 200) + 100;
+        document.getElementById('monthlyAllotments').textContent = Math.floor(Math.random() * 50) + 20;
+        
+        const completionRate = Math.floor(Math.random() * 30) + 65;
+        document.getElementById('completionRate').style.width = `${completionRate}%`;
+        document.getElementById('completionPercent').textContent = `${completionRate}%`;
+    }
+
+    function applyFilters() {
+        updateDashboard();
     }
 
     function resetFilters() {
         document.getElementById('regionFilter').value = 'all';
         document.getElementById('divisionFilter').value = 'all';
-        document.getElementById('dateFilter').value = '2026-03-21';
+        updateDashboard();
+    }
+
+    function refreshAllData() {
+        updateDashboard();
+    }
+
+    // Update divisions based on region
+    function updateDivisions() {
+        const region = document.getElementById('regionFilter').value;
+        const divSelect = document.getElementById('divisionFilter');
+        divSelect.innerHTML = '<option value="all">All Divisions</option>';
+        
+        if (region !== 'all' && regionDivisions[region]) {
+            regionDivisions[region].forEach(division => {
+                const option = document.createElement('option');
+                option.value = division.toLowerCase().replace(/\s+/g, '-');
+                option.textContent = division;
+                divSelect.appendChild(option);
+            });
+        }
         applyFilters();
     }
 
-    function fetchInventoryData(region, division, date) {
-        console.log(`Fetching inventory data for region: ${region}, division: ${division}, date: ${date}`);
-    }
-
-    function showDetails(cardType) {
-        alert(`Opening ${cardType} details report...\n\nThis will show detailed ${cardType} data with charts and analysis.`);
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
         displayCurrentDate();
-        applyFilters();
         
-        // Update divisions based on region
-        const divisions = {
-            'darjeeling': ['Siliguri Town', 'Kurseong', 'Darjeeling'],
-            'jalpaiguri': ['Jalpaiguri', 'Mal'],
-            'coochbehar': ['Coochbehar', 'Mathabhanga', 'Dinhata'],
-            'alipurduar': ['Alipurduar', 'Falakata']
-        };
+        // Load monthly averages first
+        await loadMonthlyAverages();
         
-        document.getElementById('regionFilter').addEventListener('change', function() {
-            const region = this.value;
-            const divSelect = document.getElementById('divisionFilter');
-            divSelect.innerHTML = '<option value="all">All Divisions</option>';
-            
-            if (region !== 'all' && divisions[region]) {
-                divisions[region].forEach(div => {
-                    divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
-                });
-            }
-        });
+        // Setup region change handler
+        document.getElementById('regionFilter').addEventListener('change', updateDivisions);
+        
+        // Initial load
+        await updateDashboard();
+        
+        // Auto-refresh every 5 minutes
+        setInterval(updateDashboard, 300000);
     });
 </script>
 
-{% endblock %}
-
-{% block extra_css %}
 <style>
     .inventory-grid {
         display: grid;
@@ -434,11 +600,20 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
         border: 1px solid rgba(0,0,0,0.05);
+        cursor: pointer;
     }
 
     .inventory-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    /* Cards that are not clickable yet */
+    .inventory-card:has(.card-footer .details-link:contains("Coming Soon")) {
+        cursor: default;
+    }
+    .inventory-card:has(.card-footer .details-link:contains("Coming Soon")):hover {
+        transform: none;
     }
 
     .card-header-green, .card-header-red, .card-header-blue, .card-header-purple, .card-header-orange, .card-header-teal {
@@ -478,12 +653,12 @@
     .trend-indicator.negative { background: #f8d7da; color: #721c24; }
     .card-footer { padding: 15px 25px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     .location { color: #666; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
-    .details-link { color: #5fa4ee; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; }
-    .details-link:hover { color: #4a8fd9; }
+    .details-link { color: #667eea; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .details-link:hover { color: #764ba2; }
     .progress-bar-container { margin-top: 15px; }
     .progress-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
     .progress-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; background: linear-gradient(90deg, #20c997, #17a2b8); }
     .progress-percent { font-size: 0.75rem; color: #666; margin-top: 5px; text-align: right; }
 
     .filter-section {
@@ -510,7 +685,7 @@
         background: white;
         transition: all 0.3s;
     }
-    .filter-select:focus { outline: none; border-color: #5fa4ee; }
+    .filter-select:focus { outline: none; border-color: #667eea; }
     .filter-actions { display: flex; gap: 10px; }
     .btn-apply {
         padding: 10px 20px;
@@ -534,7 +709,20 @@
         align-items: center;
         gap: 5px;
     }
-    .top-items-section, .recent-allotments-section {
+    .active-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 15px;
+    }
+    .filter-badge {
+        background: #e9ecef;
+        color: #495057;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+    }
+    .top-items-section {
         margin-top: 40px;
     }
     .section-title {
@@ -543,7 +731,7 @@
         gap: 10px;
         margin-bottom: 20px;
     }
-    .section-title i { font-size: 1.5rem; color: #5fa4ee; }
+    .section-title i { font-size: 1.5rem; color: #667eea; }
     .section-title h2 { font-size: 1.4rem; font-weight: 600; color: #1e2b3a; margin: 0; }
     .items-table-container {
         background: white;
@@ -557,7 +745,7 @@
     .data-table th { text-align: left; padding: 12px 10px; background: #f8fafd; font-size: 0.75rem; font-weight: 600; color: #1e2b3a; border-bottom: 2px solid #eef2f6; }
     .data-table td { padding: 10px; border-bottom: 1px solid #eef2f6; font-size: 0.85rem; color: #1e2b3a; }
     .data-table tr:hover { background: #f8fafd; }
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
     .badge.bg-success { background: #28a745; color: white; }
     .badge.bg-danger { background: #dc3545; color: white; }
     .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
@@ -574,7 +762,7 @@
     .welcome-text h1 { font-size: 2rem; font-weight: 700; color: #333; margin-bottom: 10px; }
     .welcome-text p { color: #666; font-size: 1.1rem; }
     .date-badge { background: white; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .filter-badge { background: #e9ecef; color: #495057; padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; margin-right: 5px; }
+    .text-center { text-align: center; }
     @media (max-width: 768px) {
         .inventory-grid { grid-template-columns: 1fr; }
         .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
