@@ -44,7 +44,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-truck"></i> Material in Transit Dashboard</h1>
-        <p>Track materials dispatched from Zonal Store (DI) and between Divisions (STN) - Real-time Status</p>
+        <p>Track materials DI & STN Status </p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -175,9 +175,6 @@
     <div class="section-title">
         <i class="bi bi-truck"></i>
         <h2>Materials Currently in Transit</h2>
-        <span style="margin-left: auto; font-size: 0.8rem; color: #666;">
-            <i class="bi bi-info-circle"></i> Click on any row to view details
-        </span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="transitTable">
@@ -276,16 +273,27 @@
         return 'normal';
     }
     
-    function getStatusBadge(status, delay) {
-        if (status === 'Completed') {
+    // ================================================================
+    // UPDATED STATUS FUNCTION
+    // ================================================================
+    function getStatusBadge(status, balanceQty, pendingPercent) {
+        // If balance quantity is 0, it's Completed
+        if (balanceQty <= 0) {
             return '<span class="badge bg-success">✅ Completed</span>';
-        } else if (status === 'Delayed' || (delay && delay.toLowerCase() in ['yes', 'true', 'delayed', '1'])) {
-            return '<span class="badge bg-danger">⚠️ Delayed</span>';
-        } else if (status === 'Partially Received') {
-            return '<span class="badge bg-warning">📦 Partial</span>';
-        } else {
+        }
+        
+        // If pending percentage is 100%, it's In Transit
+        if (pendingPercent >= 100) {
             return '<span class="badge bg-primary">🚚 In Transit</span>';
         }
+        
+        // If pending percentage is less than 100%, it's Partially Received
+        if (pendingPercent > 0 && pendingPercent < 100) {
+            return '<span class="badge bg-warning">📦 Partial</span>';
+        }
+        
+        // Default fallback
+        return '<span class="badge bg-primary">🚚 In Transit</span>';
     }
     
     // ================================================================
@@ -559,11 +567,16 @@
             tableBody.innerHTML = pageData.map((item, idx) => {
                 const daysClass = getDaysClass(item.days_in_transit);
                 const daysDisplay = item.days_in_transit !== null ? `${item.days_in_transit} days` : '-';
-                const statusBadge = getStatusBadge(item.status, item.delay_in_delivery);
-                const rowNum = startIndex + idx + 1;
+                
+                // Get balance quantity and pending percentage
                 const balanceQty = item.balance_qty || item.quantity || 0;
-                const orderQty = item.order_quantity || item.di_issue_qty || 0;
                 const pendingPercent = item.pending_percentage || 0;
+                
+                // Use updated status function
+                const statusBadge = getStatusBadge(item.status, balanceQty, pendingPercent);
+                
+                const rowNum = startIndex + idx + 1;
+                const orderQty = item.order_quantity || item.di_issue_qty || 0;
                 const docDate = item.document_date || '-';
                 const poDate = item.po_date || item.document_date || '-';
                 const delayStatus = item.delay_in_delivery || 'No';
@@ -571,7 +584,7 @@
                 const fromDisplay = item.document_type === 'DI' ? '🏭 Vendor/Supplier' : (item.from_division || item.from_plant);
                 
                 return `
-                    <tr onclick="showShipmentDetails('${item.document_no || ''}', '${item.material_code || ''}')" style="cursor: pointer;">
+                    <tr>
                         <td class="col-sno">${rowNum}</td>
                         <td class="col-doc-type desktop-only"><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
                         <td class="col-doc-no desktop-only"><code>${item.document_no || '-'}</code></td>
@@ -643,32 +656,6 @@
         document.querySelector('.table-responsive').scrollTop = 0;
     }
     
-    function showShipmentDetails(docNo, materialCode) {
-        const shipment = filteredData.find(s => s.document_no === docNo && s.material_code === materialCode);
-        if (shipment) {
-            const fromDisplay = shipment.document_type === 'DI' ? '🏭 Vendor/Supplier' : (shipment.from_division || shipment.from_plant);
-            const details = `
-                <strong>Document Type:</strong> ${shipment.document_type}<br>
-                <strong>Document No:</strong> ${shipment.document_no || '-'}<br>
-                <strong>Document Date:</strong> ${shipment.document_date || '-'}<br>
-                <strong>PO/STN Date:</strong> ${shipment.po_date || shipment.document_date || '-'}<br>
-                <strong>Material:</strong> ${shipment.material_name || shipment.material_code}<br>
-                <strong>Material Code:</strong> ${shipment.material_code}<br>
-                <strong>Material Group:</strong> ${shipment.material_group || '-'}<br>
-                <strong>From:</strong> ${fromDisplay}<br>
-                <strong>To:</strong> ${shipment.to_division || shipment.to_plant}<br>
-                <strong>Order Quantity:</strong> ${(shipment.order_quantity || shipment.di_issue_qty || 0).toLocaleString()} ${shipment.unit || 'Units'}<br>
-                <strong>Balance Quantity:</strong> ${(shipment.balance_qty || shipment.quantity || 0).toLocaleString()} ${shipment.unit || 'Units'}<br>
-                <strong>Pending %:</strong> ${(shipment.pending_percentage || 0).toFixed(1)}%<br>
-                <strong>Delay in Delivery:</strong> ${shipment.delay_in_delivery || 'No'}<br>
-                <strong>Filter Reason:</strong> ${shipment.filter_reason || 'None'}<br>
-                <strong>Days in Transit:</strong> ${shipment.days_in_transit !== null ? shipment.days_in_transit + ' days' : '-'}<br>
-                <strong>Status:</strong> ${shipment.status || 'In Transit'}
-            `;
-            alert(`📦 Shipment Details\n\n${details}`);
-        }
-    }
-    
     function refreshData() {
         loadTransitData();
     }
@@ -699,6 +686,17 @@
         
         filteredData.forEach((item, idx) => {
             const fromDisplay = item.document_type === 'DI' ? 'Vendor/Supplier' : (item.from_division || item.from_plant);
+            const balanceQty = item.balance_qty || item.quantity || 0;
+            const pendingPercent = item.pending_percentage || 0;
+            let statusText = 'In Transit';
+            if (balanceQty <= 0) {
+                statusText = 'Completed';
+            } else if (pendingPercent >= 100) {
+                statusText = 'In Transit';
+            } else if (pendingPercent > 0 && pendingPercent < 100) {
+                statusText = 'Partially Received';
+            }
+            
             sheetData.push([
                 idx + 1, 
                 item.document_type, 
@@ -711,11 +709,11 @@
                 fromDisplay,
                 item.to_division || item.to_plant, 
                 item.order_quantity || item.di_issue_qty || 0,
-                item.balance_qty || item.quantity || 0,
+                balanceQty,
                 item.unit || 'Units',
-                (item.pending_percentage || 0) + '%',
+                pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-',
                 item.delay_in_delivery || 'No',
-                item.status || 'In Transit'
+                statusText
             ]);
         });
         
@@ -827,7 +825,7 @@
     .text-center { text-align: center; }
     
     /* ================================================================
-       DESKTOP VS MOBILE COLUMN VISIBILITY - UPDATED
+       DESKTOP VS MOBILE COLUMN VISIBILITY
        ================================================================ */
     
     /* Desktop only - hidden on mobile */
@@ -836,7 +834,7 @@
     }
     
     /* ================================================================
-       MOBILE RESPONSIVE - Hide less important columns
+       MOBILE RESPONSIVE
        ================================================================ */
     
     @media (max-width: 768px) {

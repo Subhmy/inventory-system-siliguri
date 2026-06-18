@@ -1,7 +1,7 @@
 """
 API Routes - Using consumption_summary collection
 Consumption data is pre-aggregated from transactions_summary
-Last Updated: June 18, 2026 - FIXED: Plant-level monthly average for Stock Position
+Last Updated: June 18, 2026 - FIXED: Material Group lookup from material_master
 ADDED: Material in Transit endpoints (DI and STN) with plant code extraction
 """
 
@@ -53,11 +53,9 @@ def extract_plant_code(value):
     if not value:
         return ''
     val_str = str(value).strip()
-    # Try to find 4-digit number first
     match = re.search(r'(\d{4})', val_str)
     if match:
         return match.group(1)
-    # If no 4-digit found, try to find any number
     match = re.search(r'(\d+)', val_str)
     if match:
         return match.group(1)
@@ -274,7 +272,6 @@ def get_consumption_data():
         if db is None:
             return safe_json_response({'consumption_data': [], 'summary': {'total_consumption': 0}})
         
-        # Build query
         query = {}
         if plant and plant != 'all':
             query['plant'] = plant
@@ -441,7 +438,6 @@ def get_consumption_material_groups():
             return safe_json_response([])
         
         groups = db.consumption_summary.distinct('material_group')
-        # Filter out unwanted groups
         excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
         groups = [g for g in groups if g and not any(ex in g.lower() for ex in excluded)]
         
@@ -491,7 +487,6 @@ def get_consumption_materials():
                     'unit': m['_id']['unit'] or 'Units'
                 })
         
-        # Filter out excluded groups
         excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
         materials = [m for m in materials if not any(ex in m.get('material_group', '').lower() for ex in excluded)]
         
@@ -507,9 +502,6 @@ def get_consumption_materials():
 @api_bp.route('/api/consumption/monthly-average')
 @login_required
 def get_monthly_average_consumption():
-    """
-    Get monthly average consumption per material for a specific plant
-    """
     try:
         plant = request.args.get('plant', 'all')
         material_group = request.args.get('material_group', 'all')
@@ -577,7 +569,6 @@ def get_monthly_average_consumption():
                 'plant': plant_key
             }
         
-        # Also add zone-level averages as fallback
         zone_query = {'period_type': 'monthly'}
         if material_group and material_group != 'all':
             zone_query['material_group'] = material_group
@@ -637,9 +628,6 @@ def get_monthly_average_consumption():
 @api_bp.route('/api/consumption/monthly-average-by-plant')
 @login_required
 def get_monthly_average_by_plant():
-    """
-    Get monthly average consumption per material for MULTIPLE plants.
-    """
     try:
         plants_param = request.args.get('plants', '')
         material_group = request.args.get('material_group', 'all')
@@ -712,7 +700,6 @@ def get_monthly_average_by_plant():
                 'plant': plant_key
             }
         
-        # Fallback if no results
         if not results and plants_list:
             print("No results for specific plants, trying zone-level fallback")
             fallback_query = {'period_type': 'monthly'}
@@ -778,7 +765,7 @@ def get_monthly_average_by_plant():
 def get_material_in_transit():
     """
     Get all materials currently in transit (DI and STN)
-    Supports filtering with flexible plant code matching
+    Fetches Material Group from material_master collection
     """
     try:
         db = get_db()
@@ -798,9 +785,7 @@ def get_material_in_transit():
         if doc_type and doc_type != 'all':
             query['document_type'] = doc_type
         
-        # FIXED: Handle plant filtering with regex for STN
         if from_plant and from_plant != 'all' and from_plant != 'Vendor':
-            # Use regex to find plant code anywhere in the string
             query['from_plant'] = {'$regex': from_plant, '$options': 'i'}
         
         if to_plant and to_plant != 'all':
@@ -817,8 +802,29 @@ def get_material_in_transit():
         # Get transit items
         transit_items = list(db.material_in_transit.find(query, {'_id': 0}))
         
-        # Add division names for plants
+        # Create a lookup map for material groups from material_master
+        material_group_map = {}
+        all_material_codes = list(set([item.get('material_code') for item in transit_items if item.get('material_code')]))
+        
+        if all_material_codes:
+            material_master_records = db.material_master.find(
+                {'Material_Code': {'$in': all_material_codes}},
+                {'Material_Code': 1, 'Material Group': 1}
+            )
+            for record in material_master_records:
+                material_code_key = record.get('Material_Code')
+                if material_code_key:
+                    material_group_map[material_code_key] = record.get('Material Group', 'Uncategorized')
+        
+        # Add division names and material group to transit items
         for item in transit_items:
+            # Get material group from map
+            material_code = item.get('material_code')
+            if material_code and material_code in material_group_map:
+                item['material_group'] = material_group_map[material_code]
+            elif not item.get('material_group') or item.get('material_group') == 'Uncategorized':
+                item['material_group'] = 'Uncategorized'
+            
             # Get division for from_plant
             if item.get('from_plant'):
                 from_division = db.storage_locations.find_one(
@@ -835,7 +841,7 @@ def get_material_in_transit():
                 )
                 item['to_division'] = to_division.get('division', item.get('to_plant')) if to_division else item.get('to_plant')
         
-        print(f"Returning {len(transit_items)} transit items")
+        print(f"Returning {len(transit_items)} transit items with material groups")
         return safe_json_response(transit_items)
         
     except Exception as e:
@@ -861,19 +867,16 @@ def get_transit_summary():
                 'delayed_count': 0
             })
         
-        # Get all in-transit items
         transit_items = list(db.material_in_transit.find({}))
         
         total_items = len(transit_items)
         total_quantity = sum(item.get('quantity', 0) for item in transit_items)
         
-        # Group by document type
         by_doc_type = {}
         for item in transit_items:
             doc_type = item.get('document_type', 'Unknown')
             by_doc_type[doc_type] = by_doc_type.get(doc_type, 0) + 1
         
-        # Count delayed shipments (>30 days based on document date)
         thirty_days_ago = datetime.now() - timedelta(days=30)
         delayed_count = 0
         
@@ -925,12 +928,10 @@ def get_current_stock():
         
         stock = list(db.current_stock.find({}, {'_id': 0}))
         
-        # Clean plant codes
         for item in stock:
             if 'plant' in item:
                 item['plant'] = str(item['plant']).replace('.0', '')
         
-        # If no data, return sample data for testing
         if not stock:
             sample_stock = [
                 {'material_code': '102010611', 'material_name': 'M.S. CHANNEL 75 X 40MM', 'material_description': 'M.S. CHANNEL 75 X 40MM', 'material_group': 'MSCHANNEL', 'plant': '3400', 'current_stock': 203.341, 'unit': 'MT'},
