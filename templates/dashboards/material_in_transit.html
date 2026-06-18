@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
     <a href="{{ url_for('main.inventory_dashboard') }}" style="
         display: inline-flex;
         align-items: center;
@@ -24,7 +24,7 @@
         <span>Back to Inventory Dashboard</span>
     </a>
     
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button onclick="exportToExcel()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer;">
             <i class="bi bi-file-excel-fill"></i>
             <span>Export Excel</span>
@@ -59,8 +59,8 @@
             <label><i class="bi bi-file-text"></i> DOCUMENT TYPE</label>
             <select id="docTypeFilter" class="filter-select" onchange="onDocTypeChange()">
                 <option value="all">All Documents</option>
-                <option value="DI">📋 DI (Dispatch Instructions - Vendor to Store)</option>
-                <option value="STN">🔄 STN (Stock Transfer - Store to Store)</option>
+                <option value="DI">📋 DI (Vendor to Store)</option>
+                <option value="STN">🔄 STN (Store to Store)</option>
             </select>
         </div>
         
@@ -96,10 +96,10 @@
             <label><i class="bi bi-calendar-week"></i> TRANSIT STATUS</label>
             <select id="transitStatusFilter" class="filter-select" onchange="applyFilters()">
                 <option value="all">All Shipments</option>
-                <option value="0-7">0-7 Days (Just Dispatched)</option>
-                <option value="8-14">8-14 Days (In Transit)</option>
-                <option value="15-30">15-30 Days (Expected Soon)</option>
-                <option value="30+">30+ Days (Delayed)</option>
+                <option value="0-7">0-7 Days</option>
+                <option value="8-14">8-14 Days</option>
+                <option value="15-30">15-30 Days</option>
+                <option value="30+">30+ Days</option>
             </select>
         </div>
     </div>
@@ -121,7 +121,7 @@
     <span id="errorText"></span>
 </div>
 
-<!-- KPI Cards - Total Quantity REMOVED -->
+<!-- KPI Cards -->
 <div class="kpi-title">
     <i class="bi bi-graph-up"></i>
     <h2>Transit Summary</h2>
@@ -137,8 +137,6 @@
             <div class="kpi-unit">Shipments</div>
         </div>
     </div>
-    
-    <!-- Total Quantity KPI REMOVED -->
     
     <div class="kpi-card">
         <div class="kpi-icon" style="background: linear-gradient(135deg, #17a2b8, #138496);">
@@ -185,22 +183,22 @@
         <table class="data-table" id="transitTable">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Doc Type</th>
-                    <th>Doc No</th>
-                    <th>Doc Date</th>
-                    <th>PO/STN Date</th>
-                    <th>Material Code</th>
-                    <th>Material Name</th>
-                    <th>Material Group</th>
-                    <th>From (Source)</th>
-                    <th>To (Destination)</th>
-                    <th>Order Qty</th>
-                    <th>Balance Qty</th>
-                    <th>Unit</th>
-                    <th>Pending %</th>
-                    <th>Delay Status</th>
-                    <th>Status</th>
+                    <th class="col-sno">#</th>
+                    <th class="col-doc-type desktop-only">Doc Type</th>
+                    <th class="col-doc-no desktop-only">Doc No</th>
+                    <th class="col-doc-date desktop-only">Doc Date</th>
+                    <th class="col-po-date desktop-only">PO/STN Date</th>
+                    <th class="col-material-code">Material Code</th>
+                    <th class="col-material-name">Material Name</th>
+                    <th class="col-material-group desktop-only">Material Group</th>
+                    <th class="col-from">From (Source)</th>
+                    <th class="col-to">To (Destination)</th>
+                    <th class="col-order-qty">Order Qty</th>
+                    <th class="col-balance-qty">Balance Qty</th>
+                    <th class="col-unit">Unit</th>
+                    <th class="col-pending">Pending %</th>
+                    <th class="col-delay">Delay Status</th>
+                    <th class="col-status">Status</th>
                 </tr>
             </thead>
             <tbody id="transitTableBody">
@@ -300,25 +298,19 @@
         const fromGroup = document.getElementById('fromFilterGroup');
         
         if (docType === 'DI') {
-            // DI: From is always "Vendor" (external) - disable the filter
             fromGroup.style.display = 'none';
             fromSelect.innerHTML = '<option value="all">Vendor (External Source)</option>';
-            // TO filter shows all stores
             populateToFilter('all');
             showGuidance('📋 DI selected - Materials are coming from Vendors/Suppliers (External Source). From filter is disabled.');
         } else {
-            // Show the FROM filter group
             fromGroup.style.display = 'block';
             
             if (docType === 'STN') {
-                // STN: Store to Store - show all stores for FROM
                 populateFromFilter('STN');
-                // TO filter will be populated based on FROM selection
                 const selectedFrom = document.getElementById('fromPlantFilter').value;
                 populateToFilter(selectedFrom);
                 showGuidance('🔄 STN selected - Showing Store to Store transfers. From and To cannot be the same.');
             } else {
-                // All: Show all stores for FROM
                 populateFromFilter('all');
                 populateToFilter('all');
                 showGuidance('📊 All documents selected - Showing both Vendor to Store and Store to Store transfers.');
@@ -328,9 +320,6 @@
         applyFilters();
     }
     
-    // ================================================================
-    // CASCADING FILTER: From Plant Change Handler
-    // ================================================================
     function onFromPlantChange() {
         const docType = document.getElementById('docTypeFilter').value;
         const selectedFrom = document.getElementById('fromPlantFilter').value;
@@ -342,22 +331,17 @@
         applyFilters();
     }
     
-    // ================================================================
-    // Helper: Populate FROM Filter
-    // ================================================================
     function populateFromFilter(type) {
         const fromSelect = document.getElementById('fromPlantFilter');
         fromSelect.innerHTML = '';
         
         if (type === 'STN') {
-            // STN: Show all stores
             fromSelect.innerHTML = '<option value="all">All Source Stores</option>';
             ALL_PLANTS.forEach(plant => {
                 const division = plantToDivisionMap[plant] || plant;
                 fromSelect.innerHTML += `<option value="${plant}">🏪 ${division} (${plant})</option>`;
             });
         } else {
-            // All: Show all stores
             fromSelect.innerHTML = '<option value="all">All Source Locations</option>';
             ALL_PLANTS.forEach(plant => {
                 const division = plantToDivisionMap[plant] || plant;
@@ -365,45 +349,33 @@
             });
         }
         
-        // Reset to "All"
         fromSelect.value = 'all';
     }
     
-    // ================================================================
-    // Helper: Populate TO Filter (Excluding selected FROM)
-    // ================================================================
     function populateToFilter(excludePlant) {
         const toSelect = document.getElementById('toPlantFilter');
         const docType = document.getElementById('docTypeFilter').value;
         
         toSelect.innerHTML = '';
-        
-        // Start with "All" option
         toSelect.innerHTML = '<option value="all">All Destination Locations</option>';
         
-        // Get available plants
         let availablePlants = [...ALL_PLANTS];
         
-        // For STN, exclude the selected FROM plant (prevent self-transfer)
         if (docType === 'STN' && excludePlant && excludePlant !== 'all') {
             availablePlants = availablePlants.filter(p => p !== excludePlant);
         }
         
-        // For DI, show all plants
         if (docType === 'DI') {
             availablePlants = [...ALL_PLANTS];
         }
         
-        // Add plants to dropdown
         availablePlants.forEach(plant => {
             const division = plantToDivisionMap[plant] || plant;
             toSelect.innerHTML += `<option value="${plant}">🏪 ${division} (${plant})</option>`;
         });
         
-        // Reset to "All"
         toSelect.value = 'all';
         
-        // Show guidance if plants were excluded
         if (docType === 'STN' && excludePlant && excludePlant !== 'all') {
             const division = plantToDivisionMap[excludePlant] || excludePlant;
             showGuidance(`🔄 TO filter updated - "${division} (${excludePlant})" excluded as destination (self-transfer not allowed).`);
@@ -412,7 +384,6 @@
     
     async function loadFilterOptions() {
         try {
-            // Load material groups (filter out unwanted)
             const groupRes = await fetch('/api/consumption/material-groups');
             let groups = await groupRes.json();
             const excludedGroups = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly', 'monthly= (27 month)'];
@@ -427,7 +398,6 @@
                 groupSelect.appendChild(option);
             });
             
-            // Initialize filters
             onDocTypeChange();
             
         } catch (error) {
@@ -446,7 +416,6 @@
             const response = await fetch(url);
             let materials = await response.json();
             
-            // Filter out excluded groups
             const excludedGroups = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly', 'monthly= (27 month)'];
             materials = materials.filter(m => !excludedGroups.some(ex => m.material_group?.toLowerCase().includes(ex.toLowerCase())));
             
@@ -490,36 +459,28 @@
             const response = await fetch(url);
             transitData = await response.json();
             
-            // Apply DI/STN specific filtering
             if (docType === 'DI') {
-                // DI: Materials from Vendor to Store
                 transitData = transitData.filter(item => item.document_type === 'DI');
             } else if (docType === 'STN') {
-                // STN: Store to Store transfers - exclude self-transfer
                 transitData = transitData.filter(item => {
                     if (item.document_type !== 'STN') return false;
-                    // Exclude self-transfer (from_plant === to_plant)
                     if (item.from_plant === item.to_plant) return false;
                     return true;
                 });
             }
             
-            // Add days in transit calculation
             transitData = transitData.map(item => {
                 const daysInTransit = calculateDaysInTransit(item.document_date);
                 return { ...item, days_in_transit: daysInTransit };
             });
             
-            // Update KPI counts - Total Quantity REMOVED
             const filteredDI = transitData.filter(item => item.document_type === 'DI');
             const filteredSTN = transitData.filter(item => item.document_type === 'STN');
             
             document.getElementById('totalItems').textContent = transitData.length;
-            // document.getElementById('totalQuantity') - REMOVED
             document.getElementById('diCount').textContent = filteredDI.length;
             document.getElementById('stnCount').textContent = filteredSTN.length;
             
-            // Count delayed shipments (>30 days)
             const delayedCount = transitData.filter(item => item.days_in_transit > 30).length;
             document.getElementById('delayedCount').textContent = delayedCount;
             
@@ -552,32 +513,26 @@
         
         filteredData = [...transitData];
         
-        // Apply document type filter
         if (docType !== 'all') {
             filteredData = filteredData.filter(item => item.document_type === docType);
         }
         
-        // Apply from plant filter (skip for DI as it's Vendor)
         if (docType !== 'DI' && fromPlant !== 'all' && fromPlant !== 'Vendor') {
             filteredData = filteredData.filter(item => item.from_plant === fromPlant);
         }
         
-        // Apply to plant filter
         if (toPlant !== 'all') {
             filteredData = filteredData.filter(item => item.to_plant === toPlant);
         }
         
-        // Apply material group filter
         if (materialGroup !== 'all') {
             filteredData = filteredData.filter(item => item.material_group === materialGroup);
         }
         
-        // Apply material code filter
         if (materialCode !== 'all') {
             filteredData = filteredData.filter(item => item.material_code === materialCode);
         }
         
-        // Apply transit status filter
         if (transitStatus !== 'all') {
             if (transitStatus === '0-7') {
                 filteredData = filteredData.filter(item => item.days_in_transit !== null && item.days_in_transit <= 7);
@@ -613,27 +568,26 @@
                 const poDate = item.po_date || item.document_date || '-';
                 const delayStatus = item.delay_in_delivery || 'No';
                 
-                // For DI, show "Vendor" as source
                 const fromDisplay = item.document_type === 'DI' ? '🏭 Vendor/Supplier' : (item.from_division || item.from_plant);
                 
                 return `
                     <tr onclick="showShipmentDetails('${item.document_no || ''}', '${item.material_code || ''}')" style="cursor: pointer;">
-                        <td>${rowNum}</td>
-                        <td><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
-                        <td><code>${item.document_no || '-'}</code></td>
-                        <td>${docDate}</td>
-                        <td>${poDate}</td>
-                        <td><code>${item.material_code}</code></td>
-                        <td><strong title="${item.material_name || item.material_code}">${(item.material_name || item.material_code).substring(0, 40)}</strong></td>
-                        <td><span class="badge-group">${item.material_group || '-'}</span></td>
-                        <td><i class="bi bi-send"></i> ${fromDisplay}</td>
-                        <td><i class="bi bi-geo-alt"></i> ${item.to_division || item.to_plant}</td>
-                        <td class="fw-bold">${parseFloat(orderQty).toLocaleString()}</td>
-                        <td class="fw-bold">${parseFloat(balanceQty).toLocaleString()}</td>
-                        <td>${item.unit || 'Units'}</td>
-                        <td>${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
-                        <td><span class="${delayStatus.toLowerCase() === 'yes' || delayStatus.toLowerCase() === 'delayed' ? 'delayed' : 'normal'}">${delayStatus}</span></td>
-                        <td>${statusBadge}</td>
+                        <td class="col-sno">${rowNum}</td>
+                        <td class="col-doc-type desktop-only"><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
+                        <td class="col-doc-no desktop-only"><code>${item.document_no || '-'}</code></td>
+                        <td class="col-doc-date desktop-only">${docDate}</td>
+                        <td class="col-po-date desktop-only">${poDate}</td>
+                        <td class="col-material-code"><code>${item.material_code}</code></td>
+                        <td class="col-material-name"><strong title="${item.material_name || item.material_code}">${(item.material_name || item.material_code).substring(0, 40)}</strong></td>
+                        <td class="col-material-group desktop-only"><span class="badge-group">${item.material_group || '-'}</span></td>
+                        <td class="col-from"><i class="bi bi-send"></i> ${fromDisplay}</td>
+                        <td class="col-to"><i class="bi bi-geo-alt"></i> ${item.to_division || item.to_plant}</td>
+                        <td class="col-order-qty">${parseFloat(orderQty).toLocaleString()}</td>
+                        <td class="col-balance-qty">${parseFloat(balanceQty).toLocaleString()}</td>
+                        <td class="col-unit">${item.unit || 'Units'}</td>
+                        <td class="col-pending">${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
+                        <td class="col-delay"><span class="${delayStatus.toLowerCase() === 'yes' || delayStatus.toLowerCase() === 'delayed' ? 'delayed' : 'normal'}">${delayStatus}</span></td>
+                        <td class="col-status">${statusBadge}</td>
                     </tr>
                 `;
             }).join('');
@@ -656,10 +610,8 @@
         paginationContainer.style.display = 'flex';
         let paginationHtml = '';
         
-        // Previous button
         paginationHtml += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹ Previous</button>`;
         
-        // Page numbers
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, currentPage + 2);
         
@@ -677,10 +629,7 @@
             paginationHtml += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
         }
         
-        // Next button
         paginationHtml += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next ›</button>`;
-        
-        // Info
         paginationHtml += `<span class="page-info">Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, filteredData.length)} of ${filteredData.length} shipments</span>`;
         
         paginationContainer.innerHTML = paginationHtml;
@@ -732,7 +681,6 @@
         document.getElementById('materialFilter').value = 'all';
         document.getElementById('transitStatusFilter').value = 'all';
         
-        // Re-initialize filters
         onDocTypeChange();
         loadMaterials();
         loadTransitData();
@@ -804,7 +752,6 @@
         loadMaterials();
         loadTransitData();
         
-        // Auto-refresh every 5 minutes
         setInterval(() => {
             loadTransitData();
         }, 300000);
@@ -879,14 +826,48 @@
     
     .text-center { text-align: center; }
     
+    /* ================================================================
+       DESKTOP VS MOBILE COLUMN VISIBILITY - UPDATED
+       ================================================================ */
+    
+    /* Desktop only - hidden on mobile */
+    .desktop-only {
+        display: table-cell !important;
+    }
+    
+    /* ================================================================
+       MOBILE RESPONSIVE - Hide less important columns
+       ================================================================ */
+    
     @media (max-width: 768px) {
         .filter-grid { grid-template-columns: 1fr; }
-        .kpi-grid { grid-template-columns: 1fr; }
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
         .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
         .welcome-text h1 { font-size: 1.4rem; }
+        .welcome-text p { font-size: 0.85rem; }
         .data-table { font-size: 0.65rem; }
+        .data-table th, .data-table td { padding: 4px 3px; }
         .page-btn { padding: 6px 10px; font-size: 0.75rem; }
         .page-info { display: none; }
+        
+        /* Mobile: Hide Doc Type, Doc No, Doc Date, PO/STN Date, Material Group */
+        .desktop-only {
+            display: none !important;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .kpi-grid { grid-template-columns: 1fr; }
+        .welcome-text h1 { font-size: 1.2rem; }
+        .filter-group label { font-size: 0.6rem; }
+        .filter-select { padding: 8px 10px; font-size: 0.8rem; }
+        .kpi-card { padding: 12px; }
+        .kpi-icon { width: 40px; height: 40px; }
+        .kpi-icon i { font-size: 1.2rem; }
+        .kpi-value { font-size: 1.2rem; }
+        .data-table { font-size: 0.6rem; }
+        .data-table th, .data-table td { padding: 3px 2px; }
+        .page-btn { padding: 4px 8px; font-size: 0.7rem; }
     }
     
     @media print {
@@ -896,6 +877,8 @@
         }
         .content-card { box-shadow: none; padding: 0; }
         .data-table th { background: #f0f0f0; }
+        /* Show all columns in print */
+        .desktop-only { display: table-cell !important; }
     }
 </style>
 {% endblock %}
