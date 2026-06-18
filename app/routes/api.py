@@ -1,16 +1,17 @@
 """
 API Routes - Using consumption_summary collection
 Consumption data is pre-aggregated from transactions_summary
-Last Updated: June 03, 2026 - FIXED: Plant-level monthly average for Stock Position
-ADDED: Division-wise monthly average endpoint for zone/region level views
+Last Updated: June 18, 2026 - FIXED: Plant-level monthly average for Stock Position
+ADDED: Material in Transit endpoints (DI and STN) with plant code extraction
 """
 
 from flask import Blueprint, jsonify, session, request
 from app.utils.decorators import login_required
 from app.models.mongo_utils import get_db
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import pandas as pd
+import re
 
 api_bp = Blueprint('api', __name__)
 
@@ -45,6 +46,22 @@ def parse_period(period_str):
         return {'year': 2024, 'month': 1, 'quarter': 1}
     except:
         return {'year': 2024, 'month': 1, 'quarter': 1}
+
+
+def extract_plant_code(value):
+    """Extract 4-digit plant code from any string"""
+    if not value:
+        return ''
+    val_str = str(value).strip()
+    # Try to find 4-digit number first
+    match = re.search(r'(\d{4})', val_str)
+    if match:
+        return match.group(1)
+    # If no 4-digit found, try to find any number
+    match = re.search(r'(\d+)', val_str)
+    if match:
+        return match.group(1)
+    return ''
 
 
 # ==================== EXISTING FILTER ENDPOINTS ====================
@@ -180,7 +197,7 @@ def get_admin_data():
         return safe_json_response({"error": str(e)})
 
 
-# ==================== CONSUMPTION ANALYSIS - FIXED ====================
+# ==================== CONSUMPTION ANALYSIS ENDPOINTS ====================
 
 @api_bp.route('/api/consumption/overview')
 @login_required
@@ -245,9 +262,6 @@ def get_consumption_overview():
 def get_consumption_data():
     """
     Get detailed consumption data with proper period-based aggregation.
-    When quarterly selected: aggregates monthly data into quarters
-    When yearly selected: aggregates monthly data into years
-    Top materials are calculated based on the selected period type
     """
     try:
         data = request.json or {}
@@ -262,23 +276,17 @@ def get_consumption_data():
         
         # Build query
         query = {}
-        
         if plant and plant != 'all':
             query['plant'] = plant
-        
         if material_group and material_group != 'all':
             query['material_group'] = material_group
-        
         if material_code and material_code != 'all':
             query['material_code'] = material_code
         
         print(f"Query: {query}")
         
-        # Get ALL data matching filters
         all_data = list(db.consumption_summary.find(query))
-        
         if not all_data:
-            print("No data found for query")
             return safe_json_response({
                 'consumption_data': [],
                 'top_materials': [],
@@ -290,32 +298,18 @@ def get_consumption_data():
         df = pd.DataFrame(all_data)
         df['quantity'] = pd.to_numeric(df['quantity'], errors='coerce').fillna(0)
         
-        # Parse period to get year, month, quarter
         parsed_periods = df['period'].apply(parse_period)
         df['year'] = parsed_periods.apply(lambda x: x['year'])
         df['month'] = parsed_periods.apply(lambda x: x['month'])
         df['quarter'] = parsed_periods.apply(lambda x: x['quarter'])
         
-        print(f"Total records: {len(df)}")
-        print(f"Years in data: {sorted(df['year'].unique())}")
-        print(f"Total quantity sum: {df['quantity'].sum()}")
-        
-        # Aggregate based on period_type
         if period_type == 'quarterly':
-            # First, aggregate monthly data to quarterly level
             df['period_key'] = df['year'].astype(str) + '-Q' + df['quarter'].astype(str)
-            
-            # For trend chart: group by quarter
             trend_agg = df.groupby('period_key').agg({'quantity': 'sum'}).reset_index()
             trend_agg = trend_agg.sort_values('period_key')
             consumption_data = [{'period': row['period_key'], 'quantity': round(row['quantity'], 2)} 
                               for _, row in trend_agg.iterrows()]
-            
-            # For top materials: FIRST aggregate to quarterly level, THEN sum across quarters per material
-            # This ensures each quarter's consumption is counted once per material
             quarterly_df = df.groupby(['period_key', 'material_code', 'material_name', 'unit', 'material_group', 'plant']).agg({'quantity': 'sum'}).reset_index()
-            
-            # Now sum across all quarters for top materials
             top_agg = quarterly_df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
             top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
             top_materials = [{
@@ -324,38 +318,26 @@ def get_consumption_data():
                 'quantity': round(row['quantity'], 2),
                 'unit': row['unit'] or 'Units'
             } for _, row in top_agg.iterrows()]
-            
-            # Material groups: aggregate quarterly data
             group_agg = quarterly_df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
             group_agg = group_agg.sort_values('quantity', ascending=False)
             group_consumption = [{
                 'material_group': row['material_group'] or 'Uncategorized',
                 'quantity': round(row['quantity'], 2)
             } for _, row in group_agg.iterrows()]
-            
-            # Plants: aggregate quarterly data
             plant_agg = quarterly_df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
             plant_consumption = [{
                 'plant': row['plant'] or 'Unknown',
                 'quantity': round(row['quantity'], 2)
             } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
-            
             total_consumption = quarterly_df['quantity'].sum()
             
         elif period_type == 'yearly':
-            # First, aggregate monthly data to yearly level
             df['period_key'] = df['year'].astype(str)
-            
-            # For trend chart: group by year
             trend_agg = df.groupby('year').agg({'quantity': 'sum'}).reset_index()
             trend_agg = trend_agg.sort_values('year')
             consumption_data = [{'period': str(row['year']), 'quantity': round(row['quantity'], 2)} 
                               for _, row in trend_agg.iterrows()]
-            
-            # For top materials: FIRST aggregate to yearly level, THEN sum across years per material
             yearly_df = df.groupby(['year', 'material_code', 'material_name', 'unit', 'material_group', 'plant']).agg({'quantity': 'sum'}).reset_index()
-            
-            # Now sum across all years for top materials
             top_agg = yearly_df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
             top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
             top_materials = [{
@@ -364,32 +346,24 @@ def get_consumption_data():
                 'quantity': round(row['quantity'], 2),
                 'unit': row['unit'] or 'Units'
             } for _, row in top_agg.iterrows()]
-            
-            # Material groups: aggregate yearly data
             group_agg = yearly_df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
             group_agg = group_agg.sort_values('quantity', ascending=False)
             group_consumption = [{
                 'material_group': row['material_group'] or 'Uncategorized',
                 'quantity': round(row['quantity'], 2)
             } for _, row in group_agg.iterrows()]
-            
-            # Plants: aggregate yearly data
             plant_agg = yearly_df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
             plant_consumption = [{
                 'plant': row['plant'] or 'Unknown',
                 'quantity': round(row['quantity'], 2)
             } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
-            
             total_consumption = yearly_df['quantity'].sum()
             
-        else:  # monthly
-            # Use data as is, grouped by period
+        else:
             trend_agg = df.groupby('period').agg({'quantity': 'sum'}).reset_index()
             trend_agg = trend_agg.sort_values('period')
             consumption_data = [{'period': row['period'], 'quantity': round(row['quantity'], 2)} 
                               for _, row in trend_agg.iterrows()]
-            
-            # Top materials: sum across all months
             top_agg = df.groupby(['material_code', 'material_name', 'unit']).agg({'quantity': 'sum'}).reset_index()
             top_agg = top_agg.sort_values('quantity', ascending=False).head(15)
             top_materials = [{
@@ -398,28 +372,18 @@ def get_consumption_data():
                 'quantity': round(row['quantity'], 2),
                 'unit': row['unit'] or 'Units'
             } for _, row in top_agg.iterrows()]
-            
-            # Material groups
             group_agg = df.groupby('material_group').agg({'quantity': 'sum'}).reset_index()
             group_agg = group_agg.sort_values('quantity', ascending=False)
             group_consumption = [{
                 'material_group': row['material_group'] or 'Uncategorized',
                 'quantity': round(row['quantity'], 2)
             } for _, row in group_agg.iterrows()]
-            
-            # Plants
             plant_agg = df.groupby('plant').agg({'quantity': 'sum'}).reset_index()
             plant_consumption = [{
                 'plant': row['plant'] or 'Unknown',
                 'quantity': round(row['quantity'], 2)
             } for _, row in plant_agg.iterrows() if row['plant'] and row['plant'] != 'all']
-            
             total_consumption = df['quantity'].sum()
-        
-        print(f"Period type: {period_type}")
-        print(f"Consumption data periods: {len(consumption_data)}")
-        print(f"Total consumption: {total_consumption}")
-        print(f"Top materials count: {len(top_materials)}")
         
         response = {
             'consumption_data': consumption_data,
@@ -477,7 +441,9 @@ def get_consumption_material_groups():
             return safe_json_response([])
         
         groups = db.consumption_summary.distinct('material_group')
-        groups = [g for g in groups if g and g != 'Uncategorized']
+        # Filter out unwanted groups
+        excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
+        groups = [g for g in groups if g and not any(ex in g.lower() for ex in excluded)]
         
         return safe_json_response(sorted(groups))
     except Exception as e:
@@ -525,6 +491,10 @@ def get_consumption_materials():
                     'unit': m['_id']['unit'] or 'Units'
                 })
         
+        # Filter out excluded groups
+        excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
+        materials = [m for m in materials if not any(ex in m.get('material_group', '').lower() for ex in excluded)]
+        
         return safe_json_response(materials[:1000])
         
     except Exception as e:
@@ -539,8 +509,6 @@ def get_consumption_materials():
 def get_monthly_average_consumption():
     """
     Get monthly average consumption per material for a specific plant
-    Returns nested structure: material_code -> plant -> average data
-    Used for division-specific views in Stock Position Dashboard
     """
     try:
         plant = request.args.get('plant', 'all')
@@ -551,22 +519,17 @@ def get_monthly_average_consumption():
         if db is None:
             return safe_json_response({})
         
-        # Build query for monthly data from consumption_summary
         query = {'period_type': 'monthly'}
         
-        # IMPORTANT: Filter by plant if specified (not 'all')
         if plant and plant != 'all' and plant != 'undefined':
             query['plant'] = plant
-        
         if material_group and material_group != 'all' and material_group != 'undefined':
             query['material_group'] = material_group
-        
         if material_code and material_code != 'all' and material_code != 'undefined':
             query['material_code'] = material_code
         
         print(f"Monthly Average Query: {query}")
         
-        # Aggregate to get monthly average per material AND per plant
         pipeline = [
             {'$match': query},
             {'$group': {
@@ -596,7 +559,6 @@ def get_monthly_average_consumption():
         results = list(db.consumption_summary.aggregate(pipeline))
         print(f"Found {len(results)} monthly average records")
         
-        # Build response map - keyed by material_code, then by plant
         avg_map = {}
         for r in results:
             material_code_key = str(r['material_code'])
@@ -615,7 +577,7 @@ def get_monthly_average_consumption():
                 'plant': plant_key
             }
         
-        # Also add zone-level averages (plant='all') as fallback for materials
+        # Also add zone-level averages as fallback
         zone_query = {'period_type': 'monthly'}
         if material_group and material_group != 'all':
             zone_query['material_group'] = material_group
@@ -672,28 +634,17 @@ def get_monthly_average_consumption():
         return safe_json_response({})
 
 
-# ==================== NEW ENDPOINT: MONTHLY AVERAGE BY MULTIPLE PLANTS ====================
-# Used by Stock Position Dashboard for zone/region level views to get division-wise averages
-
 @api_bp.route('/api/consumption/monthly-average-by-plant')
 @login_required
 def get_monthly_average_by_plant():
     """
     Get monthly average consumption per material for MULTIPLE plants.
-    Returns nested structure: material_code -> plant_code -> average data
-    Used for zone/region level views where multiple divisions are selected.
-    
-    Query parameters:
-    - plants: comma-separated list of plant codes (e.g., '3412,3413,3414')
-    - material_group: filter by material group
-    - material_code: filter by specific material
     """
     try:
         plants_param = request.args.get('plants', '')
         material_group = request.args.get('material_group', 'all')
         material_code = request.args.get('material_code', 'all')
         
-        # Parse plants list
         plants_list = []
         if plants_param and plants_param != 'all':
             plants_list = [p.strip() for p in plants_param.split(',') if p.strip()]
@@ -702,23 +653,18 @@ def get_monthly_average_by_plant():
         if db is None:
             return safe_json_response({})
         
-        # Build query for monthly data
         query = {'period_type': 'monthly'}
         
-        # IMPORTANT: Filter by plants if specified
         if plants_list:
             query['plant'] = {'$in': plants_list}
-        
         if material_group and material_group != 'all' and material_group != 'undefined':
             query['material_group'] = material_group
-        
         if material_code and material_code != 'all' and material_code != 'undefined':
             query['material_code'] = material_code
         
         print(f"Monthly Average By Plant Query: {query}")
         print(f"Plants list: {plants_list}")
         
-        # Aggregate to get monthly average per material AND per plant
         pipeline = [
             {'$match': query},
             {'$group': {
@@ -748,7 +694,6 @@ def get_monthly_average_by_plant():
         results = list(db.consumption_summary.aggregate(pipeline))
         print(f"Found {len(results)} monthly average records for plants: {plants_list}")
         
-        # Build response map - keyed by material_code, then by plant
         avg_map = {}
         for r in results:
             material_code_key = str(r['material_code'])
@@ -767,7 +712,7 @@ def get_monthly_average_by_plant():
                 'plant': plant_key
             }
         
-        # If no results found for specific plants, try to get zone-level averages as fallback
+        # Fallback if no results
         if not results and plants_list:
             print("No results for specific plants, trying zone-level fallback")
             fallback_query = {'period_type': 'monthly'}
@@ -806,7 +751,6 @@ def get_monthly_average_by_plant():
                 material_code_key = str(r['material_code'])
                 if material_code_key not in avg_map:
                     avg_map[material_code_key] = {}
-                # Add with plant='all' as fallback
                 avg_map[material_code_key]['all'] = {
                     'monthly_avg': round(r['monthly_avg'], 2),
                     'total_consumption': round(r['total_consumption'], 2),
@@ -827,6 +771,147 @@ def get_monthly_average_by_plant():
         return safe_json_response({})
 
 
+# ==================== MATERIAL IN TRANSIT ENDPOINTS ====================
+
+@api_bp.route('/api/inventory/material-in-transit')
+@login_required
+def get_material_in_transit():
+    """
+    Get all materials currently in transit (DI and STN)
+    Supports filtering with flexible plant code matching
+    """
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        # Get filter parameters
+        doc_type = request.args.get('doc_type', 'all')
+        from_plant = request.args.get('from_plant', 'all')
+        to_plant = request.args.get('to_plant', 'all')
+        material_group = request.args.get('material_group', 'all')
+        material_code = request.args.get('material_code', 'all')
+        
+        # Build query
+        query = {}
+        
+        if doc_type and doc_type != 'all':
+            query['document_type'] = doc_type
+        
+        # FIXED: Handle plant filtering with regex for STN
+        if from_plant and from_plant != 'all' and from_plant != 'Vendor':
+            # Use regex to find plant code anywhere in the string
+            query['from_plant'] = {'$regex': from_plant, '$options': 'i'}
+        
+        if to_plant and to_plant != 'all':
+            query['to_plant'] = {'$regex': to_plant, '$options': 'i'}
+        
+        if material_group and material_group != 'all':
+            query['material_group'] = material_group
+        
+        if material_code and material_code != 'all':
+            query['material_code'] = material_code
+        
+        print(f"Material In Transit Query: {query}")
+        
+        # Get transit items
+        transit_items = list(db.material_in_transit.find(query, {'_id': 0}))
+        
+        # Add division names for plants
+        for item in transit_items:
+            # Get division for from_plant
+            if item.get('from_plant'):
+                from_division = db.storage_locations.find_one(
+                    {'plant': item.get('from_plant')}, 
+                    {'division': 1}
+                )
+                item['from_division'] = from_division.get('division', item.get('from_plant')) if from_division else item.get('from_plant')
+            
+            # Get division for to_plant
+            if item.get('to_plant'):
+                to_division = db.storage_locations.find_one(
+                    {'plant': item.get('to_plant')}, 
+                    {'division': 1}
+                )
+                item['to_division'] = to_division.get('division', item.get('to_plant')) if to_division else item.get('to_plant')
+        
+        print(f"Returning {len(transit_items)} transit items")
+        return safe_json_response(transit_items)
+        
+    except Exception as e:
+        print(f"Error in get_material_in_transit: {e}")
+        import traceback
+        traceback.print_exc()
+        return safe_json_response([])
+
+
+@api_bp.route('/api/inventory/transit-summary')
+@login_required
+def get_transit_summary():
+    """
+    Get summary statistics for material in transit
+    """
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response({
+                'total_items': 0, 
+                'total_quantity': 0, 
+                'by_doc_type': {}, 
+                'delayed_count': 0
+            })
+        
+        # Get all in-transit items
+        transit_items = list(db.material_in_transit.find({}))
+        
+        total_items = len(transit_items)
+        total_quantity = sum(item.get('quantity', 0) for item in transit_items)
+        
+        # Group by document type
+        by_doc_type = {}
+        for item in transit_items:
+            doc_type = item.get('document_type', 'Unknown')
+            by_doc_type[doc_type] = by_doc_type.get(doc_type, 0) + 1
+        
+        # Count delayed shipments (>30 days based on document date)
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+        delayed_count = 0
+        
+        for item in transit_items:
+            doc_date = item.get('document_date')
+            if doc_date:
+                try:
+                    if isinstance(doc_date, str):
+                        for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d']:
+                            try:
+                                doc_date = datetime.strptime(doc_date, fmt)
+                                break
+                            except:
+                                continue
+                    if isinstance(doc_date, datetime) and doc_date < thirty_days_ago:
+                        delayed_count += 1
+                except:
+                    pass
+        
+        return safe_json_response({
+            'total_items': total_items,
+            'total_quantity': round(total_quantity, 2),
+            'by_doc_type': by_doc_type,
+            'delayed_count': delayed_count
+        })
+        
+    except Exception as e:
+        print(f"Error in get_transit_summary: {e}")
+        import traceback
+        traceback.print_exc()
+        return safe_json_response({
+            'total_items': 0, 
+            'total_quantity': 0, 
+            'by_doc_type': {}, 
+            'delayed_count': 0
+        })
+
+
 # ==================== INVENTORY DASHBOARD ENDPOINTS ====================
 
 @api_bp.route('/api/inventory/current-stock')
@@ -840,7 +925,7 @@ def get_current_stock():
         
         stock = list(db.current_stock.find({}, {'_id': 0}))
         
-        # Clean plant codes - ensure they are strings without decimals
+        # Clean plant codes
         for item in stock:
             if 'plant' in item:
                 item['plant'] = str(item['plant']).replace('.0', '')

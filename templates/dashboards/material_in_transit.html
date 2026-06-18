@@ -44,7 +44,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-truck"></i> Material in Transit Dashboard</h1>
-        <p>Track materials dispatched from Zonal Store and between Divisions - Real-time Status</p>
+        <p>Track materials dispatched from Zonal Store (DI) and between Divisions (STN) - Real-time Status</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -57,16 +57,16 @@
     <div class="filter-grid">
         <div class="filter-group">
             <label><i class="bi bi-file-text"></i> DOCUMENT TYPE</label>
-            <select id="docTypeFilter" class="filter-select" onchange="applyFilters()">
+            <select id="docTypeFilter" class="filter-select" onchange="onDocTypeChange()">
                 <option value="all">All Documents</option>
-                <option value="DI">📋 DI (Zonal Store Dispatch)</option>
-                <option value="STN">🔄 STN (Division Transfer)</option>
+                <option value="DI">📋 DI (Dispatch Instructions - Vendor to Store)</option>
+                <option value="STN">🔄 STN (Stock Transfer - Store to Store)</option>
             </select>
         </div>
         
-        <div class="filter-group">
+        <div class="filter-group" id="fromFilterGroup">
             <label><i class="bi bi-send"></i> FROM (SOURCE)</label>
-            <select id="fromPlantFilter" class="filter-select" onchange="applyFilters()">
+            <select id="fromPlantFilter" class="filter-select" onchange="onFromPlantChange()">
                 <option value="all">All Source Locations</option>
             </select>
         </div>
@@ -121,7 +121,7 @@
     <span id="errorText"></span>
 </div>
 
-<!-- KPI Cards -->
+<!-- KPI Cards - Total Quantity REMOVED -->
 <div class="kpi-title">
     <i class="bi bi-graph-up"></i>
     <h2>Transit Summary</h2>
@@ -137,22 +137,15 @@
             <div class="kpi-unit">Shipments</div>
         </div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
-            <i class="bi bi-boxes"></i>
-        </div>
-        <div class="kpi-info">
-            <div class="kpi-label">Total Quantity</div>
-            <div class="kpi-value" id="totalQuantity">0</div>
-            <div class="kpi-unit">Units</div>
-        </div>
-    </div>
+    
+    <!-- Total Quantity KPI REMOVED -->
+    
     <div class="kpi-card">
         <div class="kpi-icon" style="background: linear-gradient(135deg, #17a2b8, #138496);">
             <i class="bi bi-file-text"></i>
         </div>
         <div class="kpi-info">
-            <div class="kpi-label">DI (Zonal Store)</div>
+            <div class="kpi-label">DI (Vendor → Store)</div>
             <div class="kpi-value" id="diCount">0</div>
             <div class="kpi-unit">Shipments</div>
         </div>
@@ -162,7 +155,7 @@
             <i class="bi bi-arrow-left-right"></i>
         </div>
         <div class="kpi-info">
-            <div class="kpi-label">STN (Division)</div>
+            <div class="kpi-label">STN (Store → Store)</div>
             <div class="kpi-value" id="stnCount">0</div>
             <div class="kpi-unit">Shipments</div>
         </div>
@@ -196,20 +189,22 @@
                     <th>Doc Type</th>
                     <th>Doc No</th>
                     <th>Doc Date</th>
+                    <th>PO/STN Date</th>
                     <th>Material Code</th>
                     <th>Material Name</th>
                     <th>Material Group</th>
                     <th>From (Source)</th>
                     <th>To (Destination)</th>
-                    <th>Quantity</th>
+                    <th>Order Qty</th>
+                    <th>Balance Qty</th>
                     <th>Unit</th>
-                    <th>Days in Transit</th>
-                    <th>Expected Delivery</th>
+                    <th>Pending %</th>
+                    <th>Delay Status</th>
                     <th>Status</th>
                 </tr>
             </thead>
             <tbody id="transitTableBody">
-                <tr><td colspan="14" class="text-center">Loading...<\/td></tr>
+                <tr><td colspan="16" class="text-center">Loading...<\/td></tr>
             </tbody>
         </table>
     </div>
@@ -233,23 +228,10 @@
     let currentPage = 1;
     const itemsPerPage = 25;
     
-    // Division to Plant Code Mapping
-    const divisionToPlantMap = {
-        'Siliguri Town Division': '3412',
-        'Kurseong Division': '3413',
-        'Darjeeling Division': '3414',
-        'Sub-Urban Division': '3415',
-        'Kalimpong Division': '3471',
-        'Jalpaiguri Division': '3422',
-        'Mal Division': '3427',
-        'Coochbehar Division': '3444',
-        'Mathabhanga Division': '3445',
-        'Dinhata Division': '3446',
-        'Alipurduar Division': '3453',
-        'Central Store/Cord Road Store': '3600',
-        'Siliguri Zonal Store': '3400'
-    };
+    // All plants list
+    const ALL_PLANTS = ['3400', '3412', '3413', '3414', '3415', '3422', '3427', '3444', '3445', '3446', '3453', '3471', '3600'];
     
+    // Plant to Division Mapping
     const plantToDivisionMap = {
         '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division', '3413': 'Kurseong Division',
         '3414': 'Darjeeling Division', '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
@@ -296,11 +278,136 @@
         return 'normal';
     }
     
-    function getStatusBadge(days) {
-        if (days === null) return '<span class="badge bg-secondary">Unknown</span>';
-        if (days > 30) return '<span class="badge bg-danger">⚠️ Delayed</span>';
-        if (days > 14) return '<span class="badge bg-warning">🚚 In Transit</span>';
-        return '<span class="badge bg-success">✅ On Time</span>';
+    function getStatusBadge(status, delay) {
+        if (status === 'Completed') {
+            return '<span class="badge bg-success">✅ Completed</span>';
+        } else if (status === 'Delayed' || (delay && delay.toLowerCase() in ['yes', 'true', 'delayed', '1'])) {
+            return '<span class="badge bg-danger">⚠️ Delayed</span>';
+        } else if (status === 'Partially Received') {
+            return '<span class="badge bg-warning">📦 Partial</span>';
+        } else {
+            return '<span class="badge bg-primary">🚚 In Transit</span>';
+        }
+    }
+    
+    // ================================================================
+    // DYNAMIC FILTER: Document Type Change Handler
+    // ================================================================
+    function onDocTypeChange() {
+        const docType = document.getElementById('docTypeFilter').value;
+        const fromSelect = document.getElementById('fromPlantFilter');
+        const toSelect = document.getElementById('toPlantFilter');
+        const fromGroup = document.getElementById('fromFilterGroup');
+        
+        if (docType === 'DI') {
+            // DI: From is always "Vendor" (external) - disable the filter
+            fromGroup.style.display = 'none';
+            fromSelect.innerHTML = '<option value="all">Vendor (External Source)</option>';
+            // TO filter shows all stores
+            populateToFilter('all');
+            showGuidance('📋 DI selected - Materials are coming from Vendors/Suppliers (External Source). From filter is disabled.');
+        } else {
+            // Show the FROM filter group
+            fromGroup.style.display = 'block';
+            
+            if (docType === 'STN') {
+                // STN: Store to Store - show all stores for FROM
+                populateFromFilter('STN');
+                // TO filter will be populated based on FROM selection
+                const selectedFrom = document.getElementById('fromPlantFilter').value;
+                populateToFilter(selectedFrom);
+                showGuidance('🔄 STN selected - Showing Store to Store transfers. From and To cannot be the same.');
+            } else {
+                // All: Show all stores for FROM
+                populateFromFilter('all');
+                populateToFilter('all');
+                showGuidance('📊 All documents selected - Showing both Vendor to Store and Store to Store transfers.');
+            }
+        }
+        
+        applyFilters();
+    }
+    
+    // ================================================================
+    // CASCADING FILTER: From Plant Change Handler
+    // ================================================================
+    function onFromPlantChange() {
+        const docType = document.getElementById('docTypeFilter').value;
+        const selectedFrom = document.getElementById('fromPlantFilter').value;
+        
+        if (docType === 'STN' || docType === 'all') {
+            populateToFilter(selectedFrom);
+        }
+        
+        applyFilters();
+    }
+    
+    // ================================================================
+    // Helper: Populate FROM Filter
+    // ================================================================
+    function populateFromFilter(type) {
+        const fromSelect = document.getElementById('fromPlantFilter');
+        fromSelect.innerHTML = '';
+        
+        if (type === 'STN') {
+            // STN: Show all stores
+            fromSelect.innerHTML = '<option value="all">All Source Stores</option>';
+            ALL_PLANTS.forEach(plant => {
+                const division = plantToDivisionMap[plant] || plant;
+                fromSelect.innerHTML += `<option value="${plant}">🏪 ${division} (${plant})</option>`;
+            });
+        } else {
+            // All: Show all stores
+            fromSelect.innerHTML = '<option value="all">All Source Locations</option>';
+            ALL_PLANTS.forEach(plant => {
+                const division = plantToDivisionMap[plant] || plant;
+                fromSelect.innerHTML += `<option value="${plant}">🏪 ${division} (${plant})</option>`;
+            });
+        }
+        
+        // Reset to "All"
+        fromSelect.value = 'all';
+    }
+    
+    // ================================================================
+    // Helper: Populate TO Filter (Excluding selected FROM)
+    // ================================================================
+    function populateToFilter(excludePlant) {
+        const toSelect = document.getElementById('toPlantFilter');
+        const docType = document.getElementById('docTypeFilter').value;
+        
+        toSelect.innerHTML = '';
+        
+        // Start with "All" option
+        toSelect.innerHTML = '<option value="all">All Destination Locations</option>';
+        
+        // Get available plants
+        let availablePlants = [...ALL_PLANTS];
+        
+        // For STN, exclude the selected FROM plant (prevent self-transfer)
+        if (docType === 'STN' && excludePlant && excludePlant !== 'all') {
+            availablePlants = availablePlants.filter(p => p !== excludePlant);
+        }
+        
+        // For DI, show all plants
+        if (docType === 'DI') {
+            availablePlants = [...ALL_PLANTS];
+        }
+        
+        // Add plants to dropdown
+        availablePlants.forEach(plant => {
+            const division = plantToDivisionMap[plant] || plant;
+            toSelect.innerHTML += `<option value="${plant}">🏪 ${division} (${plant})</option>`;
+        });
+        
+        // Reset to "All"
+        toSelect.value = 'all';
+        
+        // Show guidance if plants were excluded
+        if (docType === 'STN' && excludePlant && excludePlant !== 'all') {
+            const division = plantToDivisionMap[excludePlant] || excludePlant;
+            showGuidance(`🔄 TO filter updated - "${division} (${excludePlant})" excluded as destination (self-transfer not allowed).`);
+        }
     }
     
     async function loadFilterOptions() {
@@ -320,25 +427,8 @@
                 groupSelect.appendChild(option);
             });
             
-            // Load plants for from/to filters
-            const plantRes = await fetch('/api/consumption/plants');
-            let plants = await plantRes.json();
-            
-            const fromSelect = document.getElementById('fromPlantFilter');
-            const toSelect = document.getElementById('toPlantFilter');
-            
-            fromSelect.innerHTML = '<option value="all">All Source Locations</option>';
-            toSelect.innerHTML = '<option value="all">All Destination Locations</option>';
-            
-            // Add Zonal Store first
-            fromSelect.innerHTML += `<option value="3400">🏪 Siliguri Zonal Store (3400)</option>`;
-            toSelect.innerHTML += `<option value="3400">🏪 Siliguri Zonal Store (3400)</option>`;
-            
-            plants.forEach(plant => {
-                const division = plantToDivisionMap[plant.code] || plant.code;
-                fromSelect.innerHTML += `<option value="${plant.code}">📁 ${division} (${plant.code})</option>`;
-                toSelect.innerHTML += `<option value="${plant.code}">📁 ${division} (${plant.code})</option>`;
-            });
+            // Initialize filters
+            onDocTypeChange();
             
         } catch (error) {
             console.error('Error loading filters:', error);
@@ -391,7 +481,7 @@
         
         let url = `/api/inventory/material-in-transit?`;
         if (docType !== 'all') url += `doc_type=${docType}&`;
-        if (fromPlant !== 'all') url += `from_plant=${fromPlant}&`;
+        if (fromPlant !== 'all' && fromPlant !== 'Vendor') url += `from_plant=${fromPlant}&`;
         if (toPlant !== 'all') url += `to_plant=${toPlant}&`;
         if (materialGroup !== 'all') url += `material_group=${encodeURIComponent(materialGroup)}&`;
         if (materialCode !== 'all') url += `material_code=${materialCode}&`;
@@ -400,20 +490,34 @@
             const response = await fetch(url);
             transitData = await response.json();
             
+            // Apply DI/STN specific filtering
+            if (docType === 'DI') {
+                // DI: Materials from Vendor to Store
+                transitData = transitData.filter(item => item.document_type === 'DI');
+            } else if (docType === 'STN') {
+                // STN: Store to Store transfers - exclude self-transfer
+                transitData = transitData.filter(item => {
+                    if (item.document_type !== 'STN') return false;
+                    // Exclude self-transfer (from_plant === to_plant)
+                    if (item.from_plant === item.to_plant) return false;
+                    return true;
+                });
+            }
+            
             // Add days in transit calculation
             transitData = transitData.map(item => {
                 const daysInTransit = calculateDaysInTransit(item.document_date);
                 return { ...item, days_in_transit: daysInTransit };
             });
             
-            // Load summary from API
-            const summaryRes = await fetch('/api/inventory/transit-summary');
-            const summary = await summaryRes.json();
+            // Update KPI counts - Total Quantity REMOVED
+            const filteredDI = transitData.filter(item => item.document_type === 'DI');
+            const filteredSTN = transitData.filter(item => item.document_type === 'STN');
             
-            document.getElementById('totalItems').textContent = summary.total_items || 0;
-            document.getElementById('totalQuantity').textContent = (summary.total_quantity || 0).toLocaleString();
-            document.getElementById('diCount').textContent = summary.by_doc_type?.DI || 0;
-            document.getElementById('stnCount').textContent = summary.by_doc_type?.STN || 0;
+            document.getElementById('totalItems').textContent = transitData.length;
+            // document.getElementById('totalQuantity') - REMOVED
+            document.getElementById('diCount').textContent = filteredDI.length;
+            document.getElementById('stnCount').textContent = filteredSTN.length;
             
             // Count delayed shipments (>30 days)
             const delayedCount = transitData.filter(item => item.days_in_transit > 30).length;
@@ -421,11 +525,17 @@
             
             applyFilters();
             
-            showGuidance(`📊 Loaded ${transitData.length} in-transit shipments. ${delayedCount} shipments delayed (>30 days).`);
+            let msg = `📊 Loaded ${transitData.length} in-transit shipments. ${delayedCount} shipments delayed (>30 days).`;
+            if (docType === 'DI') {
+                msg += ' DI shipments are from Vendors to Stores.';
+            } else if (docType === 'STN') {
+                msg += ' STN shipments are Store to Store transfers (self-transfers excluded).';
+            }
+            showGuidance(msg);
             
         } catch (error) {
             console.error('Error:', error);
-            document.getElementById('transitTableBody').innerHTML = '<tr><td colspan="14" class="text-center">Error loading data<\/td></tr>';
+            document.getElementById('transitTableBody').innerHTML = '<tr><td colspan="16" class="text-center">Error loading data<\/td></tr>';
             showGuidance('Failed to load transit data: ' + error.message, true);
         } finally {
             hideLoading();
@@ -434,8 +544,38 @@
     
     function applyFilters() {
         const transitStatus = document.getElementById('transitStatusFilter').value;
+        const docType = document.getElementById('docTypeFilter').value;
+        const fromPlant = document.getElementById('fromPlantFilter').value;
+        const toPlant = document.getElementById('toPlantFilter').value;
+        const materialGroup = document.getElementById('groupFilter').value;
+        const materialCode = document.getElementById('materialFilter').value;
         
         filteredData = [...transitData];
+        
+        // Apply document type filter
+        if (docType !== 'all') {
+            filteredData = filteredData.filter(item => item.document_type === docType);
+        }
+        
+        // Apply from plant filter (skip for DI as it's Vendor)
+        if (docType !== 'DI' && fromPlant !== 'all' && fromPlant !== 'Vendor') {
+            filteredData = filteredData.filter(item => item.from_plant === fromPlant);
+        }
+        
+        // Apply to plant filter
+        if (toPlant !== 'all') {
+            filteredData = filteredData.filter(item => item.to_plant === toPlant);
+        }
+        
+        // Apply material group filter
+        if (materialGroup !== 'all') {
+            filteredData = filteredData.filter(item => item.material_group === materialGroup);
+        }
+        
+        // Apply material code filter
+        if (materialCode !== 'all') {
+            filteredData = filteredData.filter(item => item.material_code === materialCode);
+        }
         
         // Apply transit status filter
         if (transitStatus !== 'all') {
@@ -464,30 +604,41 @@
             tableBody.innerHTML = pageData.map((item, idx) => {
                 const daysClass = getDaysClass(item.days_in_transit);
                 const daysDisplay = item.days_in_transit !== null ? `${item.days_in_transit} days` : '-';
-                const statusBadge = getStatusBadge(item.days_in_transit);
+                const statusBadge = getStatusBadge(item.status, item.delay_in_delivery);
                 const rowNum = startIndex + idx + 1;
+                const balanceQty = item.balance_qty || item.quantity || 0;
+                const orderQty = item.order_quantity || item.di_issue_qty || 0;
+                const pendingPercent = item.pending_percentage || 0;
+                const docDate = item.document_date || '-';
+                const poDate = item.po_date || item.document_date || '-';
+                const delayStatus = item.delay_in_delivery || 'No';
+                
+                // For DI, show "Vendor" as source
+                const fromDisplay = item.document_type === 'DI' ? '🏭 Vendor/Supplier' : (item.from_division || item.from_plant);
                 
                 return `
                     <tr onclick="showShipmentDetails('${item.document_no || ''}', '${item.material_code || ''}')" style="cursor: pointer;">
                         <td>${rowNum}</td>
                         <td><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
                         <td><code>${item.document_no || '-'}</code></td>
-                        <td>${item.document_date || '-'}</td>
+                        <td>${docDate}</td>
+                        <td>${poDate}</td>
                         <td><code>${item.material_code}</code></td>
                         <td><strong title="${item.material_name || item.material_code}">${(item.material_name || item.material_code).substring(0, 40)}</strong></td>
                         <td><span class="badge-group">${item.material_group || '-'}</span></td>
-                        <td><i class="bi bi-send"></i> ${item.from_division || item.from_plant}</td>
+                        <td><i class="bi bi-send"></i> ${fromDisplay}</td>
                         <td><i class="bi bi-geo-alt"></i> ${item.to_division || item.to_plant}</td>
-                        <td class="fw-bold">${parseFloat(item.quantity).toLocaleString()}</td>
+                        <td class="fw-bold">${parseFloat(orderQty).toLocaleString()}</td>
+                        <td class="fw-bold">${parseFloat(balanceQty).toLocaleString()}</td>
                         <td>${item.unit || 'Units'}</td>
-                        <td class="${daysClass}">${daysDisplay}</td>
-                        <td>${item.expected_delivery_date || 'Not specified'}</td>
+                        <td>${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
+                        <td><span class="${delayStatus.toLowerCase() === 'yes' || delayStatus.toLowerCase() === 'delayed' ? 'delayed' : 'normal'}">${delayStatus}</span></td>
                         <td>${statusBadge}</td>
                     </tr>
                 `;
             }).join('');
         } else {
-            tableBody.innerHTML = '<tr><td colspan="14" class="text-center">📭 No materials in transit for selected filters<br><small>Try changing your filter criteria</small><\/td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="16" class="text-center">📭 No materials in transit for selected filters<br><small>Try changing your filter criteria</small><\/td></tr>';
         }
         
         renderPagination();
@@ -546,18 +697,23 @@
     function showShipmentDetails(docNo, materialCode) {
         const shipment = filteredData.find(s => s.document_no === docNo && s.material_code === materialCode);
         if (shipment) {
+            const fromDisplay = shipment.document_type === 'DI' ? '🏭 Vendor/Supplier' : (shipment.from_division || shipment.from_plant);
             const details = `
-                <strong>Document No:</strong> ${shipment.document_no || '-'}<br>
                 <strong>Document Type:</strong> ${shipment.document_type}<br>
+                <strong>Document No:</strong> ${shipment.document_no || '-'}<br>
                 <strong>Document Date:</strong> ${shipment.document_date || '-'}<br>
+                <strong>PO/STN Date:</strong> ${shipment.po_date || shipment.document_date || '-'}<br>
                 <strong>Material:</strong> ${shipment.material_name || shipment.material_code}<br>
                 <strong>Material Code:</strong> ${shipment.material_code}<br>
                 <strong>Material Group:</strong> ${shipment.material_group || '-'}<br>
-                <strong>From:</strong> ${shipment.from_division || shipment.from_plant}<br>
+                <strong>From:</strong> ${fromDisplay}<br>
                 <strong>To:</strong> ${shipment.to_division || shipment.to_plant}<br>
-                <strong>Quantity:</strong> ${shipment.quantity.toLocaleString()} ${shipment.unit || 'Units'}<br>
+                <strong>Order Quantity:</strong> ${(shipment.order_quantity || shipment.di_issue_qty || 0).toLocaleString()} ${shipment.unit || 'Units'}<br>
+                <strong>Balance Quantity:</strong> ${(shipment.balance_qty || shipment.quantity || 0).toLocaleString()} ${shipment.unit || 'Units'}<br>
+                <strong>Pending %:</strong> ${(shipment.pending_percentage || 0).toFixed(1)}%<br>
+                <strong>Delay in Delivery:</strong> ${shipment.delay_in_delivery || 'No'}<br>
+                <strong>Filter Reason:</strong> ${shipment.filter_reason || 'None'}<br>
                 <strong>Days in Transit:</strong> ${shipment.days_in_transit !== null ? shipment.days_in_transit + ' days' : '-'}<br>
-                <strong>Expected Delivery:</strong> ${shipment.expected_delivery_date || 'Not specified'}<br>
                 <strong>Status:</strong> ${shipment.status || 'In Transit'}
             `;
             alert(`📦 Shipment Details\n\n${details}`);
@@ -575,6 +731,9 @@
         document.getElementById('groupFilter').value = 'all';
         document.getElementById('materialFilter').value = 'all';
         document.getElementById('transitStatusFilter').value = 'all';
+        
+        // Re-initialize filters
+        onDocTypeChange();
         loadMaterials();
         loadTransitData();
     }
@@ -587,16 +746,28 @@
         
         const wb = XLSX.utils.book_new();
         const sheetData = [['MATERIAL IN TRANSIT REPORT'], ['Generated on:', new Date().toLocaleString()], []];
-        sheetData.push(['#', 'Doc Type', 'Doc No', 'Doc Date', 'Material Code', 'Material Name', 'Material Group', 
-                       'From (Source)', 'To (Destination)', 'Quantity', 'Unit', 'Days in Transit', 'Expected Delivery', 'Status']);
+        sheetData.push(['#', 'Doc Type', 'Doc No', 'Doc Date', 'PO/STN Date', 'Material Code', 'Material Name', 'Material Group', 
+                       'From (Source)', 'To (Destination)', 'Order Qty', 'Balance Qty', 'Unit', 'Pending %', 'Delay Status', 'Status']);
         
         filteredData.forEach((item, idx) => {
+            const fromDisplay = item.document_type === 'DI' ? 'Vendor/Supplier' : (item.from_division || item.from_plant);
             sheetData.push([
-                idx + 1, item.document_type, item.document_no, item.document_date, item.material_code,
-                item.material_name, item.material_group, item.from_division || item.from_plant,
-                item.to_division || item.to_plant, item.quantity, item.unit || 'Units',
-                item.days_in_transit !== null ? `${item.days_in_transit} days` : '-',
-                item.expected_delivery_date || '-', item.status || 'In Transit'
+                idx + 1, 
+                item.document_type, 
+                item.document_no, 
+                item.document_date,
+                item.po_date || item.document_date,
+                item.material_code,
+                item.material_name, 
+                item.material_group, 
+                fromDisplay,
+                item.to_division || item.to_plant, 
+                item.order_quantity || item.di_issue_qty || 0,
+                item.balance_qty || item.quantity || 0,
+                item.unit || 'Units',
+                (item.pending_percentage || 0) + '%',
+                item.delay_in_delivery || 'No',
+                item.status || 'In Transit'
             ]);
         });
         
@@ -652,6 +823,8 @@
     .btn-reset { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; padding: 10px 24px; border-radius: 10px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
     .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,117,125,0.3); }
     
+    #fromFilterGroup { display: block; }
+    
     .kpi-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
     .kpi-title i { font-size: 1.5rem; color: #667eea; }
     .kpi-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
@@ -671,19 +844,20 @@
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
     
-    .data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .data-table th { padding: 12px 8px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; position: sticky; top: 0; }
-    .data-table td { padding: 10px 8px; border-bottom: 1px solid #eef2f6; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .data-table th { padding: 10px 6px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; position: sticky; top: 0; white-space: nowrap; }
+    .data-table td { padding: 8px 6px; border-bottom: 1px solid #eef2f6; }
     .data-table tr:hover { background: #f8fafd; }
     .table-responsive { overflow-x: auto; max-height: 70vh; }
     
-    .badge-group { background: #e9ecef; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; }
-    .badge-di { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
-    .badge-stn { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
-    .badge { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+    .badge-group { background: #e9ecef; padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; }
+    .badge-di { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a; padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
+    .badge-stn { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
+    .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
     .badge.bg-success { background: #28a745; color: white; }
     .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
     .badge.bg-danger { background: #dc3545; color: white; }
+    .badge.bg-primary { background: #007bff; color: white; }
     .badge.bg-secondary { background: #6c757d; color: white; }
     
     .delayed { color: #dc3545; font-weight: bold; }
@@ -710,7 +884,7 @@
         .kpi-grid { grid-template-columns: 1fr; }
         .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
         .welcome-text h1 { font-size: 1.4rem; }
-        .data-table { font-size: 0.7rem; }
+        .data-table { font-size: 0.65rem; }
         .page-btn { padding: 6px 10px; font-size: 0.75rem; }
         .page-info { display: none; }
     }
