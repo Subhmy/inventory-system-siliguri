@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
     <a href="{{ url_for('main.inventory_dashboard') }}" style="
         display: inline-flex;
         align-items: center;
@@ -24,7 +24,7 @@
         <span>Back to Inventory Dashboard</span>
     </a>
     
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button onclick="exportToExcel()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer;">
             <i class="bi bi-file-excel-fill"></i>
             <span>Export Excel</span>
@@ -33,14 +33,77 @@
             <i class="bi bi-file-pdf-fill"></i>
             <span>Export PDF</span>
         </button>
+        <button onclick="refreshData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer;">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Refresh</span>
+        </button>
+    </div>
+</div>
+
+<!-- Column Visibility Controls - Mobile Only -->
+<div class="column-controls" id="columnControls">
+    <button class="col-toggle-btn" onclick="toggleColumnVisibility()">
+        <i class="bi bi-layout-three-columns"></i> 
+        <span class="col-toggle-text">Show/Hide Columns</span>
+    </button>
+    <div class="col-toggle-dropdown" id="colToggleDropdown">
+        <div class="col-toggle-header">
+            <span><i class="bi bi-eye"></i> Column Visibility</span>
+            <button onclick="toggleAllColumns(true)" class="col-toggle-option">Show All</button>
+            <button onclick="toggleAllColumns(false)" class="col-toggle-option">Hide All</button>
+        </div>
+        <div class="col-toggle-list">
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="sno"> #
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="mat-code"> Mat Code
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="mat-name"> Material Name
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="group"> Group
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="division"> Division
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="current-stock"> Stock
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="unit"> Unit
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="transit"> 🚚 Transit
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="virtual-stock"> Virtual
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="monthly-avg"> Monthly Avg
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="reorder"> Reorder
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="status"> Status
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="stock-months"> Stock Mos
+            </label>
+            <label class="col-toggle-item">
+                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="action"> Action
+            </label>
+        </div>
     </div>
 </div>
 
 <!-- Welcome Banner -->
 <div class="welcome-banner">
     <div class="welcome-text">
-        <h1><i class="bi bi-box-seam"></i> Current Stock Position Dashboard</h1>
-        <p>Siliguri Zone - Real-time Inventory Status & Stock Analysis</p>
+        <h1><i class="bi bi-box-seam"></i> Current Stock Position</h1>
+        <p>Virtual Stock = Current Stock + In-Transit Quantity</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -81,7 +144,7 @@
         </div>
         
         <div class="filter-group">
-            <label><i class="bi bi-box-seam"></i> MATERIAL DESCRIPTION</label>
+            <label><i class="bi bi-box-seam"></i> MATERIAL</label>
             <select id="materialFilter" class="filter-select" onchange="loadStockData()">
                 <option value="all">All Materials</option>
             </select>
@@ -92,10 +155,12 @@
             <select id="sortFilter" class="filter-select" onchange="filterTable()">
                 <option value="material_code">Material Code (A-Z)</option>
                 <option value="material_code_desc">Material Code (Z-A)</option>
-                <option value="current_stock_asc">Current Stock (Low to High)</option>
-                <option value="current_stock_desc">Current Stock (High to Low)</option>
-                <option value="stock_months_asc">Stock Months (Low to High)</option>
-                <option value="stock_months_desc">Stock Months (High to Low)</option>
+                <option value="current_stock_asc">Stock (Low to High)</option>
+                <option value="current_stock_desc">Stock (High to Low)</option>
+                <option value="virtual_stock_asc">Virtual (Low to High)</option>
+                <option value="virtual_stock_desc">Virtual (High to Low)</option>
+                <option value="stock_months_asc">Stock Mos (Low to High)</option>
+                <option value="stock_months_desc">Stock Mos (High to Low)</option>
                 <option value="monthly_avg_asc">Monthly Avg (Low to High)</option>
                 <option value="monthly_avg_desc">Monthly Avg (High to Low)</option>
                 <option value="status">Status (Critical First)</option>
@@ -108,6 +173,7 @@
                 <option value="all">All Items</option>
                 <option value="critical">Critical Stock Only</option>
                 <option value="normal">Normal Stock Only</option>
+                <option value="in_transit">With In-Transit Only</option>
             </select>
         </div>
     </div>
@@ -131,7 +197,7 @@
 
 <div id="loading" class="loading">
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-    <p style="margin-top: 15px;">Loading stock data...</p>
+    <p style="margin-top: 15px; color: white;">Loading stock data...</p>
 </div>
 
 <!-- KPI Cards -->
@@ -165,19 +231,19 @@
             <i class="bi bi-truck"></i>
         </div>
         <div class="kpi-info">
-            <div class="kpi-label">Material in Transit</div>
+            <div class="kpi-label">In-Transit Qty</div>
             <div class="kpi-value" id="inTransitCount">0</div>
-            <div class="kpi-unit">Orders</div>
+            <div class="kpi-unit">Units</div>
         </div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #17a2b8, #138496);">
-            <i class="bi bi-cart-check"></i>
+        <div class="kpi-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+            <i class="bi bi-boxes"></i>
         </div>
         <div class="kpi-info">
-            <div class="kpi-label">To be Allotted</div>
-            <div class="kpi-value" id="toAllotCount">0</div>
-            <div class="kpi-unit">Items</div>
+            <div class="kpi-label">Virtual Stock Items</div>
+            <div class="kpi-value" id="virtualStockCount">0</div>
+            <div class="kpi-unit">With Transit</div>
         </div>
     </div>
 </div>
@@ -186,8 +252,8 @@
 <div class="legend-container">
     <span class="legend-badge critical">🔴 Critical - Stock ≤ Monthly Avg</span>
     <span class="legend-badge normal">🟢 Normal - Stock > Monthly Avg</span>
-    <span class="legend-badge zonal">🏪 Zonal Store - 3 Month Reorder</span>
-    <span class="legend-badge division">📁 Other Divisions - 1 Month Reorder</span>
+    <span class="legend-badge transit">🚚 In-Transit</span>
+    <span class="legend-badge virtual">🔵 Virtual = Stock + Transit</span>
 </div>
 
 <!-- Stock Table -->
@@ -195,27 +261,35 @@
     <div class="section-title">
         <i class="bi bi-table"></i>
         <h2>Current Stock Position</h2>
+        <span style="margin-left: auto; font-size: 0.7rem; color: #6c757d;" class="desktop-only">
+            <i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit
+        </span>
+        <span class="mobile-only" style="margin-left: auto; font-size: 0.6rem; color: #6c757d;">
+            <i class="bi bi-info-circle"></i> Tap to show/hide columns
+        </span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="stockTable">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Material Code</th>
-                    <th>Material Name</th>
-                    <th>Material Group</th>
-                    <th>Division</th>
-                    <th>Current Stock</th>
-                    <th>Unit</th>
-                    <th>Monthly Avg</th>
-                    <th>Reorder Level</th>
-                    <th>Status</th>
-                    <th>Stock Months</th>
-                    <th>Action</th>
+                    <th class="col-sno" data-col="sno">#</th>
+                    <th class="col-mat-code" data-col="mat-code">Mat Code</th>
+                    <th class="col-mat-name" data-col="mat-name">Material</th>
+                    <th class="col-group" data-col="group">Group</th>
+                    <th class="col-division" data-col="division">Division</th>
+                    <th class="col-current-stock" data-col="current-stock">Stock</th>
+                    <th class="col-unit" data-col="unit">Unit</th>
+                    <th class="col-transit" data-col="transit">🚚 Transit</th>
+                    <th class="col-virtual-stock" data-col="virtual-stock">Virtual</th>
+                    <th class="col-monthly-avg" data-col="monthly-avg">Monthly Avg</th>
+                    <th class="col-reorder" data-col="reorder">Reorder</th>
+                    <th class="col-status" data-col="status">Status</th>
+                    <th class="col-stock-months" data-col="stock-months">Stock Mos</th>
+                    <th class="col-action" data-col="action">Action</th>
                 </tr>
             </thead>
             <tbody id="stockTableBody">
-                <tr><td colspan="12" class="text-center">Loading...<\/td></tr>
+                <tr><td colspan="14" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
     </div>
@@ -225,12 +299,23 @@
 <div class="content-card" id="criticalAlertSection" style="display: none;">
     <div class="section-title">
         <i class="bi bi-exclamation-triangle-fill" style="color: #dc3545;"></i>
-        <h2 style="color: #dc3545;">⚠️ Critical Stock Alert - Immediate Action Required</h2>
+        <h2 style="color: #dc3545;">⚠️ Critical Stock Alert</h2>
     </div>
     <div class="table-responsive">
-        <table class="data-table">
+        <table class="data-table critical-table">
             <thead>
-                <tr><th>#</th><th>Material Code</th><th>Material Name</th><th>Division</th><th>Current Stock</th><th>Monthly Avg</th><th>Shortage</th><th>Action</th></tr>
+                <tr>
+                    <th class="crit-sno">#</th>
+                    <th class="crit-code">Mat Code</th>
+                    <th class="crit-name">Material</th>
+                    <th class="crit-division">Division</th>
+                    <th class="crit-stock">Stock</th>
+                    <th class="crit-transit">🚚 Transit</th>
+                    <th class="crit-virtual">Virtual</th>
+                    <th class="crit-avg">Avg</th>
+                    <th class="crit-shortage">Shortage</th>
+                    <th class="crit-action">Action</th>
+                </tr>
             </thead>
             <tbody id="criticalAlertBody"></tbody>
         </table>
@@ -243,58 +328,115 @@
 <script>
     let currentStockData = [];
     let monthlyAvgApiData = {};
+    let transitData = [];
+    let currentStockRaw = [];
     
-    // Material groups to EXCLUDE from display - DELETE these permanently
+    // ================================================================
+    // COLUMN VISIBILITY CONTROL
+    // ================================================================
+    function toggleColumnVisibility() {
+        const dropdown = document.getElementById('colToggleDropdown');
+        if (dropdown.style.display === 'block') {
+            dropdown.style.display = 'none';
+        } else {
+            dropdown.style.display = 'block';
+        }
+    }
+    
+    function updateColumnVisibility() {
+        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            const colName = cb.getAttribute('data-col');
+            const isChecked = cb.checked;
+            const columns = document.querySelectorAll(`[data-col="${colName}"]`);
+            columns.forEach(col => {
+                if (isChecked) {
+                    col.style.display = '';
+                } else {
+                    col.style.display = 'none';
+                }
+            });
+        });
+        // Save to localStorage
+        saveColumnVisibility();
+    }
+    
+    function toggleAllColumns(show) {
+        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = show;
+        });
+        updateColumnVisibility();
+    }
+    
+    function saveColumnVisibility() {
+        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
+        const visibility = {};
+        checkboxes.forEach(cb => {
+            visibility[cb.getAttribute('data-col')] = cb.checked;
+        });
+        localStorage.setItem('stockColumnVisibility', JSON.stringify(visibility));
+    }
+    
+    function loadColumnVisibility() {
+        const saved = localStorage.getItem('stockColumnVisibility');
+        if (saved) {
+            try {
+                const visibility = JSON.parse(saved);
+                const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    const colName = cb.getAttribute('data-col');
+                    if (visibility.hasOwnProperty(colName)) {
+                        cb.checked = visibility[colName];
+                    }
+                });
+                updateColumnVisibility();
+            } catch(e) {}
+        }
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const controls = document.getElementById('columnControls');
+        if (controls && !controls.contains(event.target)) {
+            const dropdown = document.getElementById('colToggleDropdown');
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+        }
+    });
+    
+    // ================================================================
+    // EXCLUDED MATERIAL GROUPS
+    // ================================================================
     const EXCLUDED_MATERIAL_GROUPS = [
-        'monthly=', 
-        'monthly=27', 
-        'monthly= (27 month)', 
-        'qterly=', 
-        'qterly=3', 
-        'quarterly=3',
-        'quarterly=',
-        'yearly',
-        'yearly='
+        'monthly=', 'monthly=27', 'monthly= (27 month)', 'qterly=', 'qterly=3', 
+        'quarterly=3', 'quarterly=', 'yearly', 'yearly='
     ];
     
-    // Function to check if material group should be excluded
     function isMaterialGroupExcluded(materialGroup) {
-        if (!materialGroup || materialGroup === null || materialGroup === '') return false;
-        
+        if (!materialGroup) return false;
         const groupLower = materialGroup.toString().toLowerCase().trim();
-        
-        // Check exact matches and partial matches
         for (let excluded of EXCLUDED_MATERIAL_GROUPS) {
-            const excludedLower = excluded.toLowerCase();
-            if (groupLower === excludedLower || groupLower.includes(excludedLower)) {
-                console.log(`Excluding material group: "${materialGroup}" (matched: ${excluded})`);
+            if (groupLower === excluded.toLowerCase() || groupLower.includes(excluded.toLowerCase())) {
                 return true;
             }
         }
-        
-        // Also check if it contains patterns like "monthly=" or "quarterly="
         if (groupLower.includes('monthly') && groupLower.includes('=')) return true;
         if (groupLower.includes('quarterly') && groupLower.includes('=')) return true;
         if (groupLower.includes('qterly') && groupLower.includes('=')) return true;
         if (groupLower === 'yearly') return true;
-        
         return false;
     }
     
     // Division to Plant Code Mapping
     const divisionToPlantMap = {
-        'Siliguri Town Division': '3412',
-        'Kurseong Division': '3413',
-        'Darjeeling Division': '3414',
-        'Sub-Urban Division': '3415',
-        'Kalimpong Division': '3471',
-        'Jalpaiguri Division': '3422',
-        'Mal Division': '3427',
-        'Coochbehar Division': '3444',
-        'Mathabhanga Division': '3445',
-        'Dinhata Division': '3446',
-        'Alipurduar Division': '3453',
-        'Central Store/Cord Road Store': '3600',
+        'Siliguri Town Division': '3412', 'Kurseong Division': '3413',
+        'Darjeeling Division': '3414', 'Sub-Urban Division': '3415',
+        'Kalimpong Division': '3471', 'Jalpaiguri Division': '3422',
+        'Mal Division': '3427', 'Coochbehar Division': '3444',
+        'Mathabhanga Division': '3445', 'Dinhata Division': '3446',
+        'Alipurduar Division': '3453', 'Central Store/Cord Road Store': '3600',
         'Siliguri Zonal Store': '3400'
     };
     
@@ -355,14 +497,14 @@
         setTimeout(() => errorDiv.style.display = 'none', 5000);
     }
     
-    // CEILING ROUNDING: Always rounds UP to next whole number
-    // 10.01 → 11, 10.5 → 11, 10.9 → 11, 10.0 → 10
     function customRound(value) {
         if (value === 0 || isNaN(value) || value === null) return 0;
         return Math.ceil(value);
     }
 
-    // Cascading Filter: Zone -> Region -> Division
+    // ================================================================
+    // FILTER FUNCTIONS
+    // ================================================================
     function onZoneChange() {
         const zone = document.getElementById('zoneFilter').value;
         const regionSelect = document.getElementById('regionFilter');
@@ -407,9 +549,9 @@
         const divisionName = divisionValue !== 'all' ? (divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ')) : 'All Divisions';
         
         if (divisionValue !== 'all') {
-            showGuidance(`Showing stock data for ${divisionName}. Monthly average consumption is specific to this division's plant.`);
+            showGuidance(`Showing stock data for ${divisionName}.`);
         } else {
-            showGuidance(`Showing stock data for ALL Divisions. Monthly average consumption is calculated PER DIVISION based on their own consumption data.`);
+            showGuidance(`Showing stock data for ALL Divisions.`);
         }
         loadStockData();
     }
@@ -418,12 +560,7 @@
         try {
             const response = await fetch('/api/consumption/material-groups');
             let groups = await response.json();
-            
-            // Filter out excluded material groups
-            const originalCount = groups.length;
             groups = groups.filter(group => !isMaterialGroupExcluded(group));
-            
-            console.log(`Material groups: ${originalCount} total, ${groups.length} after filtering`);
             
             const groupSelect = document.getElementById('groupFilter');
             groupSelect.innerHTML = '<option value="all">All Material Groups</option>';
@@ -447,12 +584,7 @@
             }
             const response = await fetch(url);
             let materials = await response.json();
-            
-            // Filter out materials from excluded groups
-            const originalCount = materials.length;
             materials = materials.filter(material => !isMaterialGroupExcluded(material.material_group));
-            
-            console.log(`Materials: ${originalCount} total, ${materials.length} after filtering`);
             
             const materialSelect = document.getElementById('materialFilter');
             materialSelect.innerHTML = '<option value="all">All Materials</option>';
@@ -474,29 +606,45 @@
         loadStockData();
     }
     
+    // ================================================================
+    // LOAD DATA
+    // ================================================================
     async function loadMonthlyAveragesFromAPI(plants, materialGroup, materialCode) {
         try {
             let url = `/api/consumption/monthly-average-by-plant?`;
-            
             if (plants && plants !== 'all' && plants.length > 0) {
                 const plantParam = Array.isArray(plants) ? plants.join(',') : plants;
                 url += `plants=${plantParam}&`;
             }
-            
             if (materialGroup && materialGroup !== 'all') {
                 url += `material_group=${encodeURIComponent(materialGroup)}&`;
             }
             if (materialCode && materialCode !== 'all') {
                 url += `material_code=${materialCode}&`;
             }
-            
-            console.log("Fetching monthly averages from:", url);
             const response = await fetch(url);
             const data = await response.json();
             return data;
         } catch (error) {
             console.error('Error fetching monthly averages:', error);
             return {};
+        }
+    }
+    
+    async function loadTransitData() {
+        try {
+            const response = await fetch('/api/inventory/material-in-transit');
+            const data = await response.json();
+            transitData = data.filter(item => {
+                const balanceQty = item.balance_qty || item.quantity || 0;
+                return balanceQty > 0 && item.status !== 'Completed';
+            });
+            console.log(`🚚 Loaded ${transitData.length} in-transit items`);
+            return transitData;
+        } catch (error) {
+            console.error('Error loading transit data:', error);
+            transitData = [];
+            return [];
         }
     }
     
@@ -542,15 +690,45 @@
         }
         
         try {
-            monthlyAvgApiData = await loadMonthlyAveragesFromAPI(plantsToFetch, materialGroup, materialCode);
+            const [monthlyAvgData, transitDataLoaded] = await Promise.all([
+                loadMonthlyAveragesFromAPI(plantsToFetch, materialGroup, materialCode),
+                loadTransitData()
+            ]);
+            
+            monthlyAvgApiData = monthlyAvgData;
+            transitData = transitDataLoaded;
             
             const stockResponse = await fetch('/api/inventory/current-stock');
             let stockData = await stockResponse.json();
+            currentStockRaw = stockData;
             
-            // Add division name and filter out excluded material groups
+            const transitLookup = {};
+            transitData.forEach(item => {
+                const toPlant = String(item.to_plant || '');
+                const materialCodeKey = String(item.material_code || '');
+                const key = `${toPlant}_${materialCodeKey}`;
+                const transitQty = parseFloat(item.balance_qty || item.quantity || 0);
+                
+                if (transitLookup[key]) {
+                    transitLookup[key] += transitQty;
+                } else {
+                    transitLookup[key] = transitQty;
+                }
+            });
+            
             let filteredStock = stockData.map(item => {
                 const divisionName = plantToDivisionMap[String(item.plant)] || item.plant || 'Unknown';
-                return { ...item, division_name: divisionName };
+                const plantStr = String(item.plant || '');
+                const materialCodeKey = String(item.material_code || '');
+                const lookupKey = `${plantStr}_${materialCodeKey}`;
+                const transitQty = transitLookup[lookupKey] || 0;
+                
+                return { 
+                    ...item, 
+                    division_name: divisionName,
+                    transit_qty: transitQty,
+                    virtual_stock: (parseFloat(item.current_stock || 0) + transitQty)
+                };
             }).filter(item => !isMaterialGroupExcluded(item.material_group));
             
             // Apply filters
@@ -583,7 +761,6 @@
                 filteredStock = filteredStock.filter(item => String(item.material_code) === String(materialCode));
             }
             
-            // Calculate metrics
             const stockWithMetrics = filteredStock.map((item, index) => {
                 let monthlyAvg = 0;
                 const materialCodeKey = item.material_code;
@@ -591,7 +768,6 @@
                 const divisionName = item.division_name;
                 
                 const materialAvgData = monthlyAvgApiData[materialCodeKey];
-                
                 if (materialAvgData) {
                     if (materialAvgData[plantCode]) {
                         monthlyAvg = materialAvgData[plantCode].monthly_avg;
@@ -608,11 +784,14 @@
                 monthlyAvg = customRound(monthlyAvg);
                 const reorderLevel = calculateReorderLevel(plantCode, monthlyAvg);
                 const currentStock = item.current_stock || 0;
-                const stockMonths = monthlyAvg > 0 ? (currentStock / monthlyAvg).toFixed(1) : 0;
-                const isCritical = (currentStock <= monthlyAvg && monthlyAvg > 0);
+                const transitQty = item.transit_qty || 0;
+                const virtualStock = item.virtual_stock || 0;
+                const stockMonths = monthlyAvg > 0 ? (virtualStock / monthlyAvg).toFixed(1) : 0;
+                
+                const isCritical = (virtualStock <= monthlyAvg && monthlyAvg > 0);
                 const status = isCritical ? 'Critical' : 'Normal';
                 const statusClass = status === 'Critical' ? 'status-critical' : 'status-normal';
-                const shortage = isCritical ? (monthlyAvg - currentStock).toFixed(2) : 0;
+                const shortage = isCritical ? (monthlyAvg - virtualStock).toFixed(2) : 0;
                 
                 return { 
                     ...item, 
@@ -623,7 +802,10 @@
                     stock_months: stockMonths, 
                     status: status, 
                     status_class: statusClass, 
-                    shortage: shortage 
+                    shortage: shortage,
+                    virtual_stock: virtualStock,
+                    transit_qty: transitQty,
+                    has_transit: transitQty > 0
                 };
             });
             
@@ -632,80 +814,112 @@
             
             const totalMaterials = stockWithMetrics.length;
             const criticalCount = stockWithMetrics.filter(m => m.status === 'Critical').length;
-            showGuidance(`✅ Loaded ${totalMaterials} materials. ${criticalCount} items are critical and need attention.`);
+            const withTransit = stockWithMetrics.filter(m => m.has_transit).length;
+            const transitTotal = stockWithMetrics.reduce((sum, m) => sum + m.transit_qty, 0);
+            
+            document.getElementById('inTransitCount').textContent = transitTotal.toFixed(0);
+            document.getElementById('virtualStockCount').textContent = withTransit;
+            
+            showGuidance(`✅ Loaded ${totalMaterials} materials. ${criticalCount} critical. ${withTransit} have in-transit (${transitTotal.toFixed(0)} units on the way).`);
             
         } catch (error) {
             console.error('Error:', error);
-            document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="12" class="text-center">Error loading data<\/td></tr>';
+            document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="14" class="text-center">Error loading data</td></tr>';
             showError('Failed to load stock data: ' + error.message);
         } finally {
             hideLoading();
         }
     }
     
+    // ================================================================
+    // FILTER TABLE
+    // ================================================================
     function filterTable() {
         const statusFilter = document.getElementById('statusFilter').value;
         const sortBy = document.getElementById('sortFilter').value;
         
         let filteredData = [...currentStockData];
+        
         if (statusFilter === 'critical') {
             filteredData = filteredData.filter(item => item.status === 'Critical');
         } else if (statusFilter === 'normal') {
             filteredData = filteredData.filter(item => item.status === 'Normal');
+        } else if (statusFilter === 'in_transit') {
+            filteredData = filteredData.filter(item => item.has_transit);
         }
         
-        // Apply sorting
-        if (sortBy === 'material_code') {
-            filteredData.sort((a, b) => String(a.material_code).localeCompare(String(b.material_code)));
-        } else if (sortBy === 'material_code_desc') {
-            filteredData.sort((a, b) => String(b.material_code).localeCompare(String(a.material_code)));
-        } else if (sortBy === 'current_stock_asc') {
-            filteredData.sort((a, b) => (a.current_stock || 0) - (b.current_stock || 0));
-        } else if (sortBy === 'current_stock_desc') {
-            filteredData.sort((a, b) => (b.current_stock || 0) - (a.current_stock || 0));
-        } else if (sortBy === 'stock_months_asc') {
-            filteredData.sort((a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months));
-        } else if (sortBy === 'stock_months_desc') {
-            filteredData.sort((a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months));
-        } else if (sortBy === 'monthly_avg_asc') {
-            filteredData.sort((a, b) => a.monthly_avg - b.monthly_avg);
-        } else if (sortBy === 'monthly_avg_desc') {
-            filteredData.sort((a, b) => b.monthly_avg - a.monthly_avg);
-        } else if (sortBy === 'status') {
-            filteredData.sort((a, b) => {
-                if (a.status === 'Critical' && b.status !== 'Critical') return -1;
-                if (a.status !== 'Critical' && b.status === 'Critical') return 1;
-                return 0;
-            });
+        switch(sortBy) {
+            case 'material_code':
+                filteredData.sort((a, b) => String(a.material_code).localeCompare(String(b.material_code)));
+                break;
+            case 'material_code_desc':
+                filteredData.sort((a, b) => String(b.material_code).localeCompare(String(a.material_code)));
+                break;
+            case 'current_stock_asc':
+                filteredData.sort((a, b) => (a.current_stock || 0) - (b.current_stock || 0));
+                break;
+            case 'current_stock_desc':
+                filteredData.sort((a, b) => (b.current_stock || 0) - (a.current_stock || 0));
+                break;
+            case 'virtual_stock_asc':
+                filteredData.sort((a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0));
+                break;
+            case 'virtual_stock_desc':
+                filteredData.sort((a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0));
+                break;
+            case 'stock_months_asc':
+                filteredData.sort((a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months));
+                break;
+            case 'stock_months_desc':
+                filteredData.sort((a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months));
+                break;
+            case 'monthly_avg_asc':
+                filteredData.sort((a, b) => a.monthly_avg - b.monthly_avg);
+                break;
+            case 'monthly_avg_desc':
+                filteredData.sort((a, b) => b.monthly_avg - a.monthly_avg);
+                break;
+            case 'status':
+                filteredData.sort((a, b) => {
+                    if (a.status === 'Critical' && b.status !== 'Critical') return -1;
+                    if (a.status !== 'Critical' && b.status === 'Critical') return 1;
+                    return 0;
+                });
+                break;
         }
         
         // Update KPIs
         document.getElementById('totalItems').textContent = filteredData.length;
         document.getElementById('criticalCount').textContent = filteredData.filter(i => i.status === 'Critical').length;
-        document.getElementById('inTransitCount').textContent = filteredData.filter(i => i.status === 'Critical').length * 2;
-        document.getElementById('toAllotCount').textContent = filteredData.filter(i => i.status === 'Critical').length;
+        
+        const transitCount = filteredData.filter(i => i.has_transit).length;
+        const transitTotal = filteredData.reduce((sum, i) => sum + i.transit_qty, 0);
+        document.getElementById('inTransitCount').textContent = transitTotal.toFixed(0);
+        document.getElementById('virtualStockCount').textContent = transitCount;
         
         // Update table
         const tableBody = document.getElementById('stockTableBody');
         if (filteredData.length > 0) {
             tableBody.innerHTML = filteredData.map(item => `
                 <tr>
-                    <td>${item.sl}</td>
-                    <td><code>${item.material_code}</code></td>
-                    <td><strong>${item.material_description || item.material_name || 'Unknown'}</strong></td>
-                    <td><span class="badge-group">${item.material_group || '-'}</span></td>
-                    <td>${item.division_name}</td>
-                    <td class="${item.status_class}"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
-                    <td>${item.unit || 'Units'}</td>
-                    <td class="${item.status_class}"><strong>${item.monthly_avg}</strong></td>
-                    <td>${item.reorder_level}</td>
-                    <td class="${item.status_class}">${item.status}</td>
-                    <td>${item.stock_months > 0 ? item.stock_months + ' months' : '-'}</td>
-                    <td>${item.status === 'Critical' ? `<button class="btn-action" onclick="requestAllotment('${item.material_code}')">Request</button>` : '-'}</td>
+                    <td class="col-sno" data-col="sno">${item.sl}</td>
+                    <td class="col-mat-code" data-col="mat-code"><code>${item.material_code}</code></td>
+                    <td class="col-mat-name" data-col="mat-name" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 28)}${(item.material_description || '').length > 28 ? '...' : ''}</td>
+                    <td class="col-group" data-col="group"><span class="badge-group">${item.material_group || '-'}</span></td>
+                    <td class="col-division" data-col="division">${item.division_name}</td>
+                    <td class="col-current-stock ${item.status_class}" data-col="current-stock"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
+                    <td class="col-unit" data-col="unit">${item.unit || 'Units'}</td>
+                    <td class="col-transit ${item.has_transit ? 'has-transit' : ''}" data-col="transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
+                    <td class="col-virtual-stock ${item.status_class}" data-col="virtual-stock"><strong>${parseFloat(item.virtual_stock).toLocaleString()}</strong></td>
+                    <td class="col-monthly-avg ${item.status_class}" data-col="monthly-avg"><strong>${item.monthly_avg}</strong></td>
+                    <td class="col-reorder" data-col="reorder">${item.reorder_level}</td>
+                    <td class="col-status ${item.status_class}" data-col="status">${item.status}${item.has_transit ? ' 🚚' : ''}</td>
+                    <td class="col-stock-months" data-col="stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
+                    <td class="col-action" data-col="action">${item.status === 'Critical' ? `<button class="btn-action" onclick="requestAllotment('${item.material_code}', '${item.division_name}')">Req</button>` : (item.has_transit ? `<span style="font-size:0.6rem;color:#17a2b8;">🚚</span>` : '-')}</td>
                 </tr>
             `).join('');
         } else {
-            tableBody.innerHTML = '<tr><td colspan="12" class="text-center">No stock data available for selected filters</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="14" class="text-center">No stock data available for selected filters</td></tr>';
         }
         
         // Critical alert section
@@ -717,14 +931,16 @@
             criticalAlertSection.style.display = 'block';
             criticalAlertBody.innerHTML = criticalItems.map((item, idx) => `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td><code>${item.material_code}</code></td>
-                    <td><strong>${item.material_description || item.material_name || 'Unknown'}</strong></td>
-                    <td>${item.division_name}</td>
-                    <td class="status-critical"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong> ${item.unit || 'Units'}</td>
-                    <td><strong>${item.monthly_avg}</strong></td>
-                    <td>${item.shortage}</td>
-                    <td><button class="btn-action" onclick="requestAllotment('${item.material_code}')">Request Allotment</button></td>
+                    <td class="crit-sno">${idx + 1}</td>
+                    <td class="crit-code"><code>${item.material_code}</code></td>
+                    <td class="crit-name" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 25)}${(item.material_description || '').length > 25 ? '...' : ''}</td>
+                    <td class="crit-division">${item.division_name}</td>
+                    <td class="crit-stock status-critical"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
+                    <td class="crit-transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
+                    <td class="crit-virtual status-critical"><strong>${parseFloat(item.virtual_stock).toLocaleString()}</strong></td>
+                    <td class="crit-avg"><strong>${item.monthly_avg}</strong></td>
+                    <td class="crit-shortage">${item.shortage}</td>
+                    <td class="crit-action"><button class="btn-action" onclick="requestAllotment('${item.material_code}', '${item.division_name}')">Request</button></td>
                 </tr>
             `).join('');
         } else {
@@ -732,31 +948,53 @@
         }
     }
     
-    function requestAllotment(materialCode) {
-        alert(`Allotment request initiated for material: ${materialCode}\n\nThe store manager will be notified for approval.`);
+    function requestAllotment(materialCode, divisionName) {
+        alert(`Allotment request initiated for material: ${materialCode}\nDivision: ${divisionName}\n\nThe store manager will be notified for approval.`);
+    }
+    
+    function refreshData() {
+        loadStockData();
     }
     
     function exportToExcel() {
         if (!currentStockData || currentStockData.length === 0) { alert('No data to export'); return; }
         const wb = XLSX.utils.book_new();
-        const sheetData = [['CURRENT STOCK POSITION REPORT'], ['Generated on:', new Date().toLocaleString()], []];
-        sheetData.push(['#', 'Material Code', 'Material Name', 'Group', 'Division', 'Current Stock', 'Unit', 'Monthly Avg', 'Reorder Level', 'Status', 'Stock Months']);
+        const sheetData = [['CURRENT STOCK POSITION WITH IN-TRANSIT'], ['Generated on:', new Date().toLocaleString()], []];
+        sheetData.push(['#', 'Material Code', 'Material Name', 'Group', 'Division', 'Current Stock', 'Unit', 'In-Transit', 'Virtual Stock', 'Monthly Avg', 'Reorder Level', 'Status', 'Stock Months']);
         currentStockData.forEach(item => {
-            sheetData.push([item.sl, item.material_code, item.material_description || item.material_name, item.material_group, 
-                           item.division_name, item.current_stock, item.unit || 'Units', item.monthly_avg, 
-                           item.reorder_level, item.status, item.stock_months]);
+            sheetData.push([
+                item.sl, 
+                item.material_code, 
+                item.material_description || item.material_name, 
+                item.material_group, 
+                item.division_name, 
+                parseFloat(item.current_stock).toLocaleString(), 
+                item.unit || 'Units',
+                item.has_transit ? parseFloat(item.transit_qty).toLocaleString() : 0,
+                parseFloat(item.virtual_stock).toLocaleString(),
+                item.monthly_avg, 
+                item.reorder_level, 
+                item.status, 
+                item.stock_months
+            ]);
         });
         const sheet = XLSX.utils.aoa_to_sheet(sheetData);
         XLSX.utils.book_append_sheet(wb, sheet, 'Current Stock');
         XLSX.writeFile(wb, `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
+        showGuidance('✅ Stock report exported successfully!');
     }
     
     function exportToPDF() {
         const element = document.querySelector('.content-card');
         if (element) {
-            html2pdf().set({ margin: 0.5, filename: `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, 
-                           image: { type: 'png', quality: 0.98 }, html2canvas: { scale: 2 }, 
-                           jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' } }).from(element).save();
+            html2pdf().set({ 
+                margin: 0.5, 
+                filename: `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, 
+                image: { type: 'png', quality: 0.98 }, 
+                html2canvas: { scale: 2 }, 
+                jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' } 
+            }).from(element).save();
+            showGuidance('📄 Generating PDF report...');
         }
     }
     
@@ -770,6 +1008,8 @@
         document.getElementById('sortFilter').value = 'material_code';
         onZoneChange();
         loadMaterialsByGroup();
+        loadStockData();
+        showGuidance('🔄 All filters have been reset.');
     }
     
     function displayCurrentDate() {
@@ -781,10 +1021,19 @@
         onZoneChange();
         loadMaterialGroups();
         loadMaterialsByGroup();
+        loadStockData();
+        loadColumnVisibility();
+        
+        setInterval(() => {
+            loadStockData();
+        }, 300000);
     });
 </script>
 
 <style>
+    /* ================================================================
+       BASE STYLES
+       ================================================================ */
     .filter-section { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
     .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 20px; }
     .filter-group label { display: block; margin-bottom: 8px; font-size: 0.7rem; font-weight: 700; color: #1e2b3a; text-transform: uppercase; }
@@ -793,9 +1042,11 @@
     .filter-select:hover { border-color: #667eea; }
     .filter-actions { display: flex; justify-content: flex-end; }
     .btn-reset { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; padding: 10px 24px; border-radius: 10px; cursor: pointer; }
+    
     .kpi-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
     .kpi-title i { font-size: 1.5rem; color: #667eea; }
     .kpi-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+    
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
     .kpi-card { background: white; border-radius: 16px; padding: 18px; display: flex; align-items: center; gap: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: all 0.3s ease; }
     .kpi-card:hover { transform: translateY(-3px); }
@@ -805,36 +1056,334 @@
     .kpi-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; margin-bottom: 5px; }
     .kpi-value { font-size: 1.6rem; font-weight: 800; color: #1e2b3a; }
     .kpi-unit { font-size: 0.7rem; color: #6c757d; margin-left: 5px; }
+    
     .content-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-    .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; }
+    .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; }
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .data-table th { padding: 12px 8px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; }
-    .data-table td { padding: 10px 8px; border-bottom: 1px solid #eef2f6; }
+    
+    /* ================================================================
+       COLUMN VISIBILITY CONTROLS
+       ================================================================ */
+    .column-controls {
+        position: relative;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .col-toggle-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: white;
+        border: 2px solid #eef2f6;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .col-toggle-btn:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102,126,234,0.2);
+    }
+    
+    .col-toggle-btn i { color: #667eea; font-size: 1.1rem; }
+    .col-toggle-text { 
+        display: inline;
+    }
+    
+    .col-toggle-dropdown {
+        display: none;
+        position: absolute;
+        top: 45px;
+        right: 0;
+        background: white;
+        border: 2px solid #eef2f6;
+        border-radius: 12px;
+        padding: 15px;
+        min-width: 220px;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        z-index: 1000;
+    }
+    
+    .col-toggle-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eef2f6;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .col-toggle-header span {
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: #1e2b3a;
+    }
+    
+    .col-toggle-option {
+        padding: 3px 10px;
+        border: 1px solid #eef2f6;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        font-size: 0.7rem;
+        transition: all 0.2s;
+    }
+    
+    .col-toggle-option:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .col-toggle-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px 15px;
+    }
+    
+    .col-toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: #1e2b3a;
+        cursor: pointer;
+        padding: 3px 0;
+        white-space: nowrap;
+    }
+    
+    .col-toggle-item input[type="checkbox"] {
+        cursor: pointer;
+        accent-color: #667eea;
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* ================================================================
+       TABLE STYLES
+       ================================================================ */
+    .data-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 0.75rem;
+        table-layout: fixed;
+    }
+    
+    .data-table th { 
+        padding: 8px 5px; 
+        text-align: left; 
+        background: #f8fafd; 
+        font-weight: 700; 
+        border-bottom: 2px solid #eef2f6; 
+        position: sticky; 
+        top: 0; 
+        white-space: nowrap;
+        z-index: 10;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .data-table td { 
+        padding: 6px 5px; 
+        border-bottom: 1px solid #eef2f6;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
     .data-table tr:hover { background: #f8fafd; }
-    .table-responsive { overflow-x: auto; }
+    .table-responsive { overflow-x: auto; max-height: 70vh; }
+    
+    /* ================================================================
+       OPTIMIZED COLUMN WIDTHS
+       ================================================================ */
+    .col-sno { width: 30px; min-width: 30px; max-width: 30px; text-align: center; }
+    .col-mat-code { width: 80px; min-width: 75px; max-width: 90px; }
+    .col-mat-name { width: 140px; min-width: 120px; max-width: 170px; }
+    .col-group { width: 70px; min-width: 65px; max-width: 85px; }
+    .col-division { width: 100px; min-width: 85px; max-width: 130px; }
+    .col-current-stock { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
+    .col-unit { width: 40px; min-width: 35px; max-width: 50px; text-align: center; }
+    .col-transit { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
+    .col-virtual-stock { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
+    .col-monthly-avg { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
+    .col-reorder { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
+    .col-status { width: 70px; min-width: 65px; max-width: 85px; text-align: center; }
+    .col-stock-months { width: 60px; min-width: 55px; max-width: 70px; text-align: center; }
+    .col-action { width: 50px; min-width: 45px; max-width: 60px; text-align: center; }
+    
+    /* Critical Table */
+    .crit-sno { width: 30px; min-width: 30px; max-width: 30px; text-align: center; }
+    .crit-code { width: 80px; min-width: 75px; max-width: 90px; }
+    .crit-name { width: 130px; min-width: 110px; max-width: 160px; }
+    .crit-division { width: 100px; min-width: 85px; max-width: 130px; }
+    .crit-stock { width: 55px; min-width: 50px; max-width: 65px; text-align: right; }
+    .crit-transit { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
+    .crit-virtual { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
+    .crit-avg { width: 50px; min-width: 45px; max-width: 60px; text-align: right; }
+    .crit-shortage { width: 55px; min-width: 50px; max-width: 65px; text-align: right; }
+    .crit-action { width: 60px; min-width: 55px; max-width: 70px; text-align: center; }
+    
+    /* ================================================================
+       STATUS & BADGE
+       ================================================================ */
     .status-critical { background: #fee; color: #dc3545; font-weight: bold; }
     .status-normal { color: #28a745; }
-    .badge-group { background: #e9ecef; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; }
-    .legend-container { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-    .legend-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; }
+    .has-transit { color: #17a2b8; font-weight: bold; }
+    
+    .badge-group { background: #e9ecef; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem; display: inline-block; white-space: nowrap; }
+    code { background: #f0f2f5; padding: 1px 4px; border-radius: 3px; font-size: 0.65rem; font-family: 'Courier New', monospace; }
+    
+    .btn-action { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 3px 10px; border-radius: 12px; cursor: pointer; font-size: 0.6rem; font-weight: 600; }
+    .btn-action:hover { transform: scale(1.05); }
+    
+    /* ================================================================
+       LEGEND
+       ================================================================ */
+    .legend-container { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .legend-badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
     .legend-badge.critical { background: #fee; color: #dc3545; }
     .legend-badge.normal { background: #d4edda; color: #28a745; }
-    .legend-badge.zonal { background: #e7e9fc; color: #667eea; }
-    .legend-badge.division { background: #fff3cd; color: #ffc107; }
-    .btn-action { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 5px 12px; border-radius: 15px; cursor: pointer; font-size: 0.7rem; }
+    .legend-badge.transit { background: #d1ecf1; color: #17a2b8; }
+    .legend-badge.virtual { background: #cce5ff; color: #0062cc; }
+    
+    .welcome-banner { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; padding: 25px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+    .welcome-text h1 { font-size: 1.6rem; font-weight: 700; color: #333; margin-bottom: 5px; }
+    .welcome-text p { color: #666; font-size: 0.95rem; }
+    .date-badge { background: white; padding: 8px 18px; border-radius: 50px; font-size: 0.9rem; white-space: nowrap; }
+    
     .loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
     .text-center { text-align: center; }
-    .welcome-banner { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; padding: 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-    .welcome-text h1 { font-size: 1.8rem; font-weight: 700; color: #333; margin-bottom: 10px; }
-    .welcome-text p { color: #666; font-size: 1rem; }
-    .date-badge { background: white; padding: 10px 20px; border-radius: 50px; }
+    
+    /* ================================================================
+       MOBILE RESPONSIVE
+       ================================================================ */
+    
+    /* Mobile: Show column controls, hide desktop-only info */
+    .mobile-only { display: none !important; }
+    .desktop-only { display: inline !important; }
+    
+    @media (max-width: 992px) {
+        .data-table { font-size: 0.7rem; }
+        .col-mat-name { width: 110px; min-width: 100px; max-width: 140px; }
+        .col-division { width: 85px; min-width: 70px; max-width: 110px; }
+        .col-mat-code { width: 70px; min-width: 65px; max-width: 80px; }
+    }
+    
     @media (max-width: 768px) {
+        /* Show mobile indicators */
+        .mobile-only { display: inline !important; }
+        .desktop-only { display: none !important; }
+        
+        .filter-grid { grid-template-columns: 1fr 1fr; }
+        .kpi-grid { grid-template-columns: 1fr 1fr; }
+        .welcome-banner { flex-direction: column; text-align: center; gap: 10px; padding: 20px; }
+        .welcome-text h1 { font-size: 1.3rem; }
+        .welcome-text p { font-size: 0.8rem; }
+        .date-badge { font-size: 0.8rem; }
+        .legend-container { gap: 8px; }
+        .legend-badge { font-size: 0.6rem; padding: 2px 8px; }
+        
+        /* Column controls mobile */
+        .column-controls { justify-content: center; }
+        .col-toggle-btn { padding: 6px 12px; font-size: 0.75rem; }
+        .col-toggle-dropdown { 
+            right: auto;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 200px;
+            max-width: 280px;
+        }
+        .col-toggle-list { grid-template-columns: 1fr 1fr; }
+        .col-toggle-item { font-size: 0.65rem; }
+        
+        /* Table mobile sizing */
+        .data-table { font-size: 0.6rem; }
+        .data-table th { font-size: 0.55rem; padding: 5px 3px; }
+        .data-table td { padding: 4px 3px; }
+        
+        .col-sno { width: 25px; min-width: 25px; max-width: 25px; }
+        .col-mat-code { width: 55px; min-width: 50px; max-width: 65px; }
+        .col-mat-name { width: 70px; min-width: 60px; max-width: 90px; }
+        .col-division { width: 55px; min-width: 45px; max-width: 70px; }
+        .col-current-stock { width: 45px; min-width: 40px; max-width: 55px; }
+        .col-unit { width: 30px; min-width: 25px; max-width: 40px; }
+        .col-transit { width: 50px; min-width: 45px; max-width: 60px; }
+        .col-virtual-stock { width: 50px; min-width: 45px; max-width: 60px; }
+        .col-status { width: 55px; min-width: 50px; max-width: 65px; }
+        .col-action { width: 40px; min-width: 35px; max-width: 50px; }
+        
+        /* Mobile: Hide Group, Monthly Avg, Reorder, Stock Months by default */
+        .col-group, .col-monthly-avg, .col-reorder, .col-stock-months {
+            display: none !important;
+        }
+        
+        .badge-group { font-size: 0.5rem; padding: 1px 4px; }
+        code { font-size: 0.55rem; padding: 1px 3px; }
+        .btn-action { font-size: 0.5rem; padding: 2px 6px; }
+        
+        /* Critical table mobile */
+        .crit-name { width: 60px; min-width: 50px; max-width: 80px; }
+        .crit-division { width: 50px; min-width: 40px; max-width: 65px; }
+        .crit-stock, .crit-transit, .crit-virtual, .crit-avg, .crit-shortage { width: 40px; min-width: 35px; max-width: 50px; }
+    }
+    
+    @media (max-width: 576px) {
         .filter-grid { grid-template-columns: 1fr; }
         .kpi-grid { grid-template-columns: 1fr; }
-        .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
-        .data-table { font-size: 0.7rem; }
+        .welcome-text h1 { font-size: 1.1rem; }
+        .welcome-text p { font-size: 0.7rem; }
+        
+        .col-toggle-dropdown { 
+            min-width: 180px;
+            max-width: 240px;
+            padding: 12px;
+        }
+        .col-toggle-list { grid-template-columns: 1fr; }
+        
+        .col-sno { width: 20px; min-width: 20px; max-width: 20px; }
+        .col-mat-code { width: 45px; min-width: 40px; max-width: 55px; }
+        .col-mat-name { width: 55px; min-width: 45px; max-width: 70px; }
+        .col-division { width: 45px; min-width: 35px; max-width: 60px; }
+        .col-current-stock { width: 35px; min-width: 30px; max-width: 45px; }
+        .col-transit { width: 40px; min-width: 35px; max-width: 50px; }
+        .col-virtual-stock { width: 40px; min-width: 35px; max-width: 50px; }
+        .col-status { width: 45px; min-width: 40px; max-width: 55px; }
+        .col-action { width: 35px; min-width: 30px; max-width: 45px; }
+        
+        .data-table { font-size: 0.5rem; }
+        .data-table th { font-size: 0.45rem; padding: 3px 2px; }
+        .data-table td { padding: 3px 2px; }
+        .btn-action { font-size: 0.4rem; padding: 1px 4px; }
+        code { font-size: 0.45rem; }
+        
+        .crit-name { width: 50px; min-width: 40px; max-width: 65px; }
+        .crit-division { width: 40px; min-width: 30px; max-width: 55px; }
+        .crit-stock, .crit-transit, .crit-virtual, .crit-avg, .crit-shortage { width: 35px; min-width: 30px; max-width: 45px; }
+    }
+    
+    @media print {
+        .filter-section, .filter-actions, .btn-reset, .column-controls,
+        #guidanceMessage, #errorMessage, .back-button, .export-buttons {
+            display: none !important;
+        }
+        .content-card { box-shadow: none; padding: 0; }
+        .data-table th { background: #f0f0f0; }
+        .mobile-only { display: none !important; }
+        .desktop-only { display: inline !important; }
     }
 </style>
 {% endblock %}
