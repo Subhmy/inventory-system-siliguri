@@ -44,7 +44,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-truck"></i> Material in Transit Dashboard</h1>
-        <p>Track DI (Vendor → Store) & STN (Store → Store) shipments</p>
+        <p>Track DI (Vendor → Store) & STN (Store → Store) shipments with Delay Status</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -175,6 +175,11 @@
     <div class="section-title">
         <i class="bi bi-truck"></i>
         <h2>Materials Currently in Transit</h2>
+        <span style="margin-left: auto; font-size: 0.7rem; color: #6c757d;">
+            <span style="color: #28a745;">●</span> No Delay 
+            <span style="color: #fd7e14;">●</span> Warning (1-30 days)
+            <span style="color: #dc3545;">●</span> Delayed (30+ days)
+        </span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="transitTable">
@@ -193,11 +198,12 @@
                     <th class="col-balance-qty">Balance</th>
                     <th class="col-unit">UOM</th>
                     <th class="col-pending desktop-only">Pending %</th>
+                    <th class="col-delay">Delay (Days)</th>
                     <th class="col-status">Status</th>
                 </tr>
             </thead>
             <tbody id="transitTableBody">
-                <tr><td colspan="14" class="text-center">Loading...</td></tr>
+                <tr><td colspan="15" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
     </div>
@@ -290,6 +296,32 @@
             return '<span class="badge bg-warning">📦 Partial</span>';
         }
         return '<span class="badge bg-primary">🚚 In Transit</span>';
+    }
+    
+    function getDelayDisplay(delayValue) {
+        if (!delayValue && delayValue !== 0) {
+            return '<span class="badge bg-success">0</span>';
+        }
+        const delayNum = parseFloat(delayValue);
+        if (isNaN(delayNum)) {
+            return '<span class="badge bg-secondary">N/A</span>';
+        }
+        if (delayNum === 0) {
+            return '<span class="badge bg-success">0</span>';
+        } else if (delayNum > 0 && delayNum <= 30) {
+            return `<span class="badge bg-warning">${delayNum}</span>`;
+        } else {
+            return `<span class="badge bg-danger">${delayNum}</span>`;
+        }
+    }
+    
+    function getDelayClass(delayValue) {
+        if (!delayValue && delayValue !== 0) return 'normal-text';
+        const delayNum = parseFloat(delayValue);
+        if (isNaN(delayNum)) return 'normal-text';
+        if (delayNum === 0) return 'normal-text';
+        if (delayNum > 0 && delayNum <= 30) return 'warning-text';
+        return 'delayed-text';
     }
     
     // ================================================================
@@ -500,7 +532,7 @@
             
         } catch (error) {
             console.error('Error:', error);
-            document.getElementById('transitTableBody').innerHTML = '<tr><td colspan="14" class="text-center">Error loading data</td></tr>';
+            document.getElementById('transitTableBody').innerHTML = '<tr><td colspan="15" class="text-center">Error loading data</td></tr>';
             showGuidance('Failed to load transit data: ' + error.message, true);
         } finally {
             hideLoading();
@@ -565,6 +597,28 @@
                 const pendingPercent = item.pending_percentage || 0;
                 const statusBadge = getStatusBadge(item.status, balanceQty, pendingPercent);
                 
+                // Get delay value - handle both string and number
+                let delayValue = item.delay_in_delivery;
+                let delayDisplay = '0';
+                let delayClass = 'normal-text';
+                
+                if (delayValue !== undefined && delayValue !== null && delayValue !== '') {
+                    const delayNum = parseFloat(delayValue);
+                    if (!isNaN(delayNum)) {
+                        delayDisplay = delayNum.toString();
+                        if (delayNum === 0) {
+                            delayClass = 'normal-text';
+                        } else if (delayNum > 0 && delayNum <= 30) {
+                            delayClass = 'warning-text';
+                        } else {
+                            delayClass = 'delayed-text';
+                        }
+                    } else {
+                        delayDisplay = delayValue.toString();
+                        delayClass = 'normal-text';
+                    }
+                }
+                
                 const rowNum = startIndex + idx + 1;
                 const orderQty = item.order_quantity || item.di_issue_qty || 0;
                 const docDate = formatDate(item.document_date);
@@ -586,12 +640,13 @@
                         <td class="col-balance-qty"><strong>${parseFloat(balanceQty).toLocaleString()}</strong></td>
                         <td class="col-unit">${item.unit || 'Units'}</td>
                         <td class="col-pending desktop-only">${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
+                        <td class="col-delay ${delayClass}"><strong>${delayDisplay}</strong></td>
                         <td class="col-status">${statusBadge}</td>
                     </tr>
                 `;
             }).join('');
         } else {
-            tableBody.innerHTML = '<tr><td colspan="14" class="text-center">📭 No materials in transit for selected filters<br><small>Try changing your filter criteria</small></td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="15" class="text-center">📭 No materials in transit for selected filters<br><small>Try changing your filter criteria</small></td></tr>';
         }
         
         renderPagination();
@@ -668,12 +723,24 @@
         const wb = XLSX.utils.book_new();
         const sheetData = [['MATERIAL IN TRANSIT REPORT'], ['Generated on:', new Date().toLocaleString()], []];
         sheetData.push(['#', 'Type', 'Doc No', 'Date', 'Mat Code', 'Material Name', 'Group', 
-                       'From', 'To', 'Order Qty', 'Balance Qty', 'UOM', 'Pending %', 'Status']);
+                       'From', 'To', 'Order Qty', 'Balance Qty', 'UOM', 'Pending %', 'Delay (Days)', 'Status']);
         
         filteredData.forEach((item, idx) => {
             const fromDisplay = item.document_type === 'DI' ? 'Vendor' : (item.from_division || item.from_plant);
             const balanceQty = item.balance_qty || item.quantity || 0;
             const pendingPercent = item.pending_percentage || 0;
+            
+            let delayValue = item.delay_in_delivery;
+            let delayDisplay = '0';
+            if (delayValue !== undefined && delayValue !== null && delayValue !== '') {
+                const delayNum = parseFloat(delayValue);
+                if (!isNaN(delayNum)) {
+                    delayDisplay = delayNum.toString();
+                } else {
+                    delayDisplay = delayValue.toString();
+                }
+            }
+            
             let statusText = 'In Transit';
             if (balanceQty <= 0) {
                 statusText = 'Completed';
@@ -697,6 +764,7 @@
                 parseFloat(balanceQty).toLocaleString(),
                 item.unit || 'Units',
                 pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-',
+                delayDisplay,
                 statusText
             ]);
         });
@@ -825,6 +893,7 @@
     .col-balance-qty { width: 75px; min-width: 75px; max-width: 85px; text-align: right; }
     .col-unit { width: 50px; min-width: 50px; max-width: 60px; text-align: center; }
     .col-pending { width: 70px; min-width: 70px; max-width: 80px; text-align: center; }
+    .col-delay { width: 80px; min-width: 70px; max-width: 90px; text-align: center; }
     .col-status { width: 110px; min-width: 100px; max-width: 120px; text-align: center; }
     
     .data-table th,
@@ -833,6 +902,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    
+    /* ================================================================
+       DELAY COLUMN STYLES
+       ================================================================ */
+    .delayed-text { color: #dc3545; font-weight: bold; }
+    .warning-text { color: #fd7e14; font-weight: bold; }
+    .normal-text { color: #28a745; }
     
     /* ================================================================
        BADGE STYLES
@@ -913,6 +989,7 @@
         .col-order-qty { width: 55px; min-width: 55px; max-width: 65px; }
         .col-balance-qty { width: 60px; min-width: 60px; max-width: 70px; }
         .col-unit { width: 40px; min-width: 40px; max-width: 50px; }
+        .col-delay { width: 55px; min-width: 50px; max-width: 65px; }
         .col-status { width: 80px; min-width: 70px; max-width: 90px; }
         
         .data-table { font-size: 0.62rem; }
@@ -940,6 +1017,7 @@
         .col-material-code { width: 55px; min-width: 55px; max-width: 65px; }
         .col-material-name { width: 70px; min-width: 60px; max-width: 90px; }
         .col-from, .col-to { width: 60px; min-width: 50px; max-width: 75px; }
+        .col-delay { width: 50px; min-width: 45px; max-width: 60px; }
         .col-status { width: 65px; min-width: 60px; max-width: 75px; }
         .page-btn { padding: 3px 6px; font-size: 0.6rem; }
         .badge { font-size: 0.5rem; padding: 1px 4px; }

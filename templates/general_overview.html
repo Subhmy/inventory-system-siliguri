@@ -17,24 +17,47 @@
         </div>
     </div>
 
-    <!-- Dashboard Type Toggle -->
+    <!-- Dashboard Type Toggle - Role Based -->
     <div class="dashboard-toggle-container">
         <div class="dashboard-toggle">
+            <!-- ADMINISTRATIVE - ADMIN ONLY -->
+            {% if user and user.role == 'admin' %}
             <button class="toggle-btn active" onclick="switchDashboard('administrative')" id="toggleAdministrative">
                 <i class="bi bi-person-badge"></i>
                 <span>Administrative</span>
             </button>
+            {% endif %}
+
+            <!-- TECHNICAL - ADMIN & MANAGER ONLY -->
+            {% if user and (user.role == 'admin' or user.role == 'manager') %}
             <button class="toggle-btn" onclick="switchDashboard('technical')" id="toggleTechnical">
                 <i class="bi bi-gear-wide-connected"></i>
                 <span>Technical</span>
             </button>
+            {% endif %}
+
+            <!-- COMMERCIAL - ADMIN & MANAGER ONLY -->
+            {% if user and (user.role == 'admin' or user.role == 'manager') %}
             <button class="toggle-btn" onclick="switchDashboard('commercial')" id="toggleCommercial">
                 <i class="bi bi-currency-rupee"></i>
                 <span>Commercial</span>
             </button>
+            {% endif %}
+
+            <!-- INVENTORY - ALL USERS (Always visible) -->
+            <button class="toggle-btn {% if user and user.role == 'user' %}active{% endif %}" onclick="switchDashboard('inventory')" id="toggleInventory">
+                <i class="bi bi-box-seam"></i>
+                <span>Inventory</span>
+            </button>
         </div>
         <div class="dashboard-info">
-            <span class="info-badge" id="dashboardInfo">Administrative Dashboard</span>
+            <span class="info-badge" id="dashboardInfo">
+                {% if user and user.role == 'user' %}
+                    Inventory Dashboard
+                {% else %}
+                    Administrative Dashboard
+                {% endif %}
+            </span>
         </div>
     </div>
 
@@ -63,12 +86,19 @@
 {% block extra_js %}
 <script>
     // ==================== GLOBAL VARIABLES ====================
-    let currentDashboard = 'administrative';
+    let currentDashboard = 'inventory';
     let filterValues = {
         administrative: {},
         technical: {},
-        commercial: {}
+        commercial: {},
+        inventory: {}
     };
+
+    // User role from session
+    const userRole = "{{ user.role if user else 'user' }}";
+    const isAdmin = userRole === 'admin';
+    const isManager = userRole === 'admin' || userRole === 'manager';
+    const isUser = userRole === 'user';
 
     // ==================== DISPLAY CURRENT DATE ====================
     function displayCurrentDate() {
@@ -80,44 +110,51 @@
         }
     }
 
-    // ==================== DASHBOARD DATA (Will be replaced by database) ====================
-    // These are placeholders - actual data will come from database
-    const dashboardData = {
-        administrative: {
-            regions: [],
-            divisions: [],
-            staff: []
-        },
-        technical: {
-            regions: [],
-            ptrs: [],
-            dtrs: [],
-            lines: []
-        },
-        commercial: {
-            regions: [],
-            divisions: [],
-            financial: []
-        }
-    };
-
     // ==================== SWITCH DASHBOARD ====================
     function switchDashboard(dashboardType) {
+        // Check if user has access
+        if (dashboardType === 'administrative' && !isAdmin) {
+            alert('You do not have permission to access the Administrative dashboard.');
+            return;
+        }
+        if ((dashboardType === 'technical' || dashboardType === 'commercial') && !isManager) {
+            alert('You do not have permission to access this dashboard.');
+            return;
+        }
+
+        // Prevent switching to inventory if already on inventory page
+        if (dashboardType === 'inventory' && window.location.pathname === '/inventory-dashboard') {
+            return;
+        }
+
         currentDashboard = dashboardType;
         
         // Update toggle buttons
         document.querySelectorAll('.toggle-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        document.getElementById('toggle' + dashboardType.charAt(0).toUpperCase() + dashboardType.slice(1)).classList.add('active');
+        
+        const toggleMap = {
+            'administrative': 'toggleAdministrative',
+            'technical': 'toggleTechnical',
+            'commercial': 'toggleCommercial',
+            'inventory': 'toggleInventory'
+        };
+        
+        const toggleId = toggleMap[dashboardType];
+        if (toggleId) {
+            const btn = document.getElementById(toggleId);
+            if (btn) btn.classList.add('active');
+        }
         
         // Update info badge
         const infoMap = {
             'administrative': 'Administrative Dashboard - Region, Division & Staff Management',
             'technical': 'Technical Dashboard - Infrastructure, Assets & Performance',
-            'commercial': 'Commercial Dashboard - Financial, Billing & Collection Metrics'
+            'commercial': 'Commercial Dashboard - Financial, Billing & Collection Metrics',
+            'inventory': 'Inventory Dashboard - Stock, Consumption & Transit Analysis'
         };
-        document.getElementById('dashboardInfo').textContent = infoMap[dashboardType];
+        document.getElementById('dashboardInfo').textContent = infoMap[dashboardType] || 'Dashboard';
         
         // Load filters for this dashboard
         loadFilters(dashboardType);
@@ -127,9 +164,6 @@
         
         // Load dashboard content
         loadDashboardContent(dashboardType);
-        
-        // Fetch data from database (will be implemented later)
-        fetchDashboardData(dashboardType);
     }
 
     // ==================== LOAD FILTERS ====================
@@ -310,6 +344,55 @@
                 </div>
             `;
         }
+        else if (dashboardType === 'inventory') {
+            filterSection.innerHTML = `
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label><i class="bi bi-pin-map-fill"></i> Region</label>
+                        <select class="filter-select" id="invRegionFilter" onchange="updateInvDivisions()">
+                            <option value="all">All Regions</option>
+                            <option value="darjeeling">Darjeeling</option>
+                            <option value="jalpaiguri">Jalpaiguri</option>
+                            <option value="coochbehar">Coochbehar</option>
+                            <option value="alipurduar">Alipurduar</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="bi bi-diagram-3"></i> Division</label>
+                        <select class="filter-select" id="invDivisionFilter">
+                            <option value="all">All Divisions</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="bi bi-box-seam"></i> Material Group</label>
+                        <select class="filter-select" id="invMaterialGroup">
+                            <option value="all">All Groups</option>
+                            <option value="cable">Cables</option>
+                            <option value="transformer">Transformers</option>
+                            <option value="pole">Poles</option>
+                            <option value="conductor">Conductors</option>
+                            <option value="insulator">Insulators</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label><i class="bi bi-calendar3"></i> Period</label>
+                        <select class="filter-select" id="invPeriod">
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-apply" onclick="applyFilters('inventory')">
+                            <i class="bi bi-funnel"></i> Apply
+                        </button>
+                        <button class="btn-reset" onclick="resetFilters('inventory')">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
         
         // Initialize cascading dropdowns
         initializeCascadingDropdowns(dashboardType);
@@ -345,7 +428,17 @@
     function loadDashboardContent(dashboardType) {
         const contentArea = document.getElementById('dashboardContent');
         
-        // Show loading
+        // If inventory, redirect directly without fetching
+        if (dashboardType === 'inventory') {
+            // Clear any pending requests
+            if (window._dashboardAbortController) {
+                window._dashboardAbortController.abort();
+            }
+            window.location.href = '/inventory-dashboard';
+            return;
+        }
+        
+        // Show loading for other dashboards
         contentArea.innerHTML = `
             <div class="loading-spinner">
                 <div class="spinner-border text-primary" role="status">
@@ -355,21 +448,28 @@
             </div>
         `;
         
-        // Fetch data from API (will be implemented with database)
+        // Fetch data from API for non-inventory dashboards
+        const controller = new AbortController();
+        window._dashboardAbortController = controller;
+        
         fetch(`/api/dashboard/${dashboardType}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(filterValues[dashboardType])
+            body: JSON.stringify(filterValues[dashboardType] || {}),
+            signal: controller.signal
         })
         .then(response => response.json())
         .then(data => {
             renderDashboard(dashboardType, data);
         })
         .catch(error => {
+            if (error.name === 'AbortError') {
+                console.log('Fetch aborted');
+                return;
+            }
             console.error('Error:', error);
-            // Show error state
             contentArea.innerHTML = `
                 <div class="error-state">
                     <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem; color: #dc3545;"></i>
@@ -387,31 +487,36 @@
     function renderDashboard(dashboardType, data) {
         const contentArea = document.getElementById('dashboardContent');
         
-        // This will be populated with actual dashboard HTML
-        // For now, placeholder
+        // Inventory is handled in loadDashboardContent
+        if (dashboardType === 'inventory') {
+            return;
+        }
+        
+        // Placeholder for other dashboards
+        const iconMap = {
+            'administrative': 'person-badge',
+            'technical': 'gear-wide-connected',
+            'commercial': 'currency-rupee'
+        };
+        
         contentArea.innerHTML = `
             <div class="dashboard-placeholder">
-                <i class="bi bi-${dashboardType === 'administrative' ? 'person-badge' : (dashboardType === 'technical' ? 'gear-wide-connected' : 'currency-rupee')}" style="font-size: 4rem; color: #5fa4ee;"></i>
+                <i class="bi bi-${iconMap[dashboardType] || 'box'}" style="font-size: 4rem; color: #5fa4ee;"></i>
                 <h3>${dashboardType.charAt(0).toUpperCase() + dashboardType.slice(1)} Dashboard</h3>
                 <p>Dashboard content will be displayed here with data from database</p>
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i>
                     Connected to database. Showing live data.
                 </div>
+                <pre style="text-align: left; background: #f8fafd; padding: 15px; border-radius: 8px; font-size: 0.8rem; max-height: 200px; overflow: auto;">
+${JSON.stringify(data, null, 2)}
+                </pre>
             </div>
         `;
     }
 
-    // ==================== FETCH DASHBOARD DATA FROM DATABASE ====================
-    function fetchDashboardData(dashboardType) {
-        // This function will be called when database is connected
-        // For now, placeholder
-        console.log(`Fetching ${dashboardType} data from database...`);
-    }
-
     // ==================== INITIALIZE CASCADING DROPDOWNS ====================
     function initializeCascadingDropdowns(dashboardType) {
-        // Division data mapping (will come from database)
         const divisions = {
             'darjeeling': ['Siliguri Town', 'Kurseong', 'Darjeeling', 'Kalimpong'],
             'jalpaiguri': ['Jalpaiguri', 'Mal'],
@@ -424,45 +529,66 @@
                 const region = document.getElementById('adminRegionFilter').value;
                 const divSelect = document.getElementById('adminDivisionFilter');
                 divSelect.innerHTML = '<option value="all">All Divisions</option>';
-                
                 if (region !== 'all' && divisions[region]) {
                     divisions[region].forEach(div => {
                         divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
                     });
                 }
             };
+            // Initialize
+            if (document.getElementById('adminRegionFilter')) {
+                document.getElementById('adminRegionFilter').onchange();
+            }
         }
         else if (dashboardType === 'technical') {
             window.updateTechDivisions = function() {
                 const region = document.getElementById('techRegionFilter').value;
                 const divSelect = document.getElementById('techDivisionFilter');
                 divSelect.innerHTML = '<option value="all">All Divisions</option>';
-                
                 if (region !== 'all' && divisions[region]) {
                     divisions[region].forEach(div => {
                         divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
                     });
                 }
             };
+            if (document.getElementById('techRegionFilter')) {
+                document.getElementById('techRegionFilter').onchange();
+            }
         }
         else if (dashboardType === 'commercial') {
             window.updateCommDivisions = function() {
                 const region = document.getElementById('commRegionFilter').value;
                 const divSelect = document.getElementById('commDivisionFilter');
                 divSelect.innerHTML = '<option value="all">All Divisions</option>';
-                
                 if (region !== 'all' && divisions[region]) {
                     divisions[region].forEach(div => {
                         divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
                     });
                 }
             };
+            if (document.getElementById('commRegionFilter')) {
+                document.getElementById('commRegionFilter').onchange();
+            }
+        }
+        else if (dashboardType === 'inventory') {
+            window.updateInvDivisions = function() {
+                const region = document.getElementById('invRegionFilter').value;
+                const divSelect = document.getElementById('invDivisionFilter');
+                divSelect.innerHTML = '<option value="all">All Divisions</option>';
+                if (region !== 'all' && divisions[region]) {
+                    divisions[region].forEach(div => {
+                        divSelect.innerHTML += `<option value="${div.toLowerCase()}">${div}</option>`;
+                    });
+                }
+            };
+            if (document.getElementById('invRegionFilter')) {
+                document.getElementById('invRegionFilter').onchange();
+            }
         }
     }
 
     // ==================== APPLY FILTERS ====================
     function applyFilters(dashboardType) {
-        // Collect all filter values
         const filters = {};
         
         if (dashboardType === 'administrative') {
@@ -482,6 +608,12 @@
             filters.compare = document.getElementById('commCompare')?.value || 'none';
             filters.parameter = document.getElementById('commParameter')?.value || 'input';
         }
+        else if (dashboardType === 'inventory') {
+            filters.region = document.getElementById('invRegionFilter')?.value || 'all';
+            filters.division = document.getElementById('invDivisionFilter')?.value || 'all';
+            filters.materialGroup = document.getElementById('invMaterialGroup')?.value || 'all';
+            filters.period = document.getElementById('invPeriod')?.value || 'monthly';
+        }
         
         filterValues[dashboardType] = filters;
         
@@ -497,22 +629,22 @@
         const filterSection = document.getElementById('filterSection');
         const filterCount = Object.values(filters).filter(v => v !== 'all' && v !== 'none').length;
         
+        const indicator = document.getElementById('filterIndicator');
         if (filterCount > 0) {
-            // Add filter indicator if not exists
-            if (!document.getElementById('filterIndicator')) {
-                const indicator = document.createElement('div');
-                indicator.id = 'filterIndicator';
-                indicator.className = 'filter-indicator';
-                indicator.innerHTML = `
+            if (!indicator) {
+                const newIndicator = document.createElement('div');
+                newIndicator.id = 'filterIndicator';
+                newIndicator.className = 'filter-indicator';
+                newIndicator.innerHTML = `
                     <i class="bi bi-funnel-fill"></i>
                     <span>${filterCount} filter(s) applied</span>
                     <button onclick="clearAllFilters('${dashboardType}')" class="btn-clear-filters">
                         <i class="bi bi-x"></i> Clear all
                     </button>
                 `;
-                filterSection.appendChild(indicator);
+                filterSection.appendChild(newIndicator);
             } else {
-                document.getElementById('filterIndicator').innerHTML = `
+                indicator.innerHTML = `
                     <i class="bi bi-funnel-fill"></i>
                     <span>${filterCount} filter(s) applied</span>
                     <button onclick="clearAllFilters('${dashboardType}')" class="btn-clear-filters">
@@ -521,7 +653,6 @@
                 `;
             }
         } else {
-            const indicator = document.getElementById('filterIndicator');
             if (indicator) indicator.remove();
         }
     }
@@ -530,12 +661,8 @@
     function resetFilters(dashboardType) {
         filterValues[dashboardType] = {};
         loadFilters(dashboardType);
-        
-        // Remove filter indicator
         const indicator = document.getElementById('filterIndicator');
         if (indicator) indicator.remove();
-        
-        // Reload dashboard
         loadDashboardContent(dashboardType);
     }
 
@@ -547,11 +674,7 @@
     // ==================== EXPORT REPORT ====================
     function exportReport(format, dashboardType) {
         const filters = filterValues[dashboardType] || {};
-        
-        // Show export in progress
         alert(`Exporting ${dashboardType} report as ${format.toUpperCase()} with current filters...\n\nThis will connect to database for actual data export.`);
-        
-        // In production, this would call an API endpoint
         console.log(`Exporting ${dashboardType} as ${format} with filters:`, filters);
     }
 
@@ -559,8 +682,32 @@
     document.addEventListener('DOMContentLoaded', function() {
         displayCurrentDate();
         
-        // Default to administrative dashboard
-        switchDashboard('administrative');
+        // Determine default dashboard based on role
+        let defaultDashboard = 'inventory';
+        if (isAdmin) {
+            defaultDashboard = 'administrative';
+        } else if (isManager) {
+            defaultDashboard = 'technical';
+        }
+        
+        // Set active class on default button
+        const toggleMap = {
+            'administrative': 'toggleAdministrative',
+            'technical': 'toggleTechnical',
+            'commercial': 'toggleCommercial',
+            'inventory': 'toggleInventory'
+        };
+        
+        // Remove active from all
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Add active to default
+        const defaultBtn = document.getElementById(toggleMap[defaultDashboard]);
+        if (defaultBtn) defaultBtn.classList.add('active');
+        
+        switchDashboard(defaultDashboard);
     });
 </script>
 {% endblock %}
@@ -578,11 +725,13 @@
         padding: 5px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         border: 1px solid #eef2f6;
+        flex-wrap: wrap;
     }
 
     .dashboard-toggle {
         display: flex;
         gap: 5px;
+        flex-wrap: wrap;
     }
 
     .toggle-btn {
@@ -607,6 +756,10 @@
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+    }
+
+    .toggle-btn:hover:not(.active) {
+        background: #f0f2f5;
     }
 
     .dashboard-info {
@@ -869,11 +1022,12 @@
         .dashboard-toggle-container {
             flex-direction: column;
             border-radius: 20px;
+            padding: 10px;
         }
         
         .toggle-btn {
-            padding: 10px 15px;
-            font-size: 0.9rem;
+            padding: 8px 15px;
+            font-size: 0.8rem;
         }
         
         .filters-row {
@@ -896,6 +1050,13 @@
         
         .export-note {
             margin-left: 0;
+        }
+        
+        .dashboard-info {
+            padding-right: 0;
+            padding-top: 10px;
+            width: 100%;
+            text-align: center;
         }
     }
 </style>

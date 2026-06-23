@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
     <a href="{{ url_for('main.general_overview') }}" style="
         display: inline-flex;
         align-items: center;
@@ -24,10 +24,18 @@
         <span>Back to General Overview</span>
     </a>
     
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button onclick="refreshAllData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer;">
             <i class="bi bi-arrow-repeat"></i>
-            <span>Refresh</span>
+            <span>Refresh All</span>
+        </button>
+        <button onclick="refreshCard('stock')" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">
+            <i class="bi bi-box-seam"></i>
+            <span>Stock</span>
+        </button>
+        <button onclick="refreshCard('transit')" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #ffc107, #fd7e14); color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">
+            <i class="bi bi-truck"></i>
+            <span>Transit</span>
         </button>
     </div>
 </div>
@@ -36,49 +44,48 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-box-seam"></i> Inventory Management Dashboard</h1>
-        <p>Siliguri Zone - Stock, Consumption & Allotment Analysis</p>
+        <p>Siliguri Zone - Stock, Consumption & Transit Analysis</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
         <span id="currentDate"></span>
+        <span style="margin-left: 10px; font-size: 0.8rem; color: #6c757d;">
+            <i class="bi bi-clock"></i> 
+            <span id="globalLastUpdated">-</span>
+        </span>
     </div>
 </div>
 
-<!-- Filter Section -->
-<div class="filter-section">
-    <div class="filter-row">
-        <div class="filter-group">
-            <label><i class="bi bi-pin-map-fill"></i> Region</label>
-            <select id="regionFilter" class="filter-select" onchange="applyFilters()">
-                <option value="all">All Regions</option>
-                <option value="darjeeling">Darjeeling</option>
-                <option value="jalpaiguri">Jalpaiguri</option>
-                <option value="coochbehar">Coochbehar</option>
-                <option value="alipurduar">Alipurduar</option>
-                <option value="kalimpong">Kalimpong</option>
-            </select>
-        </div>
-        <div class="filter-group">
-            <label><i class="bi bi-diagram-3"></i> Division</label>
-            <select id="divisionFilter" class="filter-select" onchange="applyFilters()">
-                <option value="all">All Divisions</option>
-            </select>
-        </div>
-        <div class="filter-actions">
-            <button class="btn-apply" onclick="applyFilters()"><i class="bi bi-funnel"></i> Apply</button>
-            <button class="btn-reset" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
-        </div>
+<!-- Quick Stats Banner -->
+<div class="quick-stats">
+    <div class="quick-stat-item">
+        <i class="bi bi-box-seam" style="color: #667eea;"></i>
+        <span>Total Items: <strong id="totalItemsHeader">0</strong></span>
     </div>
-    <div id="activeFilters" class="active-filters" style="margin-top: 15px;"></div>
+    <div class="quick-stat-item">
+        <i class="bi bi-exclamation-triangle" style="color: #dc3545;"></i>
+        <span>Critical: <strong id="criticalItemsHeader">0</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="bi bi-truck" style="color: #ffc107;"></i>
+        <span>In Transit: <strong id="transitItemsHeader">0</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="bi bi-clock-history" style="color: #17a2b8;"></i>
+        <span>Last Updated: <strong id="lastUpdatedHeader">-</strong></span>
+    </div>
 </div>
 
 <!-- 6 Card Grid -->
 <div class="inventory-grid">
-    <!-- Card 1: Current Stock Level - LINKED to current_stock_position -->
+    <!-- Card 1: Current Stock Level -->
     <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}'">
         <div class="card-header-green">
-            <i class="bi bi-box-seam"></i>
-            <span class="card-badge">Stock Summary</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-box-seam"></i>
+                <span class="card-badge">Stock Summary</span>
+            </div>
+            <span class="card-timestamp" id="stockTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Current Stock Level</h3>
@@ -110,11 +117,14 @@
         </div>
     </div>
 
-    <!-- Card 2: Critical Stock Items - LINKED to current_stock_position with critical filter -->
+    <!-- Card 2: Critical Stock Items -->
     <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}?filter=critical'">
         <div class="card-header-red">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <span class="card-badge">Alert</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span class="card-badge">Alert</span>
+            </div>
+            <span class="card-timestamp" id="criticalTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Critical Stock Items</h3>
@@ -142,11 +152,14 @@
         </div>
     </div>
 
-    <!-- Card 3: Material in Transit - LINKED to material_in_transit dashboard -->
+    <!-- Card 3: Material in Transit -->
     <div class="inventory-card" onclick="window.location.href='{{ url_for('main.material_in_transit') }}'">
         <div class="card-header-teal">
-            <i class="bi bi-truck"></i>
-            <span class="card-badge">On the Way</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-truck"></i>
+                <span class="card-badge">On the Way</span>
+            </div>
+            <span class="card-timestamp" id="transitTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Material in Transit</h3>
@@ -185,8 +198,11 @@
     <!-- Card 4: Incoming Material -->
     <div class="inventory-card">
         <div class="card-header-orange">
-            <i class="bi bi-arrow-down-circle"></i>
-            <span class="card-badge">Expected</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-arrow-down-circle"></i>
+                <span class="card-badge">Expected</span>
+            </div>
+            <span class="card-timestamp" id="incomingTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Incoming Material</h3>
@@ -214,11 +230,14 @@
         </div>
     </div>
 
-    <!-- Card 5: Consumption Analysis - LINKED to consumption_analysis -->
+    <!-- Card 5: Consumption Analysis -->
     <div class="inventory-card" onclick="window.location.href='{{ url_for('main.consumption_analysis') }}'">
         <div class="card-header-blue">
-            <i class="bi bi-graph-up"></i>
-            <span class="card-badge">Trends</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-graph-up"></i>
+                <span class="card-badge">Trends</span>
+            </div>
+            <span class="card-timestamp" id="consumptionTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Consumption Analysis</h3>
@@ -249,8 +268,11 @@
     <!-- Card 6: Allotment Tracker -->
     <div class="inventory-card">
         <div class="card-header-purple">
-            <i class="bi bi-truck"></i>
-            <span class="card-badge">Tracking</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="bi bi-truck"></i>
+                <span class="card-badge">Tracking</span>
+            </div>
+            <span class="card-timestamp" id="allotmentTimestamp">-</span>
         </div>
         <div class="card-body">
             <h3>Allotment Tracker</h3>
@@ -288,11 +310,15 @@
     <div class="section-title">
         <i class="bi bi-star-fill"></i>
         <h2>Top Consumed Materials (This Month)</h2>
+        <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;" id="topItemsTimestamp">
+            <i class="bi bi-clock"></i> Updated: -
+        </span>
     </div>
     <div class="items-table-container">
         <table class="data-table">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>Material Code</th>
                     <th>Material Name</th>
                     <th>Material Group</th>
@@ -302,31 +328,69 @@
                 </tr>
             </thead>
             <tbody id="topItemsTable">
-                <tr><td colspan="6" class="text-center">Loading...<\/td></tr>
+                <tr><td colspan="7" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // Division mappings
-    const divisionToPlantMap = {
-        'Siliguri Town Division': '3412', 'Kurseong Division': '3413', 'Darjeeling Division': '3414',
-        'Sub-Urban Division': '3415', 'Kalimpong Division': '3471', 'Jalpaiguri Division': '3422',
-        'Mal Division': '3427', 'Coochbehar Division': '3444', 'Mathabhanga Division': '3445',
-        'Dinhata Division': '3446', 'Alipurduar Division': '3453'
-    };
-    
-    const regionDivisions = {
-        'darjeeling': ['Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division'],
-        'kalimpong': ['Kalimpong Division'],
-        'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
-        'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
-        'alipurduar': ['Alipurduar Division']
-    };
-    
     let currentStockData = [];
     let monthlyAvgData = {};
+    let lastUpdatedTimestamps = {};
+    
+    // Data version tracking
+    let dataVersions = {
+        stock: 0,
+        critical: 0,
+        transit: 0,
+        consumption: 0,
+        incoming: 0,
+        allotment: 0,
+        topItems: 0
+    };
+
+    function getCurrentTimestamp() {
+        const now = new Date();
+        return now.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit',
+            hour12: true 
+        });
+    }
+
+    function getFullTimestamp() {
+        const now = new Date();
+        return now.toLocaleString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true 
+        });
+    }
+
+    function updateCardTimestamp(cardId, timestamp) {
+        const element = document.getElementById(cardId);
+        if (element) {
+            element.textContent = timestamp;
+            element.title = `Last updated: ${getFullTimestamp()}`;
+            // Add a subtle pulse animation
+            element.style.transition = 'color 0.3s';
+            element.style.color = '#28a745';
+            setTimeout(() => {
+                element.style.color = '';
+            }, 1000);
+        }
+    }
+
+    function updateGlobalTimestamp() {
+        const now = getFullTimestamp();
+        document.getElementById('globalLastUpdated').textContent = now;
+        document.getElementById('lastUpdatedHeader').textContent = getCurrentTimestamp();
+    }
 
     function displayCurrentDate() {
         const dateElement = document.getElementById('currentDate');
@@ -334,6 +398,7 @@
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
             dateElement.textContent = new Date().toLocaleDateString('en-US', options);
         }
+        updateGlobalTimestamp();
     }
 
     // CEILING ROUNDING - Always round up
@@ -358,7 +423,6 @@
             const response = await fetch('/api/inventory/current-stock');
             let data = await response.json();
             
-            // Add division names and calculate monthly avg
             currentStockData = data.map(item => {
                 let monthlyAvg = 0;
                 const avgData = monthlyAvgData[item.material_code];
@@ -418,60 +482,55 @@
         }
     }
 
-    function filterDataByRegion(data, region) {
-        if (region === 'all' || !regionDivisions[region]) return data;
-        const divisionsInRegion = regionDivisions[region];
-        return data.filter(item => divisionsInRegion.includes(item.division));
+    // Individual card refresh functions
+    async function refreshCard(cardType) {
+        const timestamp = getCurrentTimestamp();
+        
+        switch(cardType) {
+            case 'stock':
+                await updateStockCard();
+                updateCardTimestamp('stockTimestamp', timestamp);
+                break;
+            case 'transit':
+                await updateTransitCard();
+                updateCardTimestamp('transitTimestamp', timestamp);
+                break;
+            case 'critical':
+                await updateCriticalCard();
+                updateCardTimestamp('criticalTimestamp', timestamp);
+                break;
+            case 'consumption':
+                await updateConsumptionCard();
+                updateCardTimestamp('consumptionTimestamp', timestamp);
+                break;
+            default:
+                await updateDashboard();
+        }
+        updateGlobalTimestamp();
     }
 
-    function filterDataByDivision(data, division) {
-        if (division === 'all') return data;
-        return data.filter(item => item.division === division);
-    }
-
-    async function updateDashboard() {
-        const region = document.getElementById('regionFilter').value;
-        const division = document.getElementById('divisionFilter').value;
-        
-        // Show loading states
-        document.getElementById('activeFilters').innerHTML = `
-            <span class="filter-badge">Region: ${region === 'all' ? 'All' : region.charAt(0).toUpperCase() + region.slice(1)}</span>
-            <span class="filter-badge">Division: ${division === 'all' ? 'All' : division.replace(/-/g, ' ')}</span>
-        `;
-        
-        // Load data in parallel
-        const [stockItems, consumptionData, topMaterials, transitSummary] = await Promise.all([
-            loadStockData(),
-            loadConsumptionOverview(),
-            loadTopMaterials(),
-            loadTransitSummary()
-        ]);
-        
-        // Apply filters to stock data
-        let filteredStock = [...stockItems];
-        
-        if (region !== 'all' && regionDivisions[region]) {
-            const divisionsInRegion = regionDivisions[region];
-            filteredStock = filteredStock.filter(item => divisionsInRegion.includes(item.division));
-        }
-        
-        if (division !== 'all') {
-            const divisionName = division.replace(/-/g, ' ');
-            filteredStock = filteredStock.filter(item => item.division === divisionName);
-        }
-        
-        // Update Card 1: Current Stock Level
-        const totalItems = filteredStock.length;
-        const totalValue = (filteredStock.reduce((sum, item) => sum + (item.current_stock || 0), 0) / 10000000).toFixed(2);
-        const uniqueGroups = new Set(filteredStock.map(item => item.material_group).filter(g => g));
+    async function updateStockCard() {
+        const stockItems = await loadStockData();
+        const totalItems = stockItems.length;
+        const totalValue = (stockItems.reduce((sum, item) => sum + (item.current_stock || 0), 0) / 10000000).toFixed(2);
+        const uniqueGroups = new Set(stockItems.map(item => item.material_group).filter(g => g));
         
         document.getElementById('totalItems').textContent = totalItems.toLocaleString();
         document.getElementById('totalValue').textContent = `₹${totalValue} Cr`;
         document.getElementById('totalCategories').textContent = uniqueGroups.size;
         document.getElementById('stockTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${totalItems} total items in stock`;
+        document.getElementById('totalItemsHeader').textContent = totalItems.toLocaleString();
         
-        // Update Card 2: Critical Stock Items
-        const criticalItems = filteredStock.filter(item => item.is_critical);
+        // Update critical count in header
+        const criticalCount = stockItems.filter(item => item.is_critical).length;
+        document.getElementById('criticalItemsHeader').textContent = criticalCount;
+        
+        dataVersions.stock++;
+    }
+
+    async function updateCriticalCard() {
+        const stockItems = await loadStockData();
+        const criticalItems = stockItems.filter(item => item.is_critical);
         const lowStock = criticalItems.filter(item => (item.current_stock || 0) > 0).length;
         const outOfStock = criticalItems.filter(item => (item.current_stock || 0) === 0).length;
         
@@ -479,12 +538,19 @@
         document.getElementById('outOfStock').textContent = outOfStock;
         document.getElementById('reorderNeeded').textContent = criticalItems.length;
         document.getElementById('criticalTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${criticalItems.length} items need attention`;
+        document.getElementById('criticalItemsHeader').textContent = criticalItems.length;
         
-        // Update Card 3: Material in Transit
+        dataVersions.critical++;
+    }
+
+    async function updateTransitCard() {
+        const transitSummary = await loadTransitSummary();
+        
         document.getElementById('activeShipments').textContent = transitSummary.total_items || 0;
         document.getElementById('transitQuantity').textContent = (transitSummary.total_quantity || 0).toLocaleString();
         document.getElementById('transitValue').textContent = `₹${((transitSummary.total_quantity || 0) * 0.005).toFixed(2)} Cr`;
         document.getElementById('delayedShipments').textContent = transitSummary.delayed_count || 0;
+        document.getElementById('transitItemsHeader').textContent = transitSummary.total_items || 0;
         
         const ontimeRate = transitSummary.total_items > 0 
             ? Math.round(((transitSummary.total_items - (transitSummary.delayed_count || 0)) / transitSummary.total_items) * 100)
@@ -492,7 +558,13 @@
         document.getElementById('ontimeRate').style.width = `${ontimeRate}%`;
         document.getElementById('ontimePercent').textContent = `${ontimeRate}%`;
         
-        // Update Card 5: Consumption Analysis
+        dataVersions.transit++;
+    }
+
+    async function updateConsumptionCard() {
+        const consumptionData = await loadConsumptionOverview();
+        const topMaterials = await loadTopMaterials();
+        
         if (consumptionData) {
             document.getElementById('monthlyConsumption').textContent = Math.round(consumptionData.avg_monthly || 0);
             document.getElementById('annualConsumption').textContent = Math.round(consumptionData.total_consumption || 0);
@@ -500,16 +572,18 @@
             document.getElementById('consumptionTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${consumptionData.top_material || 'No data'}`;
         }
         
-        // Update Top Items Table
+        // Update top items table
         const topItemsTable = document.getElementById('topItemsTable');
         if (topMaterials && topMaterials.length > 0) {
-            topItemsTable.innerHTML = topMaterials.slice(0, 10).map(item => {
-                const stockItem = filteredStock.find(s => s.material_code === item.material_code);
+            const stockItems = await loadStockData();
+            topItemsTable.innerHTML = topMaterials.slice(0, 10).map((item, index) => {
+                const stockItem = stockItems.find(s => s.material_code === item.material_code);
                 const stockStatus = stockItem?.is_critical ? 'Critical' : (stockItem ? 'Available' : 'No Stock');
                 const statusClass = stockStatus === 'Critical' ? 'bg-danger' : (stockStatus === 'Available' ? 'bg-success' : 'bg-secondary');
                 
                 return `
                     <tr>
+                        <td>${index + 1}</td>
                         <td><code>${item.material_code}</code></td>
                         <td><strong>${item.material_name || item.material_code}</strong></td>
                         <td>${item.material_group || '-'}</td>
@@ -519,15 +593,26 @@
                     </tr>
                 `;
             }).join('');
+            document.getElementById('topItemsTimestamp').innerHTML = `<i class="bi bi-clock"></i> Updated: ${getCurrentTimestamp()}`;
         } else {
-            topItemsTable.innerHTML = '<tr><td colspan="6" class="text-center">No consumption data available</td></tr>';
+            topItemsTable.innerHTML = '<tr><td colspan="7" class="text-center">No consumption data available</td></tr>';
         }
         
-        // Update Card 4 & 6 with placeholder data
+        dataVersions.consumption++;
+    }
+
+    async function updateIncomingCard() {
+        // Placeholder data - simulate update
         document.getElementById('expectedDeliveries').textContent = Math.floor(Math.random() * 20) + 5;
         document.getElementById('incomingQuantity').textContent = Math.floor(Math.random() * 5000) + 500;
         document.getElementById('nextDelivery').textContent = new Date(Date.now() + 3 * 86400000).toLocaleDateString();
+        document.getElementById('incomingTrend').innerHTML = `<i class="bi bi-calendar-check"></i> ${Math.floor(Math.random() * 10) + 1} deliveries expected this week`;
         
+        dataVersions.incoming++;
+    }
+
+    async function updateAllotmentCard() {
+        // Placeholder data - simulate update
         document.getElementById('pendingAllotments').textContent = Math.floor(Math.random() * 30) + 10;
         document.getElementById('completedAllotments').textContent = Math.floor(Math.random() * 200) + 100;
         document.getElementById('monthlyAllotments').textContent = Math.floor(Math.random() * 50) + 20;
@@ -535,37 +620,37 @@
         const completionRate = Math.floor(Math.random() * 30) + 65;
         document.getElementById('completionRate').style.width = `${completionRate}%`;
         document.getElementById('completionPercent').textContent = `${completionRate}%`;
+        
+        dataVersions.allotment++;
     }
 
-    function applyFilters() {
-        updateDashboard();
-    }
-
-    function resetFilters() {
-        document.getElementById('regionFilter').value = 'all';
-        document.getElementById('divisionFilter').value = 'all';
-        updateDashboard();
+    async function updateDashboard() {
+        const timestamp = getCurrentTimestamp();
+        
+        // Update all cards with their respective timestamps
+        await Promise.all([
+            updateStockCard(),
+            updateCriticalCard(),
+            updateTransitCard(),
+            updateConsumptionCard(),
+            updateIncomingCard(),
+            updateAllotmentCard()
+        ]);
+        
+        // Update all timestamps
+        updateCardTimestamp('stockTimestamp', timestamp);
+        updateCardTimestamp('criticalTimestamp', timestamp);
+        updateCardTimestamp('transitTimestamp', timestamp);
+        updateCardTimestamp('consumptionTimestamp', timestamp);
+        updateCardTimestamp('incomingTimestamp', timestamp);
+        updateCardTimestamp('allotmentTimestamp', timestamp);
+        
+        updateGlobalTimestamp();
+        console.log('📊 Dashboard updated at:', getFullTimestamp());
     }
 
     function refreshAllData() {
         updateDashboard();
-    }
-
-    // Update divisions based on region
-    function updateDivisions() {
-        const region = document.getElementById('regionFilter').value;
-        const divSelect = document.getElementById('divisionFilter');
-        divSelect.innerHTML = '<option value="all">All Divisions</option>';
-        
-        if (region !== 'all' && regionDivisions[region]) {
-            regionDivisions[region].forEach(division => {
-                const option = document.createElement('option');
-                option.value = division.toLowerCase().replace(/\s+/g, '-');
-                option.textContent = division;
-                divSelect.appendChild(option);
-            });
-        }
-        applyFilters();
     }
 
     document.addEventListener('DOMContentLoaded', async function() {
@@ -574,18 +659,68 @@
         // Load monthly averages first
         await loadMonthlyAverages();
         
-        // Setup region change handler
-        document.getElementById('regionFilter').addEventListener('change', updateDivisions);
-        
         // Initial load
         await updateDashboard();
         
         // Auto-refresh every 5 minutes
-        setInterval(updateDashboard, 300000);
+        setInterval(() => {
+            updateDashboard();
+        }, 300000);
     });
 </script>
 
 <style>
+    /* Quick Stats Banner */
+    .quick-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        background: white;
+        border-radius: 15px;
+        padding: 15px 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f6;
+        justify-content: space-around;
+    }
+    
+    .quick-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .quick-stat-item i {
+        font-size: 1.3rem;
+    }
+    
+    .quick-stat-item strong {
+        color: #1e2b3a;
+    }
+
+    /* Card Timestamp */
+    .card-timestamp {
+        font-size: 0.6rem;
+        background: rgba(255,255,255,0.2);
+        padding: 3px 10px;
+        border-radius: 12px;
+        color: rgba(255,255,255,0.9);
+        white-space: nowrap;
+        cursor: default;
+        transition: all 0.3s ease;
+    }
+    
+    .card-timestamp:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.05);
+    }
+    
+    .card-timestamp.updated {
+        color: #28a745;
+    }
+
     .inventory-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -617,7 +752,7 @@
     }
 
     .card-header-green, .card-header-red, .card-header-blue, .card-header-purple, .card-header-orange, .card-header-teal {
-        padding: 20px;
+        padding: 15px 20px;
         color: white;
         display: flex;
         justify-content: space-between;
@@ -632,96 +767,35 @@
 
     .card-header-green i, .card-header-red i, .card-header-blue i, .card-header-purple i,
     .card-header-orange i, .card-header-teal i {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
     .card-badge {
         background: rgba(255,255,255,0.2);
-        padding: 5px 12px;
+        padding: 4px 12px;
         border-radius: 50px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
-    .card-body { padding: 25px; }
-    .card-body h3 { margin: 0 0 20px 0; font-size: 1.3rem; color: #333; }
-    .stats-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
-    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .stat-label { color: #666; font-size: 0.9rem; }
-    .stat-value { font-weight: 600; color: #333; font-size: 1.1rem; }
+    .card-body { padding: 20px 25px; }
+    .card-body h3 { margin: 0 0 15px 0; font-size: 1.2rem; color: #333; }
+    .stats-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .stat-label { color: #666; font-size: 0.85rem; }
+    .stat-value { font-weight: 600; color: #333; font-size: 1rem; }
     .stat-value.critical { color: #dc3545; }
     .stat-value.warning { color: #fd7e14; }
-    .trend-indicator { font-size: 0.8rem; padding: 8px; border-radius: 8px; text-align: center; margin-top: 10px; }
+    .trend-indicator { font-size: 0.75rem; padding: 6px 10px; border-radius: 8px; text-align: center; margin-top: 8px; }
     .trend-indicator.positive { background: #d4edda; color: #155724; }
     .trend-indicator.negative { background: #f8d7da; color: #721c24; }
-    .card-footer { padding: 15px 25px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    .location { color: #666; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
-    .details-link { color: #667eea; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .card-footer { padding: 12px 25px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .location { color: #666; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; }
+    .details-link { color: #667eea; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
     .details-link:hover { color: #764ba2; }
-    .progress-bar-container { margin-top: 15px; }
-    .progress-label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
-    .progress-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; background: linear-gradient(90deg, #20c997, #17a2b8); }
-    .progress-percent { font-size: 0.75rem; color: #666; margin-top: 5px; text-align: right; }
+    .progress-bar-container { margin-top: 12px; }
+    .progress-label { font-size: 0.75rem; color: #666; margin-bottom: 4px; }
+    .progress-bar { height: 6px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; background: linear-gradient(90deg, #20c997, #17a2b8); }
+    .progress-percent { font-size: 0.7rem; color: #666; margin-top: 4px; text-align: right; }
 
-    .filter-section {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-    }
-    .filter-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        align-items: flex-end;
-    }
-    .filter-group { flex: 1; min-width: 150px; }
-    .filter-group label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #666; font-weight: 500; }
-    .filter-select {
-        width: 100%;
-        padding: 10px 12px;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        background: white;
-        transition: all 0.3s;
-    }
-    .filter-select:focus { outline: none; border-color: #667eea; }
-    .filter-actions { display: flex; gap: 10px; }
-    .btn-apply {
-        padding: 10px 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .btn-reset {
-        padding: 10px 20px;
-        background: #e9ecef;
-        color: #495057;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .active-filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 15px;
-    }
-    .filter-badge {
-        background: #e9ecef;
-        color: #495057;
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-    }
     .top-items-section {
         margin-top: 40px;
     }
@@ -730,9 +804,10 @@
         align-items: center;
         gap: 10px;
         margin-bottom: 20px;
+        flex-wrap: wrap;
     }
     .section-title i { font-size: 1.5rem; color: #667eea; }
-    .section-title h2 { font-size: 1.4rem; font-weight: 600; color: #1e2b3a; margin: 0; }
+    .section-title h2 { font-size: 1.3rem; font-weight: 600; color: #1e2b3a; margin: 0; }
     .items-table-container {
         background: white;
         border-radius: 16px;
@@ -742,10 +817,10 @@
         overflow-x: auto;
     }
     .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { text-align: left; padding: 12px 10px; background: #f8fafd; font-size: 0.75rem; font-weight: 600; color: #1e2b3a; border-bottom: 2px solid #eef2f6; }
-    .data-table td { padding: 10px; border-bottom: 1px solid #eef2f6; font-size: 0.85rem; color: #1e2b3a; }
+    .data-table th { text-align: left; padding: 10px 10px; background: #f8fafd; font-size: 0.7rem; font-weight: 600; color: #1e2b3a; border-bottom: 2px solid #eef2f6; }
+    .data-table td { padding: 8px 10px; border-bottom: 1px solid #eef2f6; font-size: 0.8rem; color: #1e2b3a; }
     .data-table tr:hover { background: #f8fafd; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
     .badge.bg-success { background: #28a745; color: white; }
     .badge.bg-danger { background: #dc3545; color: white; }
     .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
@@ -753,23 +828,74 @@
     .welcome-banner {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         border-radius: 15px;
-        padding: 30px;
+        padding: 25px 30px;
         margin-bottom: 30px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
     }
-    .welcome-text h1 { font-size: 2rem; font-weight: 700; color: #333; margin-bottom: 10px; }
-    .welcome-text p { color: #666; font-size: 1.1rem; }
-    .date-badge { background: white; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .welcome-text h1 { font-size: 1.8rem; font-weight: 700; color: #333; margin-bottom: 5px; }
+    .welcome-text p { color: #666; font-size: 1rem; }
+    .date-badge { 
+        background: white; 
+        padding: 8px 18px; 
+        border-radius: 50px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
     .text-center { text-align: center; }
+    code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    
+    /* Animation for timestamp updates */
+    @keyframes timestampPulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    .timestamp-updating {
+        animation: timestampPulse 0.6s ease;
+    }
+    
     @media (max-width: 768px) {
         .inventory-grid { grid-template-columns: 1fr; }
         .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
         .welcome-text h1 { font-size: 1.4rem; }
-        .filter-row { flex-direction: column; }
-        .filter-group { width: 100%; }
-        .filter-actions { width: 100%; }
+        .welcome-text p { font-size: 0.85rem; }
+        .quick-stats { 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 8px;
+            padding: 12px 20px;
+        }
+        .quick-stat-item { font-size: 0.8rem; }
+        .data-table { font-size: 0.75rem; }
+        .data-table th, .data-table td { padding: 6px 5px; }
+        .card-body h3 { font-size: 1rem; }
+        .card-timestamp { font-size: 0.5rem; padding: 2px 8px; }
+        .date-badge { font-size: 0.8rem; padding: 6px 14px; }
+    }
+    
+    @media (max-width: 576px) {
+        .welcome-text h1 { font-size: 1.2rem; }
+        .quick-stat-item { font-size: 0.7rem; }
+        .quick-stat-item i { font-size: 0.9rem; }
+        .data-table { font-size: 0.65rem; }
+        .data-table th, .data-table td { padding: 4px 3px; }
+        .badge { font-size: 0.55rem; padding: 2px 5px; }
+        code { font-size: 0.6rem; }
+        .stat-label { font-size: 0.7rem; }
+        .stat-value { font-size: 0.85rem; }
+        .card-header-green i, .card-header-red i, .card-header-blue i, 
+        .card-header-purple i, .card-header-orange i, .card-header-teal i {
+            font-size: 1.3rem;
+        }
+        .card-timestamp { font-size: 0.45rem; padding: 2px 6px; }
+        .details-link { font-size: 0.7rem; }
     }
 </style>
 {% endblock %}

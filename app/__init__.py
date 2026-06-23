@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, session
 import os
 from dotenv import load_dotenv
 
@@ -26,8 +26,25 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp)
     
-    # Print template folder for debugging
-    print(f"📁 Templates folder: {template_dir}")
+    # ================================================================
+    # CONTEXT PROCESSOR - Makes user available to ALL templates
+    # ================================================================
+    @app.context_processor
+    def inject_user():
+        """Inject user into all templates"""
+        return dict(user=session.get('user'))
+    
+    # ================================================================
+    # DEBUG: Print template folder and registered routes
+    # ================================================================
+    print("\n" + "=" * 60)
+    print("📁 Templates folder:", template_dir)
     print(f"📁 Login.html exists: {os.path.exists(os.path.join(template_dir, 'login.html'))}")
+    
+    print("\n📋 REGISTERED ROUTES:")
+    print("=" * 60)
+    for rule in app.url_map.iter_rules():
+        print(f"   {rule.endpoint}: {rule.rule}")
+    print("=" * 60 + "\n")
     
     return app

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Insight Siliguri</title>
+    <title>Login - IMS Siliguri</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -213,6 +213,89 @@
             color: #667eea;
             margin: 0 3px;
         }
+
+        /* ================================================================
+           RESPONSIVE DESIGN
+           ================================================================ */
+        @media (max-width: 576px) {
+            .login-header {
+                padding: 30px 20px;
+            }
+            
+            .login-header i {
+                font-size: 2.5rem;
+                padding: 12px;
+            }
+            
+            .login-header h2 {
+                font-size: 1.4rem;
+            }
+            
+            .login-body {
+                padding: 30px 20px;
+            }
+            
+            .form-control {
+                font-size: 0.85rem;
+                padding: 10px 12px 10px 40px;
+            }
+            
+            .btn-login {
+                font-size: 0.9rem;
+                padding: 12px;
+            }
+            
+            .login-footer p {
+                font-size: 0.8rem;
+            }
+            
+            .login-footer small {
+                font-size: 0.7rem;
+            }
+            
+            .alert {
+                padding: 12px 15px;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .login-container {
+                max-width: 100%;
+            }
+            
+            .login-header i {
+                font-size: 2rem;
+                padding: 10px;
+            }
+            
+            .login-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .login-body {
+                padding: 20px 15px;
+            }
+            
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .form-control {
+                font-size: 0.8rem;
+                padding: 8px 10px 8px 35px;
+            }
+            
+            .input-group i {
+                left: 12px;
+                font-size: 0.9rem;
+            }
+            
+            .btn-login {
+                font-size: 0.8rem;
+                padding: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -221,13 +304,13 @@
             <!-- Header -->
             <div class="login-header">
                 <i class="bi bi-box-seam"></i>
-                <h2>Insight Siliguri</h2>
-                <p>Know Your Priority</p>
+                <h2>IMS Siliguri</h2>
+                <p>Inventory Management System</p>
             </div>
 
             <!-- Body -->
             <div class="login-body">
-                <!-- Flash Messages - Professional Styling -->
+                <!-- Flash Messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         <div class="flash-messages">
@@ -247,14 +330,22 @@
                     {% endif %}
                 {% endwith %}
 
-                <!-- Login Form -->
+                <!-- Error Message (from login route) -->
+                {% if error %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>{{ error }}</span>
+                    </div>
+                {% endif %}
+
+                <!-- Login Form - Updated with Username -->
                 <form method="POST" action="/login">
                     <div class="form-group">
-                        <label>Email Address</label>
+                        <label>Username</label>
                         <div class="input-group">
-                            <i class="bi bi-envelope"></i>
-                            <input type="email" class="form-control" name="email" 
-                                   placeholder="Enter your email" required>
+                            <i class="bi bi-person"></i>
+                            <input type="text" class="form-control" name="username" 
+                                   placeholder="Enter your username" required autofocus>
                         </div>
                     </div>
 
@@ -283,7 +374,10 @@
                         <i class="bi bi-person-circle"></i>
                         Subhmy - Siliguri Zone
                     </small><br>
-                    <small>Version 1.0 | February 2026</small>
+                    <small>
+                        <i class="bi bi-clock-history"></i>
+                        Version 2.0 | June 2026
+                    </small>
                 </div>
             </div>
         </div>

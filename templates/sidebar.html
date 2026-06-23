@@ -15,19 +15,32 @@
                 <i class="bi bi-chevron-down chevron"></i>
             </div>
             <div class="submenu">
+                <!-- ADMINISTRATIVE - ADMIN ONLY -->
+                {% if user and user.role == 'admin' %}
                 <a href="{{ url_for('main.admin_overview') }}" class="submenu-link"><i class="bi bi-person-badge"></i>ADMINISTRATIVE</a>
+                {% endif %}
+                
+                <!-- TECHNICAL - ADMIN & MANAGER ONLY -->
+                {% if user and (user.role == 'admin' or user.role == 'manager') %}
                 <a href="{{ url_for('main.technical_overview') }}" class="submenu-link"><i class="bi bi-globe2"></i>TECHNICAL DASHBOARD</a>
+                {% endif %}
+                
+                <!-- COMMERCIAL - ADMIN & MANAGER ONLY -->
+                {% if user and (user.role == 'admin' or user.role == 'manager') %}
                 <a href="{{ url_for('main.commercial_overview') }}" class="submenu-link"><i class="bi bi-currency-rupee"></i>COMMERCIAL</a>
+                {% endif %}
             </div>
         </div>
 
-        <!-- HIGH PRIORITY WORKS -->
+        <!-- HIGH PRIORITY WORKS - ADMIN & MANAGER ONLY -->
+        {% if user and (user.role == 'admin' or user.role == 'manager') %}
         <a href="{{ url_for('main.priority_works_overview') }}" class="menu-link priority">
             <div class="left-content"><i class="bi bi-exclamation-triangle-fill"></i><span>HIGH PRIORITY WORKS</span></div>
             <i class="bi bi-chevron-right"></i>
         </a>
+        {% endif %}
 
-        <!-- INVENTORY MANAGEMENT DASHBOARD -->
+        <!-- INVENTORY MANAGEMENT DASHBOARD - ALL USERS -->
         <a href="{{ url_for('main.inventory_dashboard') }}" class="menu-link inventory">
             <div class="left-content"><i class="bi bi-box-seam"></i><span>INVENTORY MANAGEMENT</span></div>
             <i class="bi bi-chevron-right"></i>
@@ -36,15 +49,15 @@
 
     <div class="user-section">
         <div class="user-info">
-            <div class="user-avatar">{{ user.email[0]|upper if user else 'U' }}</div>
+            <div class="user-avatar">{{ user.name[0]|upper if user and user.name else user.username[0]|upper if user and user.username else 'U' }}</div>
             <div class="user-details">
-                <div class="user-email">{{ user.email if user else 'user@example.com' }}</div>
+                <div class="user-email">{{ user.name if user and user.name else user.username if user and user.username else 'user@example.com' }}</div>
                 <span class="user-role {{ 'role-manager' if user.role=='manager' else 'role-authority' if user.role=='authority' else 'role-user' }}">
-                    <i class="bi bi-person-badge"></i> {{ user.role|upper if user else 'USER' }}
+                    <i class="bi bi-person-badge"></i> {{ user.role|upper if user and user.role else 'USER' }}
                 </span>
             </div>
         </div>
-        <a href="/logout" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        <a href="{{ url_for('auth.logout') }}" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 </div>
 
@@ -73,11 +86,55 @@
 </style>
 
 <script>
-function toggleSubmenu(el){let submenu=el.closest('.menu-item')?.querySelector('.submenu'),chevron=el.querySelector('.chevron');if(submenu){submenu.classList.toggle('open');if(chevron)chevron.classList.toggle('rotated');}}
-function toggleSidebar(){document.getElementById('sidebar')?.classList.toggle('open');document.getElementById('sidebarOverlay')?.classList.toggle('show');}
-function closeSidebar(){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('sidebarOverlay')?.classList.remove('show');}
-document.addEventListener('DOMContentLoaded',()=>{let path=window.location.pathname;
-if(path.includes('admin')||path.includes('technical')||path.includes('commercial')){let parent=document.querySelector('.menu-item'),sub=parent?.querySelector('.submenu'),chev=parent?.querySelector('.chevron');if(sub){sub.classList.add('open');if(chev)chev.classList.add('rotated');}}
-if(path.includes('inventory')){let inventoryLink=document.querySelector('.inventory');if(inventoryLink){inventoryLink.style.background='#2c3e50';inventoryLink.style.color='white';}}
-document.querySelectorAll('.menu-link, .submenu-link').forEach(link=>{if(link.getAttribute('href')===path){link.style.background='#2c3e50';link.style.color='white';}});});
+function toggleSubmenu(el){
+    let submenu = el.closest('.menu-item')?.querySelector('.submenu');
+    let chevron = el.querySelector('.chevron');
+    if(submenu){
+        submenu.classList.toggle('open');
+        if(chevron) chevron.classList.toggle('rotated');
+    }
+}
+
+function toggleSidebar(){
+    document.getElementById('sidebar')?.classList.toggle('open');
+    document.getElementById('sidebarOverlay')?.classList.toggle('show');
+}
+
+function closeSidebar(){
+    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('sidebarOverlay')?.classList.remove('show');
+}
+
+// Close sidebar on overlay click
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('sidebarOverlay');
+    if(overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+});
+
+// Auto-open submenu and highlight active items
+document.addEventListener('DOMContentLoaded', function() {
+    let path = window.location.pathname;
+    
+    // Auto-expand GENERAL OVERVIEW submenu if on subpage
+    if(path.includes('admin') || path.includes('technical') || path.includes('commercial')) {
+        let parent = document.querySelector('.menu-item');
+        let sub = parent?.querySelector('.submenu');
+        let chev = parent?.querySelector('.chevron');
+        if(sub) {
+            sub.classList.add('open');
+            if(chev) chev.classList.add('rotated');
+        }
+    }
+    
+    // Highlight active menu items
+    document.querySelectorAll('.menu-link, .submenu-link').forEach(link => {
+        let href = link.getAttribute('href');
+        if(href && path.includes(href)) {
+            link.style.background = '#2c3e50';
+            link.style.color = 'white';
+        }
+    });
+});
 </script>
