@@ -2,7 +2,7 @@
 MongoDB Database Helper for IMS Siliguri
 Supports both siliguri_electrical (inventory data) and ims_siliguri (user data)
 Enhanced with connection pooling, caching, and performance optimizations
-Last Updated: June 23, 2026
+Last Updated: June 23, 2026 - FIXED: TLS connection conflict on Render
 """
 
 from pymongo import MongoClient
@@ -156,10 +156,14 @@ def get_connection_options():
     # TLS only for Atlas (not for local)
     if not IS_LOCAL:
         options['tls'] = True
-        options['tlsAllowInvalidCertificates'] = True
-    
-    if IS_RENDER:
-        options['tlsInsecure'] = True
+        # CRITICAL FIX: Use ONLY ONE of these options, not both!
+        if IS_RENDER:
+            # Render environment: use tlsInsecure
+            options['tlsInsecure'] = True
+            print("⚙️ Render environment: Using tlsInsecure=True")
+        else:
+            # Local development with Atlas: use tlsAllowInvalidCertificates
+            options['tlsAllowInvalidCertificates'] = True
     
     return options
 
