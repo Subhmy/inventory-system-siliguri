@@ -1,4 +1,4 @@
-<!-- sidebar.html - Ultra Slim Responsive Sidebar with Mobile Logout -->
+<!-- sidebar.html - Enhanced Responsive Sidebar with Beautiful Modal Logout -->
 <div class="sidebar" id="sidebar">
     <!-- Sidebar Header -->
     <div class="sidebar-header">
@@ -59,23 +59,15 @@
             </div>
         </div>
         <!-- Desktop Logout Button -->
-        <a href="{{ url_for('auth.logout') }}" class="logout-btn desktop-logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </div>
-    
-    <!-- Mobile Logout Button - Always visible at bottom of sidebar -->
-    <div class="mobile-logout-container">
-        <a href="{{ url_for('auth.logout') }}" class="logout-btn mobile-logout-btn">
+        <a href="#" class="logout-btn desktop-logout" onclick="showLogoutModal(event)">
             <i class="bi bi-box-arrow-right"></i> Logout
         </a>
     </div>
 </div>
 
-<!-- Mobile Floating Logout Button - Always visible when sidebar is closed -->
-<div class="mobile-floating-logout" id="mobileFloatingLogout" onclick="confirmLogout()">
-    <i class="bi bi-box-arrow-right"></i>
-</div>
-
-<!-- Mobile Header with Toggle and Logout -->
+<!-- ================================================================
+     MOBILE HEADER - Clean Single Logout Button
+     ================================================================ -->
 <div class="mobile-header" id="mobileHeader">
     <button class="menu-toggle" onclick="toggleSidebar()">
         <i class="bi bi-list"></i>
@@ -83,13 +75,37 @@
     <div class="mobile-header-title">
         <i class="bi bi-box-seam"></i> IMS Siliguri
     </div>
-    <button class="mobile-logout-icon" onclick="confirmLogout()" title="Logout">
+    <button class="mobile-logout-icon" onclick="showLogoutModal(event)" title="Logout">
         <i class="bi bi-box-arrow-right"></i>
     </button>
 </div>
 
-<!-- Sidebar Overlay -->
+<!-- ================================================================
+     SIDEBAR OVERLAY
+     ================================================================ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ================================================================
+     LOGOUT CONFIRMATION MODAL - Beautiful & Centered
+     ================================================================ -->
+<div class="logout-modal-overlay" id="logoutModal">
+    <div class="logout-modal">
+        <div class="logout-modal-icon">
+            <i class="bi bi-box-arrow-right"></i>
+        </div>
+        <h3>Logout Confirmation</h3>
+        <p>Are you sure you want to logout from <strong>IMS Siliguri</strong>?</p>
+        <p class="logout-user"><i class="bi bi-person-circle"></i> {{ user.name if user and user.name else user.username if user and user.username else 'User' }}</p>
+        <div class="logout-modal-actions">
+            <button class="btn-cancel" onclick="hideLogoutModal()">
+                <i class="bi bi-x-circle"></i> Cancel
+            </button>
+            <button class="btn-confirm" onclick="performLogout()">
+                <i class="bi bi-check-circle"></i> Logout
+            </button>
+        </div>
+    </div>
+</div>
 
 <style>
 /* ================================================================
@@ -117,7 +133,7 @@
 .sidebar::-webkit-scrollbar-thumb { background: #3a4a5a; border-radius: 10px; }
 
 /* ================================================================
-   MOBILE HEADER - Always visible on top
+   MOBILE HEADER - Clean & Visible
    ================================================================ */
 .mobile-header {
     display: none;
@@ -125,11 +141,11 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 56px;
+    height: 60px;
     background: linear-gradient(135deg, #1e2b3a, #0f1a26);
     color: white;
     z-index: 999;
-    padding: 0 12px;
+    padding: 0 16px;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -140,23 +156,30 @@
     background: none;
     border: none;
     color: white;
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     padding: 8px 10px;
     cursor: pointer;
     border-radius: 8px;
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mobile-header .menu-toggle:hover {
     background: rgba(255,255,255,0.1);
 }
 
+.mobile-header .menu-toggle:active {
+    transform: scale(0.9);
+}
+
 .mobile-header .mobile-header-title {
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .mobile-header .mobile-header-title i {
@@ -167,16 +190,168 @@
     background: none;
     border: none;
     color: #ff6b6b;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     padding: 8px 10px;
     cursor: pointer;
     border-radius: 8px;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .mobile-header .mobile-logout-icon:hover {
     background: rgba(255,107,107,0.15);
     color: #ff4757;
+}
+
+.mobile-header .mobile-logout-icon:active {
+    transform: scale(0.9);
+}
+
+/* ================================================================
+   LOGOUT MODAL - Beautiful, Centered, Full Screen Overlay
+   ================================================================ */
+.logout-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    animation: modalFadeIn 0.3s ease;
+}
+
+.logout-modal-overlay.show {
+    display: flex;
+}
+
+.logout-modal {
+    background: white;
+    border-radius: 28px;
+    padding: 40px 35px 32px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+    animation: modalSlideUp 0.35s ease;
+}
+
+.logout-modal-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fef0f0, #fdd8d8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+}
+
+.logout-modal-icon i {
+    font-size: 2.8rem;
+    color: #dc3545;
+}
+
+.logout-modal h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e2b3a;
+    margin: 0 0 8px;
+}
+
+.logout-modal p {
+    font-size: 0.95rem;
+    color: #6c757d;
+    margin: 0 0 4px;
+    line-height: 1.5;
+}
+
+.logout-modal .logout-user {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 24px;
+    font-size: 1rem;
+}
+
+.logout-modal .logout-user i {
+    color: #5fa4ee;
+    margin-right: 6px;
+}
+
+.logout-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.logout-modal-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex: 1;
+    justify-content: center;
+}
+
+.logout-modal-actions .btn-cancel {
+    background: #f1f3f5;
+    color: #495057;
+}
+
+.logout-modal-actions .btn-cancel:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.logout-modal-actions .btn-cancel:active {
+    transform: scale(0.95);
+}
+
+.logout-modal-actions .btn-confirm {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    box-shadow: 0 4px 20px rgba(220, 53, 69, 0.35);
+}
+
+.logout-modal-actions .btn-confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(220, 53, 69, 0.45);
+}
+
+.logout-modal-actions .btn-confirm:active {
+    transform: scale(0.95);
+}
+
+/* ================================================================
+   MODAL ANIMATIONS
+   ================================================================ */
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ================================================================
@@ -187,9 +362,9 @@
         transform: translateX(-100%);
         width: 85%;
         max-width: 300px;
-        top: 56px;
-        height: calc(100vh - 56px);
-        border-radius: 0 12px 12px 0;
+        top: 60px;
+        height: calc(100vh - 60px);
+        border-radius: 0 16px 16px 0;
         box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     
@@ -207,15 +382,15 @@
         display: none !important;
     }
     
-    /* Show mobile logout container in sidebar */
-    .mobile-logout-container {
+    /* Mobile logout button in sidebar */
+    .mobile-logout-in-sidebar {
         display: block !important;
         padding: 10px 20px 5px;
         border-top: 1px solid rgba(255,255,255,0.08);
         margin-top: auto;
     }
     
-    .mobile-logout-btn {
+    .mobile-logout-btn-sidebar {
         display: flex !important;
         align-items: center;
         justify-content: center;
@@ -223,58 +398,28 @@
         width: 100%;
         padding: 12px;
         background: rgba(220, 53, 69, 0.15);
-        border: 1px solid rgba(220, 53, 69, 0.3);
-        border-radius: 10px;
+        border: 1px solid rgba(220, 53, 69, 0.25);
+        border-radius: 12px;
         color: #ff6b6b;
         text-decoration: none;
         font-weight: 600;
         font-size: 0.9rem;
         transition: all 0.2s;
+        cursor: pointer;
     }
     
-    .mobile-logout-btn:hover {
+    .mobile-logout-btn-sidebar:hover {
         background: rgba(220, 53, 69, 0.25);
         border-color: rgba(220, 53, 69, 0.5);
         color: #ff4757;
     }
     
-    .mobile-logout-btn i {
+    .mobile-logout-btn-sidebar:active {
+        transform: scale(0.97);
+    }
+    
+    .mobile-logout-btn-sidebar i {
         font-size: 1.1rem;
-    }
-    
-    /* Floating logout button - always visible on mobile when sidebar is closed */
-    .mobile-floating-logout {
-        display: flex !important;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 56px;
-        height: 56px;
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-        border-radius: 50%;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
-        z-index: 100;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: none;
-    }
-    
-    .mobile-floating-logout:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 25px rgba(220, 53, 69, 0.6);
-    }
-    
-    .mobile-floating-logout:active {
-        transform: scale(0.95);
-    }
-    
-    /* Hide floating logout when sidebar is open */
-    .sidebar.open ~ .mobile-floating-logout {
-        display: none !important;
     }
     
     /* Adjust user section padding on mobile */
@@ -283,14 +428,37 @@
         border-top: 1px solid rgba(255,255,255,0.08);
         margin-top: auto;
     }
+    
+    /* Modal adjustments for mobile */
+    .logout-modal {
+        padding: 32px 24px 28px;
+        border-radius: 24px;
+        width: 92%;
+    }
+    
+    .logout-modal-icon {
+        width: 68px;
+        height: 68px;
+    }
+    
+    .logout-modal-icon i {
+        font-size: 2.4rem;
+    }
+    
+    .logout-modal h3 {
+        font-size: 1.3rem;
+    }
+    
+    .logout-modal-actions button {
+        padding: 10px 16px;
+        font-size: 0.8rem;
+        flex: 1;
+    }
 }
 
 /* Desktop: Hide mobile elements */
 @media (min-width: 769px) {
-    .mobile-logout-container {
-        display: none !important;
-    }
-    .mobile-floating-logout {
+    .mobile-logout-in-sidebar {
         display: none !important;
     }
 }
@@ -372,7 +540,7 @@
 .role-manager { background: rgba(255,193,7,0.2); color: #ffc107; border: 1px solid rgba(255,193,7,0.3); }
 .role-authority { background: rgba(220,53,69,0.2); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
 
-.logout-btn { display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(255,255,255,0.05); border-radius: 8px; color: #e0e0e0; text-decoration: none; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+.logout-btn { display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(255,255,255,0.05); border-radius: 8px; color: #e0e0e0; text-decoration: none; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
 .logout-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
 .logout-btn i { color: #5fa4ee; }
 
@@ -383,8 +551,8 @@
     .sidebar {
         width: 90%;
         max-width: 280px;
-        top: 56px;
-        height: calc(100vh - 56px);
+        top: 60px;
+        height: calc(100vh - 60px);
     }
     
     .mobile-header .mobile-header-title {
@@ -392,21 +560,13 @@
     }
     
     .mobile-header .menu-toggle {
-        font-size: 1.4rem;
+        font-size: 1.5rem;
         padding: 6px 8px;
     }
     
     .mobile-header .mobile-logout-icon {
-        font-size: 1.1rem;
-        padding: 6px 8px;
-    }
-    
-    .mobile-floating-logout {
-        width: 48px;
-        height: 48px;
         font-size: 1.2rem;
-        bottom: 15px;
-        right: 15px;
+        padding: 6px 8px;
     }
     
     .menu-link {
@@ -431,67 +591,48 @@
         padding: 15px 16px;
     }
     
-    .mobile-logout-btn {
+    .mobile-logout-btn-sidebar {
         padding: 10px;
         font-size: 0.8rem;
+    }
+    
+    .logout-modal {
+        padding: 28px 20px 24px;
+        border-radius: 20px;
+    }
+    
+    .logout-modal-icon {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .logout-modal-icon i {
+        font-size: 2rem;
+    }
+    
+    .logout-modal h3 {
+        font-size: 1.1rem;
+    }
+    
+    .logout-modal p {
+        font-size: 0.85rem;
+    }
+    
+    .logout-modal-actions button {
+        padding: 10px 12px;
+        font-size: 0.75rem;
+        gap: 6px;
     }
 }
 
 /* ================================================================
-   TOAST NOTIFICATION
-   ================================================================ */
-.logout-toast {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.85);
-    color: white;
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    z-index: 9999;
-    display: none;
-    align-items: center;
-    gap: 12px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-
-.logout-toast.show {
-    display: flex;
-    animation: slideUp 0.3s ease;
-}
-
-.logout-toast .btn-yes {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 6px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.logout-toast .btn-no {
-    background: rgba(255,255,255,0.15);
-    color: white;
-    border: none;
-    padding: 6px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-/* ================================================================
-   PREVENT BODY SCROLL WHEN SIDEBAR OPEN
+   BODY SCROLL LOCK
    ================================================================ */
 body.sidebar-open {
+    overflow: hidden;
+}
+
+body.modal-open {
     overflow: hidden;
 }
 </style>
@@ -528,49 +669,50 @@ function closeSidebar(){
 }
 
 // ================================================================
-// LOGOUT CONFIRMATION
+// LOGOUT MODAL FUNCTIONS
 // ================================================================
-let logoutCallback = null;
-
-function confirmLogout() {
-    // Check if already showing
-    let existingToast = document.querySelector('.logout-toast');
-    if(existingToast) {
-        existingToast.remove();
-        return;
+function showLogoutModal(e) {
+    if(e) {
+        e.preventDefault();
+        e.stopPropagation();
     }
-    
-    let toast = document.createElement('div');
-    toast.className = 'logout-toast show';
-    toast.innerHTML = `
-        <span>⚠️ Are you sure you want to logout?</span>
-        <button class="btn-no" onclick="cancelLogout()">Cancel</button>
-        <button class="btn-yes" onclick="performLogout()">Logout</button>
-    `;
-    document.body.appendChild(toast);
-    
-    // Auto hide after 10 seconds
-    setTimeout(() => {
-        if(toast.parentNode) toast.remove();
-    }, 10000);
+    let modal = document.getElementById('logoutModal');
+    if(modal) {
+        modal.classList.add('show');
+        document.body.classList.add('modal-open');
+        // Close sidebar if open
+        closeSidebar();
+    }
 }
 
-function cancelLogout() {
-    let toast = document.querySelector('.logout-toast');
-    if(toast) toast.remove();
+function hideLogoutModal() {
+    let modal = document.getElementById('logoutModal');
+    if(modal) {
+        modal.classList.remove('show');
+        document.body.classList.remove('modal-open');
+    }
 }
 
 function performLogout() {
-    let toast = document.querySelector('.logout-toast');
-    if(toast) toast.remove();
+    hideLogoutModal();
+    // Use window.location for redirect
     window.location.href = "{{ url_for('auth.logout') }}";
 }
 
-// Close sidebar on escape key
+// ================================================================
+// CLOSE MODAL ON ESCAPE OR CLICK OUTSIDE
+// ================================================================
 document.addEventListener('keydown', function(e) {
     if(e.key === 'Escape') {
+        hideLogoutModal();
         closeSidebar();
-        cancelLogout();
+    }
+});
+
+// Close modal when clicking overlay
+document.getElementById('logoutModal')?.addEventListener('click', function(e) {
+    if(e.target === this) {
+        hideLogoutModal();
     }
 });
 
