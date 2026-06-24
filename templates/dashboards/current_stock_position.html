@@ -25,76 +25,138 @@
     </a>
     
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button onclick="exportToExcel()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer;">
+        <button onclick="exportToExcel()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             <i class="bi bi-file-excel-fill"></i>
             <span>Export Excel</span>
         </button>
-        <button onclick="exportToPDF()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; border-radius: 50px; cursor: pointer;">
+        <button onclick="exportToPDF()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             <i class="bi bi-file-pdf-fill"></i>
             <span>Export PDF</span>
         </button>
-        <button onclick="refreshData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer;">
+        <button onclick="refreshData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             <i class="bi bi-arrow-repeat"></i>
             <span>Refresh</span>
         </button>
-    </div>
-</div>
-
-<!-- Column Visibility Controls - Mobile Only -->
-<div class="column-controls" id="columnControls">
-    <button class="col-toggle-btn" onclick="toggleColumnVisibility()">
-        <i class="bi bi-layout-three-columns"></i> 
-        <span class="col-toggle-text">Show/Hide Columns</span>
-    </button>
-    <div class="col-toggle-dropdown" id="colToggleDropdown">
-        <div class="col-toggle-header">
-            <span><i class="bi bi-eye"></i> Column Visibility</span>
-            <button onclick="toggleAllColumns(true)" class="col-toggle-option">Show All</button>
-            <button onclick="toggleAllColumns(false)" class="col-toggle-option">Hide All</button>
-        </div>
-        <div class="col-toggle-list">
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="sno"> #
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="mat-code"> Mat Code
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="mat-name"> Material Name
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="group"> Group
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="division"> Division
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="current-stock"> Stock
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="unit"> Unit
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="transit"> 🚚 Transit
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="virtual-stock"> Virtual
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="monthly-avg"> Monthly Avg
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="reorder"> Reorder
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="status"> Status
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="stock-months"> Stock Mos
-            </label>
-            <label class="col-toggle-item">
-                <input type="checkbox" checked onchange="updateColumnVisibility()" data-col="action"> Action
-            </label>
+        
+        <!-- ============================================================
+             SHOW/HIDE COLUMNS BUTTON - EXTREME RIGHT CORNER
+             ============================================================ -->
+        <div class="column-toggle-wrapper" style="position: relative; display: inline-block;">
+            <button onclick="toggleColumnMenu()" style="
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 20px;
+                background: linear-gradient(135deg, #6c757d, #495057);
+                color: white;
+                border: none;
+                border-radius: 50px;
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.3s ease;"
+                onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(108, 117, 125, 0.5)';" 
+                onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                <i class="bi bi-layout-three-columns"></i>
+                <span>Show/Hide Columns</span>
+                <i class="bi bi-chevron-down" id="columnToggleIcon" style="font-size: 0.7rem;"></i>
+            </button>
+            
+            <!-- Dropdown Menu -->
+            <div id="columnMenu" style="
+                display: none;
+                position: absolute;
+                right: 0;
+                top: calc(100% + 10px);
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                padding: 15px 20px;
+                min-width: 200px;
+                z-index: 1000;
+                border: 1px solid #eef2f6;
+                max-height: 400px;
+                overflow-y: auto;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f0f2f5;">
+                    <span style="font-weight: 700; font-size: 0.85rem; color: #1e2b3a;">
+                        <i class="bi bi-eye" style="color: #667eea;"></i> Show/Hide Columns
+                    </span>
+                    <button onclick="resetColumnVisibility()" style="
+                        background: none;
+                        border: none;
+                        color: #667eea;
+                        font-size: 0.7rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        text-decoration: underline;
+                    ">Reset</button>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <!-- Column visibility checkboxes -->
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="sno" checked onchange="updateColumnVisibility()">
+                        <span>#</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="mat-code" checked onchange="updateColumnVisibility()">
+                        <span>Mat Code</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="mat-name" checked onchange="updateColumnVisibility()">
+                        <span>Material Name</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="group" checked onchange="updateColumnVisibility()">
+                        <span>Group</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="division" checked onchange="updateColumnVisibility()">
+                        <span>Division</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="current-stock" checked onchange="updateColumnVisibility()">
+                        <span>Stock</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="unit" checked onchange="updateColumnVisibility()">
+                        <span>Unit</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="transit" checked onchange="updateColumnVisibility()">
+                        <span>🚚 Transit</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="virtual-stock" checked onchange="updateColumnVisibility()">
+                        <span>Virtual</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="monthly-avg" checked onchange="updateColumnVisibility()">
+                        <span>Monthly Avg</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="reorder" checked onchange="updateColumnVisibility()">
+                        <span>Reorder</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="status" checked onchange="updateColumnVisibility()">
+                        <span>Status</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="stock-months" checked onchange="updateColumnVisibility()">
+                        <span>Stock Mos</span>
+                    </label>
+                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" class="col-toggle" data-col="action" checked onchange="updateColumnVisibility()">
+                        <span>Action</span>
+                    </label>
+                </div>
+                
+                <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #f0f2f5; display: flex; gap: 8px;">
+                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Show All</button>
+                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Hide All</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -264,9 +326,6 @@
         <span style="margin-left: auto; font-size: 0.7rem; color: #6c757d;" class="desktop-only">
             <i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit
         </span>
-        <span class="mobile-only" style="margin-left: auto; font-size: 0.6rem; color: #6c757d;">
-            <i class="bi bi-info-circle"></i> Tap to show/hide columns
-        </span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="stockTable">
@@ -334,81 +393,102 @@
     // ================================================================
     // COLUMN VISIBILITY CONTROL
     // ================================================================
-    function toggleColumnVisibility() {
-        const dropdown = document.getElementById('colToggleDropdown');
-        if (dropdown.style.display === 'block') {
-            dropdown.style.display = 'none';
+    function toggleColumnMenu() {
+        const menu = document.getElementById('columnMenu');
+        const icon = document.getElementById('columnToggleIcon');
+        if (menu.style.display === 'block') {
+            menu.style.display = 'none';
+            icon.className = 'bi bi-chevron-down';
         } else {
-            dropdown.style.display = 'block';
+            menu.style.display = 'block';
+            icon.className = 'bi bi-chevron-up';
         }
     }
     
-    function updateColumnVisibility() {
-        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-            const colName = cb.getAttribute('data-col');
-            const isChecked = cb.checked;
-            const columns = document.querySelectorAll(`[data-col="${colName}"]`);
-            columns.forEach(col => {
-                if (isChecked) {
-                    col.style.display = '';
-                } else {
-                    col.style.display = 'none';
-                }
-            });
-        });
-        // Save to localStorage
-        saveColumnVisibility();
-    }
-    
-    function toggleAllColumns(show) {
-        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
-        checkboxes.forEach(cb => {
-            cb.checked = show;
-        });
-        updateColumnVisibility();
-    }
-    
-    function saveColumnVisibility() {
-        const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
-        const visibility = {};
-        checkboxes.forEach(cb => {
-            visibility[cb.getAttribute('data-col')] = cb.checked;
-        });
-        localStorage.setItem('stockColumnVisibility', JSON.stringify(visibility));
-    }
-    
-    function loadColumnVisibility() {
-        const saved = localStorage.getItem('stockColumnVisibility');
-        if (saved) {
-            try {
-                const visibility = JSON.parse(saved);
-                const checkboxes = document.querySelectorAll('.col-toggle-item input[type="checkbox"]');
-                checkboxes.forEach(cb => {
-                    const colName = cb.getAttribute('data-col');
-                    if (visibility.hasOwnProperty(colName)) {
-                        cb.checked = visibility[colName];
-                    }
-                });
-                updateColumnVisibility();
-            } catch(e) {}
-        }
-    }
-    
-    // Close dropdown when clicking outside
+    // Close column menu when clicking outside
     document.addEventListener('click', function(event) {
-        const controls = document.getElementById('columnControls');
-        if (controls && !controls.contains(event.target)) {
-            const dropdown = document.getElementById('colToggleDropdown');
-            if (dropdown) {
-                dropdown.style.display = 'none';
+        const wrapper = document.querySelector('.column-toggle-wrapper');
+        if (wrapper && !wrapper.contains(event.target)) {
+            const menu = document.getElementById('columnMenu');
+            const icon = document.getElementById('columnToggleIcon');
+            if (menu) {
+                menu.style.display = 'none';
+                if (icon) icon.className = 'bi bi-chevron-down';
             }
         }
     });
     
+    function updateColumnVisibility() {
+        const checkboxes = document.querySelectorAll('.col-toggle');
+        checkboxes.forEach(cb => {
+            const colName = cb.dataset.col;
+            const columnClass = `.col-${colName}`;
+            const elements = document.querySelectorAll(columnClass);
+            const isChecked = cb.checked;
+            
+            elements.forEach(el => {
+                if (isChecked) {
+                    el.style.display = '';
+                    el.style.visibility = '';
+                } else {
+                    el.style.display = 'none';
+                    el.style.visibility = 'collapse';
+                }
+            });
+        });
+        
+        // Save preference to localStorage
+        const prefs = {};
+        checkboxes.forEach(cb => {
+            prefs[cb.dataset.col] = cb.checked;
+        });
+        localStorage.setItem('stock_column_prefs', JSON.stringify(prefs));
+    }
+    
+    function loadColumnPreferences() {
+        const saved = localStorage.getItem('stock_column_prefs');
+        if (saved) {
+            try {
+                const prefs = JSON.parse(saved);
+                const checkboxes = document.querySelectorAll('.col-toggle');
+                checkboxes.forEach(cb => {
+                    const colName = cb.dataset.col;
+                    if (colName in prefs) {
+                        cb.checked = prefs[colName];
+                    }
+                });
+                updateColumnVisibility();
+            } catch(e) {
+                // Use defaults
+            }
+        }
+    }
+    
+    function resetColumnVisibility() {
+        const checkboxes = document.querySelectorAll('.col-toggle');
+        checkboxes.forEach(cb => {
+            cb.checked = true;
+        });
+        updateColumnVisibility();
+        localStorage.removeItem('stock_column_prefs');
+    }
+    
+    function showAllColumns() {
+        const checkboxes = document.querySelectorAll('.col-toggle');
+        checkboxes.forEach(cb => { cb.checked = true; });
+        updateColumnVisibility();
+    }
+    
+    function hideAllColumns() {
+        const checkboxes = document.querySelectorAll('.col-toggle');
+        checkboxes.forEach(cb => { cb.checked = false; });
+        updateColumnVisibility();
+    }
+    
     // ================================================================
-    // EXCLUDED MATERIAL GROUPS
+    // END COLUMN VISIBILITY CONTROL
     // ================================================================
+    
     const EXCLUDED_MATERIAL_GROUPS = [
         'monthly=', 'monthly=27', 'monthly= (27 month)', 'qterly=', 'qterly=3', 
         'quarterly=3', 'quarterly=', 'yearly', 'yearly='
@@ -429,7 +509,6 @@
         return false;
     }
     
-    // Division to Plant Code Mapping
     const divisionToPlantMap = {
         'Siliguri Town Division': '3412', 'Kurseong Division': '3413',
         'Darjeeling Division': '3414', 'Sub-Urban Division': '3415',
@@ -1022,7 +1101,7 @@
         loadMaterialGroups();
         loadMaterialsByGroup();
         loadStockData();
-        loadColumnVisibility();
+        loadColumnPreferences();
         
         setInterval(() => {
             loadStockData();
@@ -1061,115 +1140,6 @@
     .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; }
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-    
-    /* ================================================================
-       COLUMN VISIBILITY CONTROLS
-       ================================================================ */
-    .column-controls {
-        position: relative;
-        margin-bottom: 15px;
-        display: flex;
-        justify-content: flex-end;
-    }
-    
-    .col-toggle-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background: white;
-        border: 2px solid #eef2f6;
-        border-radius: 12px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #1e2b3a;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    .col-toggle-btn:hover {
-        border-color: #667eea;
-        box-shadow: 0 4px 15px rgba(102,126,234,0.2);
-    }
-    
-    .col-toggle-btn i { color: #667eea; font-size: 1.1rem; }
-    .col-toggle-text { 
-        display: inline;
-    }
-    
-    .col-toggle-dropdown {
-        display: none;
-        position: absolute;
-        top: 45px;
-        right: 0;
-        background: white;
-        border: 2px solid #eef2f6;
-        border-radius: 12px;
-        padding: 15px;
-        min-width: 220px;
-        max-width: 300px;
-        max-height: 400px;
-        overflow-y: auto;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-        z-index: 1000;
-    }
-    
-    .col-toggle-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eef2f6;
-        margin-bottom: 10px;
-        flex-wrap: wrap;
-    }
-    
-    .col-toggle-header span {
-        font-weight: 700;
-        font-size: 0.85rem;
-        color: #1e2b3a;
-    }
-    
-    .col-toggle-option {
-        padding: 3px 10px;
-        border: 1px solid #eef2f6;
-        border-radius: 8px;
-        background: white;
-        cursor: pointer;
-        font-size: 0.7rem;
-        transition: all 0.2s;
-    }
-    
-    .col-toggle-option:hover {
-        background: #667eea;
-        color: white;
-        border-color: #667eea;
-    }
-    
-    .col-toggle-list {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 5px 15px;
-    }
-    
-    .col-toggle-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.75rem;
-        color: #1e2b3a;
-        cursor: pointer;
-        padding: 3px 0;
-        white-space: nowrap;
-    }
-    
-    .col-toggle-item input[type="checkbox"] {
-        cursor: pointer;
-        accent-color: #667eea;
-        width: 14px;
-        height: 14px;
-    }
     
     /* ================================================================
        TABLE STYLES
@@ -1272,7 +1242,6 @@
        MOBILE RESPONSIVE
        ================================================================ */
     
-    /* Mobile: Show column controls, hide desktop-only info */
     .mobile-only { display: none !important; }
     .desktop-only { display: inline !important; }
     
@@ -1284,7 +1253,6 @@
     }
     
     @media (max-width: 768px) {
-        /* Show mobile indicators */
         .mobile-only { display: inline !important; }
         .desktop-only { display: none !important; }
         
@@ -1297,20 +1265,6 @@
         .legend-container { gap: 8px; }
         .legend-badge { font-size: 0.6rem; padding: 2px 8px; }
         
-        /* Column controls mobile */
-        .column-controls { justify-content: center; }
-        .col-toggle-btn { padding: 6px 12px; font-size: 0.75rem; }
-        .col-toggle-dropdown { 
-            right: auto;
-            left: 50%;
-            transform: translateX(-50%);
-            min-width: 200px;
-            max-width: 280px;
-        }
-        .col-toggle-list { grid-template-columns: 1fr 1fr; }
-        .col-toggle-item { font-size: 0.65rem; }
-        
-        /* Table mobile sizing */
         .data-table { font-size: 0.6rem; }
         .data-table th { font-size: 0.55rem; padding: 5px 3px; }
         .data-table td { padding: 4px 3px; }
@@ -1347,13 +1301,6 @@
         .welcome-text h1 { font-size: 1.1rem; }
         .welcome-text p { font-size: 0.7rem; }
         
-        .col-toggle-dropdown { 
-            min-width: 180px;
-            max-width: 240px;
-            padding: 12px;
-        }
-        .col-toggle-list { grid-template-columns: 1fr; }
-        
         .col-sno { width: 20px; min-width: 20px; max-width: 20px; }
         .col-mat-code { width: 45px; min-width: 40px; max-width: 55px; }
         .col-mat-name { width: 55px; min-width: 45px; max-width: 70px; }
@@ -1376,7 +1323,7 @@
     }
     
     @media print {
-        .filter-section, .filter-actions, .btn-reset, .column-controls,
+        .filter-section, .filter-actions, .btn-reset, .column-toggle-wrapper,
         #guidanceMessage, #errorMessage, .back-button, .export-buttons {
             display: none !important;
         }
