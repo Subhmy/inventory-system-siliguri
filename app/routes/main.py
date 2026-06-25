@@ -1,13 +1,12 @@
 """
 Main Routes - Dashboard Pages with Role Protection
 Enhanced with error handling, logging, and debug support
-Last Updated: June 19, 2026
+Last Updated: June 25, 2026
 """
 
 from flask import Blueprint, redirect, url_for, render_template, session, flash, request, jsonify
 from app.utils.decorators import login_required, role_required
 import traceback
-import sys
 
 main_bp = Blueprint('main', __name__)
 
@@ -172,6 +171,23 @@ def material_in_transit():
     except Exception as e:
         handle_error('material-in-transit', e)
         flash('Material in Transit dashboard is currently unavailable.', 'danger')
+        return redirect(url_for('main.general_overview'))
+
+# ================================================================
+# ALLOTMENT TRACKER - ALL USERS
+# ================================================================
+
+@main_bp.route('/allotment-tracker')
+@login_required
+def allotment_tracker():
+    """Allotment Tracker Dashboard - Track material allotments and approvals"""
+    user = get_user()
+    log_access('allotment-tracker', user)
+    try:
+        return render_template('dashboards/allotment_tracker.html', user=user)
+    except Exception as e:
+        handle_error('allotment-tracker', e)
+        flash('Allotment Tracker dashboard is currently unavailable.', 'danger')
         return redirect(url_for('main.general_overview'))
 
 # ================================================================
@@ -385,6 +401,7 @@ def test_page():
             <div class="links">
                 <a href="/general-overview">📊 General Overview</a>
                 <a href="/inventory-dashboard">📦 Inventory Dashboard</a>
+                <a href="/allotment-tracker">📋 Allotment Tracker</a>
                 <a href="/debug/session">🔍 Debug Session</a>
                 <a href="/debug/role-check">🔐 Debug Role Check</a>
                 <a href="/admin-overview">👤 Admin Overview</a>
@@ -404,7 +421,10 @@ def page_not_found(e):
     """404 error handler"""
     user = get_user()
     print(f"❌ 404: {request.url}")
-    return render_template('errors/404.html', user=user), 404
+    try:
+        return render_template('errors/404.html', user=user), 404
+    except:
+        return "<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>", 404
 
 @main_bp.errorhandler(500)
 def internal_server_error(e):
@@ -412,7 +432,10 @@ def internal_server_error(e):
     user = get_user()
     print(f"❌ 500 ERROR: {e}")
     print(traceback.format_exc())
-    return render_template('errors/500.html', user=user), 500
+    try:
+        return render_template('errors/500.html', user=user), 500
+    except:
+        return "<h1>500 - Internal Server Error</h1><p>Something went wrong. Please try again later.</p>", 500
 
 @main_bp.errorhandler(403)
 def forbidden(e):

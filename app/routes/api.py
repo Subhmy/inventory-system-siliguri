@@ -1,10 +1,11 @@
 """
 API Routes - Enhanced with Caching for Fast Response
 Using consumption_summary collection for consumption data
-Last Updated: June 23, 2026
+Last Updated: June 25, 2026
 - Added In-Memory Caching for 10x faster responses
 - Added Cache Management endpoints
 - Optimized MongoDB queries with indexes
+- Added Allotment Tracker API endpoints
 """
 
 from flask import Blueprint, jsonify, session, request
@@ -16,6 +17,7 @@ import pandas as pd
 import re
 import hashlib
 import json
+import uuid
 
 api_bp = Blueprint('api', __name__)
 
@@ -31,18 +33,22 @@ class DataCache:
         self._cache_time = {}
         self._cache_ttl = {}
         self.default_ttl = 300  # 5 minutes default
+        self._hit_count = 0
+        self._miss_count = 0
     
     def get(self, key):
         """Get cached data if not expired"""
         if key in self._cache and key in self._cache_time:
             ttl = self._cache_ttl.get(key, self.default_ttl)
             if datetime.now() - self._cache_time[key] < timedelta(seconds=ttl):
+                self._hit_count += 1
                 print(f"📦 Cache HIT: {key}")
                 return self._cache[key]
             else:
                 print(f"⏰ Cache EXPIRED: {key}")
         else:
             print(f"❌ Cache MISS: {key}")
+        self._miss_count += 1
         return None
     
     def set(self, key, data, ttl=None):
@@ -63,14 +69,21 @@ class DataCache:
             self._cache.clear()
             self._cache_time.clear()
             self._cache_ttl.clear()
+            self._hit_count = 0
+            self._miss_count = 0
             print("🗑️ Cache CLEAR: All")
     
     def get_stats(self):
         """Get cache statistics"""
+        total_requests = self._hit_count + self._miss_count
+        hit_rate = round((self._hit_count / total_requests * 100) if total_requests > 0 else 0, 2)
         return {
             'total_items': len(self._cache),
             'keys': list(self._cache.keys()),
-            'size_kb': round(sum(len(str(v)) for v in self._cache.values()) / 1024, 2)
+            'size_kb': round(sum(len(str(v)) for v in self._cache.values()) / 1024, 2),
+            'hit_count': self._hit_count,
+            'miss_count': self._miss_count,
+            'hit_rate': f"{hit_rate}%"
         }
 
 # Global cache instance
@@ -127,6 +140,21 @@ def extract_plant_code(value):
         return match.group(1)
     return ''
 
+def generate_allotment_id():
+    """Generate a unique allotment ID"""
+    return f"ALL-{datetime.now().strftime('%Y%m')}-{str(uuid.uuid4())[:8].upper()}"
+
+def get_division_name(plant_code):
+    """Get division name from plant code"""
+    plant_to_division = {
+        '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division', '3413': 'Kurseong Division',
+        '3414': 'Darjeeling Division', '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
+        '3427': 'Mal Division', '3444': 'Coochbehar Division', '3445': 'Mathabhanga Division',
+        '3446': 'Dinhata Division', '3453': 'Alipurduar Division', '3471': 'Kalimpong Division',
+        '3600': 'Central Store'
+    }
+    return plant_to_division.get(str(plant_code), 'Unknown Division')
+
 # ================================================================
 # CACHE MANAGEMENT ENDPOINTS
 # ================================================================
@@ -157,6 +185,318 @@ def cache_status():
         return safe_json_response(_cache.get_stats())
     except Exception as e:
         return safe_json_response({'error': str(e)}, 500)
+
+# ================================================================
+# ALLOTMENT TRACKER API ENDPOINTS
+# ================================================================
+
+@api_bp.route('/api/allotments')
+@login_required
+def get_allotments():
+    """Get all allotment requests - CACHED for 2 minutes"""
+    try:
+        cache_key = 'allotments_data'
+        cached_data = _cache.get(cache_key)
+        if cached_data is not None:
+            return safe_json_response(cached_data)
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        # Try to fetch from MongoDB collection if exists
+        try:
+            collections = db.list_collection_names()
+            if 'allotments' in collections:
+                allotments = list(db.allotments.find({}, {'_id': 0}).sort('request_date', -1))
+                if allotments:
+                    _cache.set(cache_key, allotments, ttl=120)
+                    return safe_json_response(allotments)
+        except:
+            pass
+        
+        # If collection doesn't exist or is empty, return sample data
+        sample_allotments = generate_sample_allotments()
+        _cache.set(cache_key, sample_allotments, ttl=120)
+        return safe_json_response(sample_allotments)
+        
+    except Exception as e:
+        print(f"Error in get_allotments: {e}")
+        return safe_json_response([])
+
+@api_bp.route('/api/allotments', methods=['POST'])
+@login_required
+def create_allotment():
+    """Create a new allotment request"""
+    try:
+        user = session.get('user', {})
+        data = request.json or {}
+        
+        required_fields = ['material_code', 'division', 'requested_qty']
+        for field in required_fields:
+            if not data.get(field):
+                return safe_json_response({'error': f'Missing required field: {field}'}, 400)
+        
+        allotment = {
+            'id': generate_allotment_id(),
+            'material_code': data.get('material_code'),
+            'material_name': data.get('material_name', 'Unknown Material'),
+            'material_group': data.get('material_group', 'Uncategorized'),
+            'division': data.get('division'),
+            'requested_qty': float(data.get('requested_qty', 0)),
+            'approved_qty': 0,
+            'unit': data.get('unit', 'Nos'),
+            'request_date': datetime.now().isoformat(),
+            'status': 'Pending',
+            'requested_by': user.get('username', 'Unknown'),
+            'requested_by_name': user.get('name', 'Unknown'),
+            'remarks': data.get('remarks', ''),
+            'priority': data.get('priority', 'Normal')
+        }
+        
+        db = get_db()
+        if db is not None:
+            try:
+                # Check if allotments collection exists, if not create it
+                collections = db.list_collection_names()
+                if 'allotments' not in collections:
+                    db.create_collection('allotments')
+                
+                db.allotments.insert_one(allotment)
+                # Clear cache
+                _cache.clear('allotments_data')
+                return safe_json_response({'success': True, 'allotment': allotment}, 201)
+            except Exception as e:
+                print(f"Database error: {e}")
+                # Fallback to in-memory storage
+        
+        # If DB fails, store in memory (temporary)
+        if not hasattr(api_bp, 'memory_allotments'):
+            api_bp.memory_allotments = []
+        api_bp.memory_allotments.append(allotment)
+        _cache.clear('allotments_data')
+        
+        return safe_json_response({'success': True, 'allotment': allotment}, 201)
+        
+    except Exception as e:
+        print(f"Error in create_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/allotments/<allotment_id>/approve', methods=['POST'])
+@login_required
+def approve_allotment(allotment_id):
+    """Approve an allotment request"""
+    try:
+        user = session.get('user', {})
+        # Only admin and manager can approve
+        if user.get('role') not in ['admin', 'manager']:
+            return safe_json_response({'error': 'Only admin or manager can approve allotments'}, 403)
+        
+        data = request.json or {}
+        approved_qty = data.get('approved_qty', 0)
+        
+        db = get_db()
+        if db is not None:
+            try:
+                # Try to update in MongoDB
+                result = db.allotments.update_one(
+                    {'id': allotment_id},
+                    {'$set': {
+                        'status': 'Approved' if approved_qty > 0 else 'Rejected',
+                        'approved_qty': approved_qty,
+                        'approved_by': user.get('username', 'Unknown'),
+                        'approved_by_name': user.get('name', 'Unknown'),
+                        'approved_date': datetime.now().isoformat(),
+                        'remarks': data.get('remarks', '')
+                    }}
+                )
+                if result.modified_count > 0:
+                    _cache.clear('allotments_data')
+                    return safe_json_response({'success': True, 'message': f'Allotment {allotment_id} approved'})
+            except Exception as e:
+                print(f"Database error: {e}")
+        
+        # Fallback to in-memory
+        if hasattr(api_bp, 'memory_allotments'):
+            for item in api_bp.memory_allotments:
+                if item['id'] == allotment_id and item['status'] == 'Pending':
+                    item['status'] = 'Approved' if approved_qty > 0 else 'Rejected'
+                    item['approved_qty'] = approved_qty
+                    item['approved_by'] = user.get('username', 'Unknown')
+                    item['approved_date'] = datetime.now().isoformat()
+                    _cache.clear('allotments_data')
+                    return safe_json_response({'success': True, 'message': f'Allotment {allotment_id} approved'})
+        
+        return safe_json_response({'error': 'Allotment not found or already processed'}, 404)
+        
+    except Exception as e:
+        print(f"Error in approve_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/allotments/<allotment_id>/reject', methods=['POST'])
+@login_required
+def reject_allotment(allotment_id):
+    """Reject an allotment request"""
+    try:
+        user = session.get('user', {})
+        if user.get('role') not in ['admin', 'manager']:
+            return safe_json_response({'error': 'Only admin or manager can reject allotments'}, 403)
+        
+        data = request.json or {}
+        
+        db = get_db()
+        if db is not None:
+            try:
+                result = db.allotments.update_one(
+                    {'id': allotment_id},
+                    {'$set': {
+                        'status': 'Rejected',
+                        'approved_qty': 0,
+                        'rejected_by': user.get('username', 'Unknown'),
+                        'rejected_by_name': user.get('name', 'Unknown'),
+                        'rejected_date': datetime.now().isoformat(),
+                        'remarks': data.get('remarks', 'Request rejected')
+                    }}
+                )
+                if result.modified_count > 0:
+                    _cache.clear('allotments_data')
+                    return safe_json_response({'success': True, 'message': f'Allotment {allotment_id} rejected'})
+            except Exception as e:
+                print(f"Database error: {e}")
+        
+        if hasattr(api_bp, 'memory_allotments'):
+            for item in api_bp.memory_allotments:
+                if item['id'] == allotment_id and item['status'] == 'Pending':
+                    item['status'] = 'Rejected'
+                    item['approved_qty'] = 0
+                    item['rejected_by'] = user.get('username', 'Unknown')
+                    item['rejected_date'] = datetime.now().isoformat()
+                    _cache.clear('allotments_data')
+                    return safe_json_response({'success': True, 'message': f'Allotment {allotment_id} rejected'})
+        
+        return safe_json_response({'error': 'Allotment not found or already processed'}, 404)
+        
+    except Exception as e:
+        print(f"Error in reject_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/allotments/summary')
+@login_required
+def get_allotment_summary():
+    """Get allotment summary - CACHED for 2 minutes"""
+    try:
+        cache_key = 'allotment_summary'
+        cached_data = _cache.get(cache_key)
+        if cached_data is not None:
+            return safe_json_response(cached_data)
+        
+        allotments = []
+        db = get_db()
+        if db is not None:
+            try:
+                collections = db.list_collection_names()
+                if 'allotments' in collections:
+                    allotments = list(db.allotments.find({}, {'_id': 0}))
+            except:
+                pass
+        
+        if not allotments and hasattr(api_bp, 'memory_allotments'):
+            allotments = api_bp.memory_allotments
+        
+        if not allotments:
+            allotments = generate_sample_allotments()
+        
+        total = len(allotments)
+        pending = len([a for a in allotments if a.get('status') == 'Pending'])
+        approved = len([a for a in allotments if a.get('status') == 'Approved'])
+        rejected = len([a for a in allotments if a.get('status') == 'Rejected'])
+        partially = len([a for a in allotments if a.get('status') == 'Partially Approved'])
+        
+        # Monthly count
+        now = datetime.now()
+        monthly = len([a for a in allotments if a.get('request_date') and 
+                      datetime.fromisoformat(a['request_date']).month == now.month and
+                      datetime.fromisoformat(a['request_date']).year == now.year])
+        
+        # Completion rate
+        completion_rate = round((approved / total * 100) if total > 0 else 0, 1)
+        
+        response = {
+            'total': total,
+            'pending': pending,
+            'approved': approved,
+            'rejected': rejected,
+            'partially_approved': partially,
+            'monthly': monthly,
+            'completion_rate': completion_rate
+        }
+        
+        _cache.set(cache_key, response, ttl=120)
+        return safe_json_response(response)
+        
+    except Exception as e:
+        print(f"Error in get_allotment_summary: {e}")
+        return safe_json_response({
+            'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 
+            'partially_approved': 0, 'monthly': 0, 'completion_rate': 0
+        })
+
+# ================================================================
+# SAMPLE ALLOTMENT DATA GENERATOR
+# ================================================================
+
+def generate_sample_allotments():
+    """Generate sample allotment data for testing"""
+    divisions = [
+        'Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 
+        'Sub-Urban Division', 'Kalimpong Division', 'Jalpaiguri Division', 
+        'Mal Division', 'Coochbehar Division', 'Mathabhanga Division', 
+        'Dinhata Division', 'Alipurduar Division'
+    ]
+    
+    materials = [
+        {'code': 'MAT-001', 'name': '11KV XLPE Cable 3x240 sqmm', 'group': 'Cables'},
+        {'code': 'MAT-002', 'name': '33KV Isolator 200A', 'group': 'Switchgear'},
+        {'code': 'MAT-003', 'name': 'Distribution Transformer 250KVA', 'group': 'Transformers'},
+        {'code': 'MAT-004', 'name': 'LT PVC Cable 4x95 sqmm', 'group': 'Cables'},
+        {'code': 'MAT-005', 'name': 'Lightning Arrester 10KA', 'group': 'Protection'},
+        {'code': 'MAT-006', 'name': 'CT Metering 100/5A', 'group': 'Metering'},
+        {'code': 'MAT-007', 'name': 'PTR 33/11KV 10MVA', 'group': 'Transformers'},
+        {'code': 'MAT-008', 'name': 'AB Cable 4x16 sqmm', 'group': 'Cables'}
+    ]
+    
+    statuses = ['Pending', 'Approved', 'Rejected', 'Partially Approved']
+    
+    sample_data = []
+    for i in range(1, 26):
+        material = materials[i % len(materials)]
+        division = divisions[i % len(divisions)]
+        status = statuses[i % len(statuses)]
+        requested_qty = (i * 7) + 10
+        approved_qty = requested_qty if status == 'Approved' else (
+            int(requested_qty * 0.6) if status == 'Partially Approved' else 0
+        )
+        
+        date = datetime.now() - timedelta(days=i % 30)
+        
+        sample_data.append({
+            'id': f"ALL-{datetime.now().strftime('%Y%m')}-{str(i).zfill(4)}",
+            'material_code': material['code'],
+            'material_name': material['name'],
+            'material_group': material['group'],
+            'division': division,
+            'requested_qty': requested_qty,
+            'approved_qty': approved_qty,
+            'unit': 'Nos',
+            'request_date': date.isoformat(),
+            'status': status,
+            'requested_by': 'mofiz',
+            'requested_by_name': 'Mofiz',
+            'remarks': f'Sample request {i} - {status}',
+            'priority': 'Normal'
+        })
+    
+    return sample_data
 
 # ================================================================
 # EXISTING FILTER ENDPOINTS (CACHED)
