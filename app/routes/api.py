@@ -1,11 +1,14 @@
 """
 API Routes - Enhanced with Caching for Fast Response
 Using consumption_summary collection for consumption data
-Last Updated: June 25, 2026
+Last Updated: June 27, 2026
 - Added In-Memory Caching for 10x faster responses
 - Added Cache Management endpoints
 - Optimized MongoDB queries with indexes
 - Added Allotment Tracker API endpoints
+- Added Division-Region mapping endpoint with proper name mapping
+- Added Pending Allotment endpoints for User→Manager workflow
+- Added Finalize Allotment endpoint for Manager
 """
 
 from flask import Blueprint, jsonify, session, request
@@ -156,6 +159,143 @@ def get_division_name(plant_code):
     return plant_to_division.get(str(plant_code), 'Unknown Division')
 
 # ================================================================
+# DIVISION-REGION MAPPING HELPERS
+# ================================================================
+
+def get_full_division_name(short_name):
+    """Map short division names (from DB) to full names (used in frontend)"""
+    if not short_name:
+        return ''
+    
+    # If already has "Division" suffix, return as is
+    if short_name.endswith('Division'):
+        return short_name
+    
+    mapping = {
+        'Siliguri Town': 'Siliguri Town Division',
+        'Kurseong': 'Kurseong Division',
+        'Darjeeling': 'Darjeeling Division',
+        'Sub-Urban': 'Sub-Urban Division',
+        'Kalimpong': 'Kalimpong Division',
+        'Jalpaiguri': 'Jalpaiguri Division',
+        'Mal': 'Mal Division',
+        'Coochbehar': 'Coochbehar Division',
+        'Mathabhanga': 'Mathabhanga Division',
+        'Dinhata': 'Dinhata Division',
+        'Alipurduar': 'Alipurduar Division'
+    }
+    
+    return mapping.get(short_name, short_name + ' Division')
+
+def clean_region_name(region_id, region_name=None):
+    """Clean region name from region_id or region_name"""
+    if region_name and not region_name.startswith('reg_'):
+        # If region_name is already clean, return it
+        if region_name.endswith('Region'):
+            return region_name
+        return region_name + ' Region'
+    
+    # Clean from region_id
+    if region_id and region_id.startswith('reg_'):
+        # reg_darjeeling -> Darjeeling Region
+        name_part = region_id.replace('reg_', '')
+        return name_part.capitalize() + ' Region'
+    
+    return region_name or 'Unknown Region'
+
+def get_fallback_division_region_mapping():
+    """Fallback hardcoded mapping if MongoDB fetch fails"""
+    return [
+        {'division': 'Siliguri Town Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Kurseong Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Darjeeling Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Sub-Urban Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Kalimpong Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Jalpaiguri Division', 'region': 'Jalpaiguri Region', 'region_id': 'reg_jalpaiguri'},
+        {'division': 'Mal Division', 'region': 'Jalpaiguri Region', 'region_id': 'reg_jalpaiguri'},
+        {'division': 'Coochbehar Division', 'region': 'Coochbehar Region', 'region_id': 'reg_coochbehar'},
+        {'division': 'Mathabhanga Division', 'region': 'Coochbehar Region', 'region_id': 'reg_coochbehar'},
+        {'division': 'Dinhata Division', 'region': 'Coochbehar Region', 'region_id': 'reg_coochbehar'},
+        {'division': 'Alipurduar Division', 'region': 'Alipurduar Region', 'region_id': 'reg_alipurduar'}
+    ]
+
+# ================================================================
+# DIVISION-REGION MAPPING ENDPOINT
+# ================================================================
+
+@api_bp.route('/api/divisions/with-regions')
+@login_required
+def get_divisions_with_regions():
+    """Get divisions with their region mapping from MongoDB - CACHED for 1 hour"""
+    try:
+        cache_key = 'divisions_with_regions'
+        cached_data = _cache.get(cache_key)
+        if cached_data is not None:
+            return safe_json_response(cached_data)
+        
+        db = get_db()
+        if db is None:
+            # Return fallback mapping if DB not connected
+            fallback = get_fallback_division_region_mapping()
+            _cache.set(cache_key, fallback, ttl=3600)
+            return safe_json_response(fallback)
+        
+        # Get all divisions from DB
+        divisions = list(db.divisions.find({}, {'_id': 0, 'name': 1, 'region_id': 1}))
+        
+        # Get all regions from DB
+        regions = list(db.regions.find({}, {'_id': 0, '_id': 1, 'name': 1}))
+        
+        # Create region map
+        region_map = {}
+        for region in regions:
+            region_id = region.get('_id')
+            region_name = region.get('name')
+            if region_id:
+                region_map[region_id] = clean_region_name(region_id, region_name)
+        
+        # Build division data with region names
+        result = []
+        for div in divisions:
+            div_name = div.get('name')
+            region_id = div.get('region_id')
+            
+            if not div_name:
+                continue
+            
+            # Convert short name to full name for frontend compatibility
+            full_div_name = get_full_division_name(div_name)
+            
+            # Get region name from map or clean from region_id
+            if region_id and region_id in region_map:
+                region_name = region_map[region_id]
+            else:
+                region_name = clean_region_name(region_id, None)
+            
+            result.append({
+                'division': full_div_name,
+                'region': region_name,
+                'region_id': region_id
+            })
+        
+        # If no data from MongoDB, use fallback
+        if not result:
+            result = get_fallback_division_region_mapping()
+        
+        # Cache for 1 hour
+        _cache.set(cache_key, result, ttl=3600)
+        print(f"✅ Division-Region mapping loaded: {len(result)} divisions")
+        return safe_json_response(result)
+        
+    except Exception as e:
+        print(f"Error in get_divisions_with_regions: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return fallback mapping on error
+        fallback = get_fallback_division_region_mapping()
+        return safe_json_response(fallback)
+
+# ================================================================
 # CACHE MANAGEMENT ENDPOINTS
 # ================================================================
 
@@ -187,6 +327,304 @@ def cache_status():
         return safe_json_response({'error': str(e)}, 500)
 
 # ================================================================
+# BULK ALLOTMENT ENDPOINTS
+# ================================================================
+
+@api_bp.route('/api/allotments/bulk', methods=['POST'])
+@login_required
+def save_bulk_allotment():
+    """Save bulk allotment to database - Manager only"""
+    try:
+        user = session.get('user', {})
+        
+        data = request.json or {}
+        
+        # Validate required fields
+        required_fields = ['allotment_no', 'divisions', 'allotments']
+        for field in required_fields:
+            if not data.get(field):
+                return safe_json_response({'error': f'Missing required field: {field}'}, 400)
+        
+        # Add metadata
+        data['created_by'] = user.get('username', 'Unknown')
+        data['created_by_name'] = user.get('name', 'Unknown')
+        data['user_role'] = user.get('role', 'user')
+        data['created_date'] = datetime.now().isoformat()
+        data['updated_date'] = datetime.now().isoformat()
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        # Check if allotments collection exists
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            db.create_collection('allotments')
+        
+        # Insert the allotment
+        result = db.allotments.insert_one(data)
+        
+        # Clear cache
+        _cache.clear('allotments_data')
+        _cache.clear('allotment_summary')
+        _cache.clear('allotment_history')
+        
+        return safe_json_response({
+            'success': True, 
+            'id': str(result.inserted_id),
+            'allotment_no': data.get('allotment_no'),
+            'message': f'Allotment {data.get("allotment_no")} saved successfully'
+        }, 201)
+        
+    except Exception as e:
+        print(f"Error in save_bulk_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/allotments/bulk/history')
+@login_required
+def get_allotment_history():
+    """Get allotment history - CACHED for 2 minutes"""
+    try:
+        cache_key = 'allotment_history'
+        cached_data = _cache.get(cache_key)
+        if cached_data is not None:
+            return safe_json_response(cached_data)
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            return safe_json_response([])
+        
+        history = list(db.allotments.find(
+            {}, 
+            {'_id': 0}
+        ).sort('created_date', -1).limit(50))
+        
+        # Calculate total allotted for each record
+        for item in history:
+            total = 0
+            if item.get('allotments'):
+                for allot in item['allotments']:
+                    total += allot.get('allotted_qty', 0)
+            item['total_allotted'] = total
+        
+        _cache.set(cache_key, history, ttl=120)  # 2 minutes
+        return safe_json_response(history)
+        
+    except Exception as e:
+        print(f"Error in get_allotment_history: {e}")
+        return safe_json_response([])
+
+# ================================================================
+# PENDING ALLOTMENT ENDPOINTS (User → Manager Workflow)
+# ================================================================
+
+@api_bp.route('/api/allotments/bulk/pending')
+@login_required
+def get_pending_allotments():
+    """Get all pending allotments - Manager only"""
+    try:
+        user = session.get('user', {})
+        if user.get('role') not in ['admin', 'manager']:
+            return safe_json_response({'error': 'Only Manager can view pending allotments'}, 403)
+        
+        cache_key = 'pending_allotments'
+        cached_data = _cache.get(cache_key)
+        if cached_data is not None:
+            return safe_json_response(cached_data)
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response([])
+        
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            return safe_json_response([])
+        
+        pending = list(db.allotments.find(
+            {'status': 'Pending'},
+            {'_id': 1, 'allotment_no': 1, 'memo_no': 1, 'allotment_date': 1, 
+             'divisions': 1, 'materials': 1, 'allotments': 1, 'sto_numbers': 1,
+             'created_by': 1, 'created_by_name': 1, 'created_date': 1}
+        ).sort('created_date', -1))
+        
+        # Convert ObjectId to string for frontend
+        for item in pending:
+            item['_id'] = str(item['_id'])
+        
+        _cache.set(cache_key, pending, ttl=60)  # 1 minute cache
+        return safe_json_response(pending)
+        
+    except Exception as e:
+        print(f"Error in get_pending_allotments: {e}")
+        return safe_json_response([])
+
+@api_bp.route('/api/allotments/bulk/pending/<allotment_id>')
+@login_required
+def get_pending_allotment(allotment_id):
+    """Get a specific pending allotment by ID - Manager only"""
+    try:
+        user = session.get('user', {})
+        if user.get('role') not in ['admin', 'manager']:
+            return safe_json_response({'error': 'Only Manager can view pending allotments'}, 403)
+        
+        from bson import ObjectId
+        db = get_db()
+        if db is None:
+            return safe_json_response({})
+        
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            return safe_json_response({})
+        
+        try:
+            obj_id = ObjectId(allotment_id)
+            allotment = db.allotments.find_one(
+                {'_id': obj_id, 'status': 'Pending'}
+            )
+            if allotment:
+                allotment['_id'] = str(allotment['_id'])
+                return safe_json_response(allotment)
+        except:
+            # If not ObjectId, try string ID
+            allotment = db.allotments.find_one(
+                {'_id': allotment_id, 'status': 'Pending'}
+            )
+            if allotment:
+                allotment['_id'] = str(allotment['_id'])
+                return safe_json_response(allotment)
+        
+        return safe_json_response({})
+        
+    except Exception as e:
+        print(f"Error in get_pending_allotment: {e}")
+        return safe_json_response({})
+
+@api_bp.route('/api/allotments/<allotment_id>/finalize', methods=['PUT'])
+@login_required
+def finalize_allotment(allotment_id):
+    """Finalize a pending allotment - Manager only"""
+    try:
+        user = session.get('user', {})
+        if user.get('role') not in ['admin', 'manager']:
+            return safe_json_response({'error': 'Only Manager can finalize allotments'}, 403)
+        
+        data = request.json or {}
+        
+        from bson import ObjectId
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            return safe_json_response({'error': 'Allotments collection not found'}, 404)
+        
+        # Update the allotment
+        update_data = {
+            'status': 'Completed',
+            'finalized_by': user.get('username', 'Unknown'),
+            'finalized_by_name': user.get('name', 'Unknown'),
+            'finalized_date': datetime.now().isoformat(),
+            'updated_date': datetime.now().isoformat()
+        }
+        
+        # Merge with provided data
+        if data.get('allotments'):
+            update_data['allotments'] = data['allotments']
+        if data.get('sto_numbers'):
+            update_data['sto_numbers'] = data['sto_numbers']
+        if data.get('memo_no'):
+            update_data['memo_no'] = data['memo_no']
+        if data.get('allotment_no'):
+            update_data['allotment_no'] = data['allotment_no']
+        if data.get('allotment_date'):
+            update_data['allotment_date'] = data['allotment_date']
+        if data.get('divisions'):
+            update_data['divisions'] = data['divisions']
+        if data.get('materials'):
+            update_data['materials'] = data['materials']
+        
+        try:
+            obj_id = ObjectId(allotment_id)
+            result = db.allotments.update_one(
+                {'_id': obj_id, 'status': 'Pending'},
+                {'$set': update_data}
+            )
+        except:
+            result = db.allotments.update_one(
+                {'_id': allotment_id, 'status': 'Pending'},
+                {'$set': update_data}
+            )
+        
+        if result.modified_count > 0:
+            # Clear caches
+            _cache.clear('pending_allotments')
+            _cache.clear('allotment_history')
+            _cache.clear('allotments_data')
+            return safe_json_response({'success': True, 'message': 'Allotment finalized successfully'})
+        
+        return safe_json_response({'error': 'Allotment not found or already finalized'}, 404)
+        
+    except Exception as e:
+        print(f"Error in finalize_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/allotments/bulk/save-pending', methods=['POST'])
+@login_required
+def save_pending_allotment():
+    """Save allotment as PENDING - User sends to Manager"""
+    try:
+        user = session.get('user', {})
+        data = request.json or {}
+        
+        # Validate required fields
+        required_fields = ['allotment_no', 'divisions', 'allotments']
+        for field in required_fields:
+            if not data.get(field):
+                return safe_json_response({'error': f'Missing required field: {field}'}, 400)
+        
+        # Add metadata - mark as PENDING
+        data['created_by'] = user.get('username', 'Unknown')
+        data['created_by_name'] = user.get('name', 'Unknown')
+        data['user_role'] = user.get('role', 'user')
+        data['status'] = 'Pending'  # IMPORTANT: Pending status
+        data['created_date'] = datetime.now().isoformat()
+        data['updated_date'] = datetime.now().isoformat()
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        # Check if allotments collection exists
+        collections = db.list_collection_names()
+        if 'allotments' not in collections:
+            db.create_collection('allotments')
+        
+        # Insert the allotment
+        result = db.allotments.insert_one(data)
+        
+        # Clear cache
+        _cache.clear('pending_allotments')
+        _cache.clear('allotment_history')
+        _cache.clear('allotments_data')
+        
+        return safe_json_response({
+            'success': True, 
+            'id': str(result.inserted_id),
+            'allotment_no': data.get('allotment_no'),
+            'status': 'Pending',
+            'message': f'Allotment {data.get("allotment_no")} saved as PENDING successfully'
+        }, 201)
+        
+    except Exception as e:
+        print(f"Error in save_pending_allotment: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+# ================================================================
 # ALLOTMENT TRACKER API ENDPOINTS
 # ================================================================
 
@@ -208,7 +646,7 @@ def get_allotments():
         try:
             collections = db.list_collection_names()
             if 'allotments' in collections:
-                allotments = list(db.allotments.find({}, {'_id': 0}).sort('request_date', -1))
+                allotments = list(db.allotments.find({}, {'_id': 0}).sort('created_date', -1))
                 if allotments:
                     _cache.set(cache_key, allotments, ttl=120)
                     return safe_json_response(allotments)

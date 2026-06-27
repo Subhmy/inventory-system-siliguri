@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - Complete Allotment Workflow with Enhanced Material Selection -->
+<!-- allotment_tracker.html - Complete with A4 Single Page Optimization -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -30,10 +30,6 @@
             <i class="bi bi-file-excel-fill"></i>
             <span>Export Excel</span>
         </button>
-        <button onclick="exportToPDF()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            <i class="bi bi-file-pdf-fill"></i>
-            <span>Export PDF</span>
-        </button>
         <button onclick="refreshData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             <i class="bi bi-arrow-repeat"></i>
             <span>Refresh</span>
@@ -56,68 +52,30 @@
                 onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(108, 117, 125, 0.5)';" 
                 onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
                 <i class="bi bi-layout-three-columns"></i>
-                <span>Show/Hide Columns</span>
+                <span>Columns</span>
                 <i class="bi bi-chevron-down" id="columnToggleIcon" style="font-size: 0.7rem;"></i>
             </button>
             
-            <!-- Dropdown Menu -->
-            <div id="columnMenu" style="
-                display: none;
-                position: absolute;
-                right: 0;
-                top: calc(100% + 10px);
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                padding: 15px 20px;
-                min-width: 200px;
-                z-index: 1000;
-                border: 1px solid #eef2f6;
-                max-height: 400px;
-                overflow-y: auto;
-            ">
+            <div id="columnMenu" style="display: none; position: absolute; right: 0; top: calc(100% + 10px); background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); padding: 15px 20px; min-width: 200px; z-index: 1000; border: 1px solid #eef2f6; max-height: 400px; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f0f2f5;">
-                    <span style="font-weight: 700; font-size: 0.85rem; color: #1e2b3a;">
-                        <i class="bi bi-eye" style="color: #667eea;"></i> Show/Hide Columns
-                    </span>
-                    <button onclick="resetColumnVisibility()" style="
-                        background: none;
-                        border: none;
-                        color: #667eea;
-                        font-size: 0.7rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        text-decoration: underline;
-                    ">Reset</button>
+                    <span style="font-weight: 700; font-size: 0.85rem; color: #1e2b3a;"><i class="bi bi-eye" style="color: #667eea;"></i> Show/Hide Columns</span>
+                    <button onclick="resetColumnVisibility()" style="background: none; border: none; color: #667eea; font-size: 0.7rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Reset</button>
                 </div>
-                
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
                         <input type="checkbox" class="col-toggle" data-col="sno" checked onchange="updateColumnVisibility()">
                         <span>#</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="req-id" checked onchange="updateColumnVisibility()">
-                        <span>Req ID</span>
+                        <input type="checkbox" class="col-toggle" data-col="mat-code" checked onchange="updateColumnVisibility()">
+                        <span>Mat Code</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="division" checked onchange="updateColumnVisibility()">
-                        <span>Division</span>
+                        <input type="checkbox" class="col-toggle" data-col="mat-name" checked onchange="updateColumnVisibility()">
+                        <span>Mat Name</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="material" checked onchange="updateColumnVisibility()">
-                        <span>Material</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="req-qty" checked onchange="updateColumnVisibility()">
-                        <span>Requested</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="approved-qty" checked onchange="updateColumnVisibility()">
-                        <span>Allotted</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="unit" checked onchange="updateColumnVisibility()">
+                        <input type="checkbox" class="col-toggle" data-col="uom" checked onchange="updateColumnVisibility()">
                         <span>UOM</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
@@ -133,18 +91,17 @@
                         <span>Zonal Stock</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="status" checked onchange="updateColumnVisibility()">
-                        <span>Status</span>
+                        <input type="checkbox" class="col-toggle" data-col="suggested" checked onchange="updateColumnVisibility()">
+                        <span>Suggested</span>
                     </label>
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="action" checked onchange="updateColumnVisibility()">
-                        <span>Action</span>
+                        <input type="checkbox" class="col-toggle" data-col="division" checked onchange="updateColumnVisibility()">
+                        <span>Division</span>
                     </label>
                 </div>
-                
                 <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #f0f2f5; display: flex; gap: 8px;">
-                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Show All</button>
-                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Hide All</button>
+                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600;">Show All</button>
+                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600;">Hide All</button>
                 </div>
             </div>
         </div>
@@ -154,8 +111,8 @@
 <!-- Welcome Banner -->
 <div class="welcome-banner">
     <div class="welcome-text">
-        <h1><i class="bi bi-clipboard-check"></i> Allotment Tracker</h1>
-        <p>Division Requisition → Real-time Stock Check → Manager Review → Final Allotment</p>
+        <h1><i class="bi bi-clipboard-check"></i> Bulk Allotment System</h1>
+        <p>Multi-Division Allotment with Auto-Suggested Quantities</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -163,23 +120,35 @@
     </div>
 </div>
 
+<!-- User Role Info Banner -->
+<div class="role-banner {% if user and (user.role == 'admin' or user.role == 'manager') %}role-manager{% else %}role-user{% endif %}">
+    <i class="bi {% if user and (user.role == 'admin' or user.role == 'manager') %}bi-shield-check{% else %}bi-eye{% endif %}"></i>
+    <span>
+        {% if user and (user.role == 'admin' or user.role == 'manager') %}
+            <strong>Manager Access:</strong> Review pending allotments, modify quantities, enter STO, and <strong>SAVE</strong> final allotment.
+        {% else %}
+            <strong>User Access:</strong> Enter allotted quantities → Generate Draft → Print → <strong>Send to Manager</strong> (saves as Pending)
+        {% endif %}
+    </span>
+</div>
+
 <!-- Quick Stats -->
 <div class="quick-stats">
     <div class="quick-stat-item">
-        <i class="bi bi-file-text" style="color: #667eea;"></i>
-        <span>Total Requisitions: <strong id="totalRequisitions">0</strong></span>
+        <i class="bi bi-building" style="color: #667eea;"></i>
+        <span>Divisions: <strong id="totalDivisions">0</strong></span>
     </div>
     <div class="quick-stat-item">
-        <i class="bi bi-clock-history" style="color: #ffc107;"></i>
-        <span>Pending Review: <strong id="pendingReview">0</strong></span>
+        <i class="bi bi-box-seam" style="color: #28a745;"></i>
+        <span>Materials: <strong id="totalMaterials">0</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="bi bi-exclamation-triangle" style="color: #dc3545;"></i>
+        <span>Critical Items: <strong id="criticalItems">0</strong></span>
     </div>
     <div class="quick-stat-item">
         <i class="bi bi-check-circle" style="color: #28a745;"></i>
-        <span>Approved: <strong id="approvedCount">0</strong></span>
-    </div>
-    <div class="quick-stat-item">
-        <i class="bi bi-printer" style="color: #e74c3c;"></i>
-        <span>Ready to Print: <strong id="readyToPrint">0</strong></span>
+        <span>Final Records: <strong id="readyForFinal">0</strong></span>
     </div>
 </div>
 
@@ -188,190 +157,349 @@
      ================================================================ -->
 <div class="tab-section">
     <div class="tab-buttons">
-        <button class="tab-btn active" data-tab="requisition" onclick="switchTab('requisition')">
-            <i class="bi bi-pencil-square"></i> New Requisition
+        <button class="tab-btn active" data-tab="step1" onclick="switchTab('step1')">
+            <i class="bi bi-eye"></i> Step 1: Suggested Allotment
         </button>
-        <button class="tab-btn" data-tab="my-requisitions" onclick="switchTab('my-requisitions')">
-            <i class="bi bi-list-ul"></i> My Requisitions
+        <button class="tab-btn" data-tab="step2" onclick="switchTab('step2')">
+            <i class="bi bi-pencil-square"></i> Step 2: Final Allotment
+            <span id="finalBadge" class="badge-pending" style="display:none;">0</span>
         </button>
-        {% if user and (user.role == 'admin' or user.role == 'manager') %}
-        <button class="tab-btn" data-tab="review" onclick="switchTab('review')">
-            <i class="bi bi-eye"></i> Review <span class="badge-pending" id="pendingBadge">0</span>
+        <button class="tab-btn" data-tab="draft-letter" onclick="switchTab('draft-letter')">
+            <i class="bi bi-file-earmark-text"></i> Draft Letter
         </button>
         <button class="tab-btn" data-tab="allotment-letter" onclick="switchTab('allotment-letter')">
             <i class="bi bi-printer"></i> Allotment Letter
         </button>
-        {% endif %}
+        <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+            <i class="bi bi-clock-history"></i> History
+        </button>
     </div>
 </div>
 
 <!-- ================================================================
-     TAB 1: NEW REQUISITION - Enhanced Material Selection
+     STEP 1: SUGGESTED ALLOTMENT
      ================================================================ -->
-<div class="tab-content active" id="tab-requisition">
+<div class="tab-content active" id="tab-step1">
     <div class="content-card">
         <div class="section-title">
-            <i class="bi bi-pencil-square" style="color: #667eea;"></i>
-            <h2>Create New Requisition</h2>
+            <i class="bi bi-eye" style="color: #667eea;"></i>
+            <h2>Step 1: Suggested Allotment</h2>
             <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Search by Group → Name → Code or enter manually
+                <i class="bi bi-info-circle"></i> Check items, enter Allotted Quantity, then click "Add to Final"
             </span>
         </div>
         
-        <form id="requisitionForm" onsubmit="submitRequisition(event)">
-            <!-- Division Selection -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label><i class="bi bi-building"></i> Division <span class="required">*</span></label>
-                    <select id="reqDivision" class="form-control" required onchange="onDivisionChange()">
-                        <option value="">Select Division</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label><i class="bi bi-flag"></i> Priority <span class="required">*</span></label>
-                    <select id="reqPriority" class="form-control" required>
-                        <option value="Normal">Normal</option>
-                        <option value="High">High</option>
-                        <option value="Urgent">Urgent</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label><i class="bi bi-calendar"></i> Requisition Date</label>
-                    <input type="date" id="reqDate" class="form-control" readonly>
-                </div>
+        <!-- Allotment Header Info -->
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="bi bi-hash"></i> Allotment No.</label>
+                <input type="text" id="allotmentNo" class="form-control" readonly value="SZ/Allotment/E-2606/">
             </div>
-            
-            <!-- Stock Summary for Selected Division -->
-            <div class="stock-summary" id="divisionStockSummary" style="display: none;">
-                <div class="stock-summary-header">
-                    <i class="bi bi-boxes"></i>
-                    <span>Division Stock Summary: <strong id="stockDivisionName">-</strong></span>
-                    <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                        <i class="bi bi-clock"></i> Real-time data
+            <div class="form-group">
+                <label><i class="bi bi-calendar"></i> Allotment Date</label>
+                <input type="date" id="allotmentDate" class="form-control">
+            </div>
+            <div class="form-group">
+                <label><i class="bi bi-file-text"></i> Memo No.</label>
+                <input type="text" id="memoNo" class="form-control" placeholder="ZM/ZOS/TV-16/2869">
+            </div>
+        </div>
+        
+        <!-- Division Selection -->
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label><i class="bi bi-building"></i> Select Divisions <span class="required">*</span></label>
+            <div class="division-select-container">
+                <div class="division-select-all">
+                    <button type="button" class="btn-select-all" onclick="selectAllDivisions()">
+                        <i class="bi bi-check-all"></i> Select All
+                    </button>
+                    <button type="button" class="btn-deselect-all" onclick="deselectAllDivisions()">
+                        <i class="bi bi-x"></i> Deselect All
+                    </button>
+                    <span style="margin-left: 15px; font-size: 0.85rem; color: #6c757d;">
+                        Selected: <strong id="selectedCount">0</strong> divisions
+                    </span>
+                    <span style="margin-left: 15px; font-size: 0.85rem; color: #28a745;">
+                        Final Records: <strong id="finalCountDisplay">0</strong>
                     </span>
                 </div>
-                <div class="stock-summary-grid" id="stockSummaryGrid">
-                    <div class="stock-item">
-                        <span class="stock-label">Total Items</span>
-                        <span class="stock-value" id="stockTotalItems">0</span>
-                    </div>
-                    <div class="stock-item">
-                        <span class="stock-label">Virtual Stock</span>
-                        <span class="stock-value" id="stockVirtualTotal">0</span>
-                    </div>
-                    <div class="stock-item">
-                        <span class="stock-label">Critical Items</span>
-                        <span class="stock-value critical" id="stockCriticalItems">0</span>
-                    </div>
-                    <div class="stock-item">
-                        <span class="stock-label">In-Transit</span>
-                        <span class="stock-value" id="stockInTransit">0</span>
-                    </div>
+                <div class="division-checkbox-grid" id="divisionCheckboxGrid"></div>
+            </div>
+        </div>
+        
+        <!-- Materials Entry -->
+        <div style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-list"></i> Materials</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn-add-item" onclick="addMaterialRow()">
+                        <i class="bi bi-plus-circle"></i> Add Material
+                    </button>
+                    <button type="button" class="btn-add-item" onclick="addMultipleRows()" style="background: linear-gradient(135deg, #6f42c1, #5a32a3);">
+                        <i class="bi bi-plus-square"></i> Add 5
+                    </button>
+                    <button type="button" class="btn-add-item" onclick="autoSuggestFromCritical()" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                        <i class="bi bi-exclamation-triangle"></i> Auto-Suggest Critical
+                    </button>
                 </div>
             </div>
             
-            <!-- Requisition Items Table with Enhanced Material Selection -->
-            <div style="margin-top: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                    <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-list"></i> Requisition Items</h4>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn-add-item" onclick="addRequisitionRow()">
-                            <i class="bi bi-plus-circle"></i> Add Item
-                        </button>
-                        <button type="button" class="btn-add-item" onclick="addMultipleRows()" style="background: linear-gradient(135deg, #6f42c1, #5a32a3);">
-                            <i class="bi bi-plus-square"></i> Add Multiple (5)
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="requisition-table" id="requisitionItemsTable">
-                        <thead>
-                            <tr>
-                                <th style="width: 30px;">#</th>
-                                <th style="min-width: 120px;">Material Group</th>
-                                <th style="min-width: 180px;">Material Name</th>
-                                <th style="width: 120px;">Material Code</th>
-                                <th style="width: 100px;">Requested Qty</th>
-                                <th style="width: 70px;">UOM</th>
-                                <th style="width: 110px;">Virtual Stock</th>
-                                <th style="width: 100px;">Monthly Avg</th>
-                                <th style="width: 110px;">Zonal Stock</th>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 80px;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="requisitionItemsBody">
-                            <tr>
-                                <td colspan="11" class="text-center" style="padding: 20px; color: #6c757d;">
-                                    <i class="bi bi-plus-circle" style="font-size: 1.5rem; display: block; margin-bottom: 5px;"></i>
-                                    Select Division first, then click "Add Item" to start adding materials
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="table-responsive">
+                <table class="requisition-table" id="materialTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th style="min-width: 100px;">Material Code</th>
+                            <th style="min-width: 180px;">Material Name</th>
+                            <th style="width: 70px;">UOM</th>
+                            <th style="width: 100px;">Virtual Stock</th>
+                            <th style="width: 100px;">Monthly Avg</th>
+                            <th style="width: 100px;">Zonal Stock</th>
+                            <th style="width: 100px;">Suggested</th>
+                            <th style="width: 80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="materialTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
+                                <i class="bi bi-plus-circle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                                Select divisions first, then click "Add Material" or "Auto-Suggest Critical"
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Suggested Allotment Table -->
+        <div style="margin-top: 25px; display: none;" id="suggestedTableContainer">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-table"></i> Suggested Allotment</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 0.8rem; color: #6c757d; display: flex; align-items: center;">
+                        <i class="bi bi-info-circle"></i> Select checkbox, enter quantity, then "Add to Final"
+                    </span>
+                    <button type="button" class="btn-add-item" onclick="addSelectedToFinal()" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                        <i class="bi bi-plus-circle"></i> Add to Final Allotment
+                    </button>
                 </div>
             </div>
-            
-            <!-- Remarks -->
-            <div class="form-group" style="margin-top: 15px;">
-                <label><i class="bi bi-chat"></i> Remarks / Justification</label>
-                <textarea id="reqRemarks" class="form-control" rows="2" placeholder="Add any remarks or justification for this requisition..."></textarea>
+            <div class="table-responsive">
+                <table class="data-table" id="suggestedTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 25px;"><input type="checkbox" id="selectAllSuggested" onchange="toggleAllSuggested()"></th>
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 90px;">Mat Code</th>
+                            <th style="min-width: 150px;">Mat Name</th>
+                            <th style="width: 50px;">UOM</th>
+                            <th style="width: 80px;">Virtual Stock</th>
+                            <th style="width: 80px;">Monthly Avg</th>
+                            <th style="width: 80px;">Zonal Stock</th>
+                            <th style="width: 70px;">Suggested</th>
+                            <th style="min-width: 130px;">Division</th>
+                            <th style="width: 100px;">Allotted Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="suggestedTableBody">
+                        <tr><td colspan="11" class="text-center">Select divisions and materials to generate suggested allotment</td></tr>
+                    </tbody>
+                </table>
             </div>
-            
-            <!-- Form Actions -->
-            <div class="form-actions">
-                <button type="button" class="btn-cancel" onclick="clearRequisitionForm()">
-                    <i class="bi bi-x-circle"></i> Clear All
-                </button>
-                <button type="submit" class="btn-submit">
-                    <i class="bi bi-send"></i> Submit Requisition
-                </button>
-            </div>
-        </form>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions" style="margin-top: 25px;">
+            <button type="button" class="btn-cancel" onclick="clearAllotment()">
+                <i class="bi bi-x-circle"></i> Clear All
+            </button>
+            {% if user and (user.role == 'admin' or user.role == 'manager') %}
+            <button type="button" class="btn-submit" onclick="loadPendingAllotment()" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                <i class="bi bi-download"></i> Load Pending Allotment
+            </button>
+            {% endif %}
+        </div>
     </div>
 </div>
 
 <!-- ================================================================
-     TAB 2: MY REQUISITIONS
+     STEP 2: FINAL ALLOTMENT
      ================================================================ -->
-<div class="tab-content" id="tab-my-requisitions">
+<div class="tab-content" id="tab-step2">
     <div class="content-card">
         <div class="section-title">
-            <i class="bi bi-list-ul" style="color: #667eea;"></i>
-            <h2>My Requisitions</h2>
+            <i class="bi bi-pencil-square" style="color: #ffc107;"></i>
+            <h2>Step 2: Final Allotment</h2>
             <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Status: Draft → Submitted → Under Review → Approved/Rejected
+                <i class="bi bi-info-circle"></i> Enter STO No (10 digits) for each division
             </span>
         </div>
         
-        <div class="filter-bar">
-            <select id="myReqsFilter" class="filter-select" onchange="filterMyRequisitions()">
-                <option value="all">All Status</option>
-                <option value="Draft">Draft</option>
-                <option value="Submitted">Submitted</option>
-                <option value="Under Review">Under Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Partially Approved">Partially Approved</option>
-            </select>
+        <div id="finalAllotmentContainer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-table"></i> Final Allotment</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn-add-item" onclick="clearFinalData()" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                        <i class="bi bi-trash"></i> Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="data-table" id="finalTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            <th style="width: 90px;">Mat Code</th>
+                            <th style="min-width: 150px;">Mat Name</th>
+                            <th style="width: 50px;">UOM</th>
+                            <th style="min-width: 130px;">Division</th>
+                            <th style="width: 70px;">Suggested</th>
+                            <th style="width: 80px;">Allotted</th>
+                            <th style="width: 120px;">STO No (10 digit)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="finalTableBody">
+                        <tr><td colspan="8" class="text-center">No data available. Go to Step 1 and add items to final allotment.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="switchTab('step1')">
+                    <i class="bi bi-arrow-left"></i> Back to Suggested
+                </button>
+                {% if user and (user.role == 'admin' or user.role == 'manager') %}
+                <button type="button" class="btn-submit" onclick="generateFinalLetter()">
+                    <i class="bi bi-printer"></i> Generate Final Letter
+                </button>
+                {% else %}
+                <button type="button" class="btn-add-item" onclick="generateDraftLetter()" style="background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a;">
+                    <i class="bi bi-file-earmark-text"></i> Generate Draft Letter
+                </button>
+                {% endif %}
+            </div>
         </div>
         
+        <div id="finalEmptyState" style="display: block; text-align: center; padding: 60px 20px; color: #6c757d;">
+            <i class="bi bi-arrow-left-circle" style="font-size: 3rem; display: block; margin-bottom: 15px; color: #667eea;"></i>
+            <h3>No Final Allotment Data</h3>
+            <p>Go to <strong>Step 1: Suggested Allotment</strong>, select items, enter allotted quantity, and click<br>
+            <strong>"Add to Final Allotment"</strong> to build your final list.</p>
+            <button type="button" class="btn-add-item" onclick="switchTab('step1')" style="margin-top: 15px; padding: 12px 30px;">
+                <i class="bi bi-arrow-left"></i> Go to Step 1
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     TAB 3: DRAFT LETTER (User)
+     ================================================================ -->
+<div class="tab-content" id="tab-draft-letter">
+    <div class="content-card">
+        <div class="section-title">
+            <i class="bi bi-file-earmark-text" style="color: #ffc107;"></i>
+            <h2>Draft Allotment Letter</h2>
+            <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
+                <i class="bi bi-info-circle"></i> <span style="color: #dc3545; font-weight: bold;">DRAFT</span> - Verify, print, then <strong>Send to Manager</strong> to save as Pending
+            </span>
+        </div>
+        
+        <div id="draftLetterPreview" style="display: none;"></div>
+        <div id="draftEmptyState" style="display: block; text-align: center; padding: 60px 20px; color: #6c757d;">
+            <i class="bi bi-file-earmark-text" style="font-size: 3rem; display: block; margin-bottom: 15px; color: #ffc107;"></i>
+            <h3>No Draft Letter</h3>
+            <p>Go to <strong>Step 2: Final Allotment</strong> and click<br>
+            <strong>"Generate Draft Letter"</strong> to create a draft.</p>
+            <button type="button" class="btn-add-item" onclick="switchTab('step2')" style="margin-top: 15px; padding: 12px 30px;">
+                <i class="bi bi-arrow-left"></i> Go to Final Allotment
+            </button>
+        </div>
+        
+        <div class="form-actions" id="draftActions" style="display: none;">
+            <button type="button" class="btn-cancel" onclick="clearDraft()">
+                <i class="bi bi-x-circle"></i> Close
+            </button>
+            <button type="button" class="btn-print" onclick="printDraftLetter()">
+                <i class="bi bi-printer"></i> Print Draft
+            </button>
+            <button type="button" class="btn-add-item" onclick="sendDraftToManager()" style="background: linear-gradient(135deg, #007bff, #0056b3);">
+                <i class="bi bi-send"></i> Send to Manager (Save as Pending)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     TAB 4: ALLOTMENT LETTER (Manager Final)
+     ================================================================ -->
+<div class="tab-content" id="tab-allotment-letter">
+    <div class="content-card">
+        <div class="section-title">
+            <i class="bi bi-printer" style="color: #28a745;"></i>
+            <h2>Allotment Letter</h2>
+            <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
+                <i class="bi bi-info-circle"></i> <span style="color: #28a745; font-weight: bold;">APPROVED</span> - Final official letter
+            </span>
+        </div>
+        
+        <div id="finalLetterPreview" style="display: none;"></div>
+        <div id="finalLetterEmptyState" style="display: block; text-align: center; padding: 60px 20px; color: #6c757d;">
+            <i class="bi bi-printer" style="font-size: 3rem; display: block; margin-bottom: 15px; color: #28a745;"></i>
+            <h3>No Final Letter</h3>
+            <p>
+                {% if user and (user.role == 'admin' or user.role == 'manager') %}
+                    Go to <strong>Step 2: Final Allotment</strong> and click<br>
+                    <strong>"Generate Final Letter"</strong> to create the final allotment.
+                {% else %}
+                    Only <strong>Manager</strong> can generate the final allotment letter.<br>
+                    Your draft is available in the <strong>Draft Letter</strong> tab.
+                {% endif %}
+            </p>
+            <button type="button" class="btn-add-item" onclick="switchTab('step2')" style="margin-top: 15px; padding: 12px 30px;">
+                <i class="bi bi-arrow-left"></i> Go to Final Allotment
+            </button>
+        </div>
+        
+        <div class="form-actions" id="finalLetterActions" style="display: none;">
+            <button type="button" class="btn-cancel" onclick="clearFinalLetter()">
+                <i class="bi bi-x-circle"></i> Close
+            </button>
+            <button type="button" class="btn-print" onclick="printFinalLetter()">
+                <i class="bi bi-printer"></i> Print Final
+            </button>
+            <button type="button" class="btn-save" onclick="saveFinalToDB()">
+                <i class="bi bi-save"></i> Save to Database (Final)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     TAB 5: HISTORY
+     ================================================================ -->
+<div class="tab-content" id="tab-history">
+    <div class="content-card">
+        <div class="section-title">
+            <i class="bi bi-clock-history" style="color: #667eea;"></i>
+            <h2>Allotment History</h2>
+        </div>
         <div class="table-responsive">
-            <table class="data-table" id="myRequisitionsTable">
+            <table class="data-table" id="historyTable">
                 <thead>
                     <tr>
-                        <th class="col-sno" data-col="sno">#</th>
-                        <th class="col-req-id" data-col="req-id">Req ID</th>
-                        <th class="col-division" data-col="division">Division</th>
-                        <th class="col-material" data-col="material">Materials</th>
-                        <th class="col-req-qty" data-col="req-qty">Total Requested</th>
-                        <th class="col-approved-qty" data-col="approved-qty">Total Allotted</th>
-                        <th class="col-status" data-col="status">Status</th>
-                        <th class="col-action" data-col="action">Action</th>
+                        <th style="width: 30px;">#</th>
+                        <th style="width: 120px;">Allotment No</th>
+                        <th style="min-width: 130px;">Divisions</th>
+                        <th style="width: 80px;">Materials</th>
+                        <th style="width: 80px;">Total Allotted</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="width: 80px;">Created By</th>
+                        <th style="width: 80px;">Action</th>
                     </tr>
                 </thead>
-                <tbody id="myRequisitionsBody">
+                <tbody id="historyBody">
                     <tr><td colspan="8" class="text-center">Loading...</td></tr>
                 </tbody>
             </table>
@@ -380,122 +508,20 @@
 </div>
 
 <!-- ================================================================
-     TAB 3: REVIEW
+     CONFIRMATION MODAL
      ================================================================ -->
-<div class="tab-content" id="tab-review">
-    <div class="content-card">
-        <div class="section-title">
-            <i class="bi bi-eye" style="color: #ffc107;"></i>
-            <h2>Requisitions Awaiting Review</h2>
-            <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Check stock, modify quantities if needed
-            </span>
-        </div>
-        
-        <div class="filter-bar">
-            <select id="reviewFilter" class="filter-select" onchange="filterReviewRequisitions()">
-                <option value="all">All Pending</option>
-                <option value="High">High Priority</option>
-                <option value="Urgent">Urgent</option>
-                <option value="Normal">Normal</option>
-            </select>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="data-table" id="reviewRequisitionsTable">
-                <thead>
-                    <tr>
-                        <th class="col-sno" data-col="sno">#</th>
-                        <th class="col-req-id" data-col="req-id">Req ID</th>
-                        <th class="col-division" data-col="division">Division</th>
-                        <th class="col-material" data-col="material">Materials</th>
-                        <th class="col-req-qty" data-col="req-qty">Total Requested</th>
-                        <th class="col-status" data-col="status">Status</th>
-                        <th class="col-action" data-col="action">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="reviewRequisitionsBody">
-                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================================
-     TAB 4: ALLOTMENT LETTER
-     ================================================================ -->
-<div class="tab-content" id="tab-allotment-letter">
-    <div class="content-card">
-        <div class="section-title">
-            <i class="bi bi-printer" style="color: #e74c3c;"></i>
-            <h2>Final Allotment Letter</h2>
-            <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Approved requisitions ready for print
-            </span>
-        </div>
-        
-        <div class="filter-bar">
-            <select id="letterFilter" class="filter-select" onchange="filterLetterRequisitions()">
-                <option value="all">All Approved</option>
-                <option value="printed">Printed</option>
-                <option value="pending">Pending Print</option>
-            </select>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="data-table" id="letterRequisitionsTable">
-                <thead>
-                    <tr>
-                        <th class="col-sno" data-col="sno">#</th>
-                        <th class="col-req-id" data-col="req-id">Req ID</th>
-                        <th class="col-division" data-col="division">Division</th>
-                        <th class="col-material" data-col="material">Materials</th>
-                        <th class="col-approved-qty" data-col="approved-qty">Total Allotted</th>
-                        <th class="col-status" data-col="status">Status</th>
-                        <th class="col-action" data-col="action">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="letterRequisitionsBody">
-                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================================
-     REVIEW MODAL
-     ================================================================ -->
-<div class="modal-overlay" id="reviewModal">
-    <div class="modal-content modal-large">
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-            <h3><i class="bi bi-eye"></i> Review Requisition</h3>
-            <button class="modal-close" onclick="closeReviewModal()">&times;</button>
+            <h3><i class="bi bi-question-circle"></i> Confirmation</h3>
+            <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
         </div>
-        <div class="modal-body" id="reviewModalBody"></div>
+        <div class="modal-body" id="confirmModalBody">
+            <p id="confirmMessage">Are you sure you want to proceed?</p>
+        </div>
         <div class="modal-footer">
-            <button class="btn-cancel" onclick="closeReviewModal()">Close</button>
-            <button class="btn-reject" onclick="rejectRequisition()"><i class="bi bi-x-circle"></i> Reject All</button>
-            <button class="btn-approve" onclick="approveRequisition()"><i class="bi bi-check-circle"></i> Approve All</button>
-        </div>
-    </div>
-</div>
-
-<!-- ================================================================
-     ALLOTMENT LETTER MODAL
-     ================================================================ -->
-<div class="modal-overlay" id="letterModal">
-    <div class="modal-content modal-letter">
-        <div class="modal-header">
-            <h3><i class="bi bi-printer"></i> Allotment Letter</h3>
-            <button class="modal-close" onclick="closeLetterModal()">&times;</button>
-        </div>
-        <div class="modal-body" id="letterModalBody"></div>
-        <div class="modal-footer">
-            <button class="btn-cancel" onclick="closeLetterModal()">Close</button>
-            <button class="btn-print" onclick="printAllotmentLetter()"><i class="bi bi-printer"></i> Print</button>
-            <button class="btn-save" onclick="saveAllotmentToDB()"><i class="bi bi-save"></i> Save to Database</button>
+            <button class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+            <button class="btn-submit" id="confirmYesBtn" onclick="confirmAction()">Yes, Proceed</button>
         </div>
     </div>
 </div>
@@ -506,12 +532,7 @@
     <p style="margin-top: 15px; color: white;">Loading...</p>
 </div>
 
-<!-- Material Search Results Dropdown (hidden by default) -->
-<div id="materialSearchResults" style="display: none; position: absolute; background: white; border: 2px solid #eef2f6; border-radius: 10px; max-height: 250px; overflow-y: auto; z-index: 999; min-width: 300px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);"></div>
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
 // ================================================================
 // CONFIGURATION
@@ -532,12 +553,77 @@ const DIVISION_PLANT_MAP = {
     'Alipurduar Division': '3453'
 };
 
-let requisitionItems = [];
-let allRequisitions = [];
+const ZONAL_STORE_PLANT = '3400';
+
+let selectedDivisions = [];
+let materialRows = [];
+let suggestedData = [];
+let finalData = [];
 let allMaterials = [];
-let currentReviewRequisition = null;
-let currentLetterRequisition = null;
 let rowCounter = 0;
+let selectedSuggestedRows = [];
+let pendingAction = null;
+let currentAllotmentId = null;
+
+const isManager = "{{ user.role if user else '' }}" === 'admin' || "{{ user.role if user else '' }}" === 'manager';
+const currentUser = "{{ user.username if user else 'Unknown' }}";
+const currentUserName = "{{ user.name if user else 'Unknown' }}";
+
+// STO Number cache per division (one STO per division)
+let stoCache = {};
+
+// ================================================================
+// REGION MAPPING - Fetch from MongoDB
+// ================================================================
+let divisionRegionMap = {};
+
+async function loadDivisionRegionMapping() {
+    try {
+        const response = await fetch('/api/divisions/with-regions');
+        const data = await response.json();
+        divisionRegionMap = {};
+        for (const item of data) {
+            divisionRegionMap[item.division] = item.region;
+        }
+        console.log('✅ Division-Region mapping loaded:', divisionRegionMap);
+        return divisionRegionMap;
+    } catch (error) {
+        console.error('Error loading division-region mapping:', error);
+        setFallbackMapping();
+        return divisionRegionMap;
+    }
+}
+
+function setFallbackMapping() {
+    divisionRegionMap = {
+        'Siliguri Town Division': 'Darjeeling Region',
+        'Kurseong Division': 'Darjeeling Region',
+        'Darjeeling Division': 'Darjeeling Region',
+        'Sub-Urban Division': 'Darjeeling Region',
+        'Kalimpong Division': 'Kalimpong Region',
+        'Jalpaiguri Division': 'Jalpaiguri Region',
+        'Mal Division': 'Jalpaiguri Region',
+        'Coochbehar Division': 'Coochbehar Region',
+        'Mathabhanga Division': 'Coochbehar Region',
+        'Dinhata Division': 'Coochbehar Region',
+        'Alipurduar Division': 'Alipurduar Region'
+    };
+}
+
+function getRegionForDivision(division) {
+    return divisionRegionMap[division] || 'Unknown Region';
+}
+
+function getUniqueRegions(divisions) {
+    const regions = new Set();
+    for (const div of divisions) {
+        const region = getRegionForDivision(div);
+        if (region) {
+            regions.add(region);
+        }
+    }
+    return Array.from(regions).sort();
+}
 
 // ================================================================
 // COLUMN VISIBILITY CONTROL
@@ -584,9 +670,7 @@ function updateColumnVisibility() {
         });
     });
     const prefs = {};
-    checkboxes.forEach(cb => {
-        prefs[cb.dataset.col] = cb.checked;
-    });
+    checkboxes.forEach(cb => { prefs[cb.dataset.col] = cb.checked; });
     localStorage.setItem('allotment_column_prefs', JSON.stringify(prefs));
 }
 
@@ -598,9 +682,7 @@ function loadColumnPreferences() {
             const checkboxes = document.querySelectorAll('.col-toggle');
             checkboxes.forEach(cb => {
                 const colName = cb.dataset.col;
-                if (colName in prefs) {
-                    cb.checked = prefs[colName];
-                }
+                if (colName in prefs) { cb.checked = prefs[colName]; }
             });
             updateColumnVisibility();
         } catch(e) {}
@@ -627,84 +709,106 @@ function hideAllColumns() {
 }
 
 // ================================================================
+// CONFIRMATION MODAL
+// ================================================================
+function showConfirmModal(message, action) {
+    document.getElementById('confirmMessage').textContent = message;
+    pendingAction = action;
+    document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+    pendingAction = null;
+}
+
+function confirmAction() {
+    if (pendingAction) {
+        pendingAction();
+        pendingAction = null;
+    }
+    closeConfirmModal();
+}
+
+// ================================================================
 // HELPER FUNCTIONS
 // ================================================================
 function showLoading() { document.getElementById('loading').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loading').style.display = 'none'; }
 
 function showToast(message, isError = false) {
-    // Simple alert for now - can be enhanced with toast notifications
-    if (isError) {
-        alert('❌ ' + message);
-    } else {
-        alert('✅ ' + message);
-    }
-}
-
-function getCurrentTimestamp() {
-    const now = new Date();
-    return now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: true 
-    });
-}
-
-function getFullTimestamp() {
-    const now = new Date();
-    return now.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-    });
-}
-
-function generateReqId() {
-    const now = new Date();
-    const dateStr = now.getFullYear() + 
-                   String(now.getMonth() + 1).padStart(2, '0') + 
-                   String(now.getDate()).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-    return `REQ-${dateStr}-${random}`;
+    alert((isError ? '❌ ' : '✅ ') + message);
 }
 
 function displayCurrentDate() {
-    const dateElement = document.getElementById('currentDate');
-    if (dateElement) {
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        dateElement.textContent = new Date().toLocaleDateString('en-US', options);
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('allotmentDate').value = today;
+    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+}
+
+function generateAllotmentNo() {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+    return `SZ/Allotment/E-${year}${month}/${random}`;
+}
+
+function updateFinalBadge() {
+    const badge = document.getElementById('finalBadge');
+    const count = finalData.length;
+    if (count > 0) {
+        badge.style.display = 'inline';
+        badge.textContent = count;
+    } else {
+        badge.style.display = 'none';
     }
-    document.getElementById('reqDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('finalCountDisplay').textContent = count;
+    document.getElementById('readyForFinal').textContent = count;
+}
+
+function validateSTO(sto) {
+    return /^[0-9]{10}$/.test(sto);
 }
 
 // ================================================================
-// LOAD MATERIALS MASTER DATA
+// LOAD MATERIALS
 // ================================================================
 async function loadAllMaterials() {
     try {
         const response = await fetch('/api/consumption/materials');
         const data = await response.json();
         allMaterials = data || [];
-        console.log('Loaded', allMaterials.length, 'materials');
         return allMaterials;
     } catch (error) {
         console.error('Error loading materials:', error);
-        // Fallback sample data
         allMaterials = [
-            { material_code: 'MAT-001', material_name: '11KV XLPE Cable 3x240 sqmm', material_group: 'Cables', unit: 'Nos' },
-            { material_code: 'MAT-002', material_name: '33KV Isolator 200A', material_group: 'Switchgear', unit: 'Nos' },
-            { material_code: 'MAT-003', material_name: 'Distribution Transformer 250KVA', material_group: 'Transformers', unit: 'Nos' },
-            { material_code: 'MAT-004', material_name: 'LT PVC Cable 4x95 sqmm', material_group: 'Cables', unit: 'Meters' },
-            { material_code: 'MAT-005', material_name: 'Lightning Arrester 10KA', material_group: 'Protection', unit: 'Nos' },
-            { material_code: 'MAT-006', material_name: 'CT Metering 100/5A', material_group: 'Metering', unit: 'Nos' },
-            { material_code: 'MAT-007', material_name: 'PTR 33/11KV 10MVA', material_group: 'Transformers', unit: 'Nos' },
-            { material_code: 'MAT-008', material_name: 'AB Cable 4x16 sqmm', material_group: 'Cables', unit: 'Meters' }
+            { material_code: '110010341', material_name: 'STEEL TUB. POLE 9M (WITH ...', material_group: 'Poles', unit: 'NOS' },
+            { material_code: '101011311', material_name: 'M.S ANGLE 65 X 65 X 6MM', material_group: 'Angles', unit: 'MT' },
+            { material_code: '301018341', material_name: 'DTR 100KVA 11/0.433KV, 3PH O/D WH SLNO', material_group: 'Transformers', unit: 'NOS' },
+            { material_code: '908010252', material_name: 'TRF OIL EHV GRADE', material_group: 'Oil', unit: 'Ltrs' }
         ];
         return allMaterials;
+    }
+}
+
+// ================================================================
+// ZONAL STOCK
+// ================================================================
+async function fetchZonalStock(materialCode) {
+    try {
+        const response = await fetch(`/api/inventory/current-stock`);
+        const stockData = await response.json();
+        const zonalStock = stockData
+            .filter(item => String(item.plant) === ZONAL_STORE_PLANT && String(item.material_code) === String(materialCode))
+            .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
+        return Math.round(zonalStock);
+    } catch (error) {
+        console.error('Error fetching zonal stock:', error);
+        return 0;
     }
 }
 
@@ -718,85 +822,42 @@ async function fetchDivisionStock(division) {
         
         const response = await fetch(`/api/inventory/current-stock`);
         const stockData = await response.json();
-        
         const divisionStock = stockData.filter(item => String(item.plant) === plantCode);
         
         const avgResponse = await fetch(`/api/consumption/monthly-average-by-plant?plants=${plantCode}`);
         const avgData = await avgResponse.json();
         
-        let totalItems = divisionStock.length;
-        let virtualTotal = 0;
-        let criticalItems = 0;
-        let inTransit = 0;
-        
-        divisionStock.forEach(item => {
-            const stock = parseFloat(item.current_stock) || 0;
-            virtualTotal += stock;
-            const materialAvg = avgData[item.material_code]?.[plantCode]?.monthly_avg || 0;
-            if (stock <= materialAvg && materialAvg > 0) {
-                criticalItems++;
-            }
-        });
-        
         const transitResponse = await fetch(`/api/inventory/material-in-transit?to_plant=${plantCode}`);
         const transitData = await transitResponse.json();
-        inTransit = transitData.reduce((sum, item) => sum + (parseFloat(item.balance_qty) || 0), 0);
+        const inTransitMap = {};
+        transitData.forEach(item => {
+            const key = item.material_code;
+            inTransitMap[key] = (inTransitMap[key] || 0) + (parseFloat(item.balance_qty) || 0);
+        });
         
-        return {
-            totalItems,
-            virtualTotal: Math.round(virtualTotal),
-            criticalItems,
-            inTransit: Math.round(inTransit),
-            stockData: divisionStock,
-            avgData: avgData
-        };
+        const stockMap = {};
+        divisionStock.forEach(item => {
+            const code = item.material_code;
+            const stock = parseFloat(item.current_stock) || 0;
+            const inTransit = inTransitMap[code] || 0;
+            const virtualStock = stock + inTransit;
+            const monthlyAvg = avgData[code]?.[plantCode]?.monthly_avg || 0;
+            
+            stockMap[code] = {
+                material_code: code,
+                material_name: item.material_name || code,
+                unit: item.unit || 'NOS',
+                virtual_stock: Math.round(virtualStock),
+                monthly_avg: Math.round(monthlyAvg),
+                current_stock: Math.round(stock),
+                in_transit: Math.round(inTransit),
+                material_group: item.material_group || 'Uncategorized'
+            };
+        });
+        
+        return stockMap;
     } catch (error) {
         console.error('Error fetching division stock:', error);
-        return null;
-    }
-}
-
-// ================================================================
-// MATERIAL STOCK CHECK
-// ================================================================
-async function fetchMaterialStock(division, materialCode) {
-    try {
-        const plantCode = DIVISION_PLANT_MAP[division];
-        if (!plantCode) return null;
-        
-        const stockResponse = await fetch(`/api/inventory/current-stock`);
-        const stockData = await stockResponse.json();
-        const materialStock = stockData.find(item => 
-            String(item.plant) === plantCode && 
-            String(item.material_code) === String(materialCode)
-        );
-        
-        const avgResponse = await fetch(`/api/consumption/monthly-average-by-plant?plants=${plantCode}&material_code=${materialCode}`);
-        const avgData = await avgResponse.json();
-        const monthlyAvg = avgData[materialCode]?.[plantCode]?.monthly_avg || 0;
-        
-        const zonalStock = stockData
-            .filter(item => String(item.material_code) === String(materialCode))
-            .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
-        
-        const transitResponse = await fetch(`/api/inventory/material-in-transit?to_plant=${plantCode}&material_code=${materialCode}`);
-        const transitData = await transitResponse.json();
-        const inTransit = transitData.reduce((sum, item) => sum + (parseFloat(item.balance_qty) || 0), 0);
-        
-        const virtualStock = (parseFloat(materialStock?.current_stock) || 0) + inTransit;
-        
-        return {
-            virtualStock: Math.round(virtualStock),
-            monthlyAvg: Math.round(monthlyAvg),
-            zonalStock: Math.round(zonalStock),
-            currentStock: Math.round(parseFloat(materialStock?.current_stock) || 0),
-            inTransit: Math.round(inTransit),
-            materialName: materialStock?.material_name || 'Unknown',
-            unit: materialStock?.unit || 'Nos',
-            materialGroup: materialStock?.material_group || 'Uncategorized'
-        };
-    } catch (error) {
-        console.error('Error fetching material stock:', error);
         return null;
     }
 }
@@ -805,74 +866,58 @@ async function fetchMaterialStock(division, materialCode) {
 // DIVISION SELECTION
 // ================================================================
 function loadDivisions() {
-    const select = document.getElementById('reqDivision');
-    select.innerHTML = '<option value="">Select Division</option>';
+    const grid = document.getElementById('divisionCheckboxGrid');
+    grid.innerHTML = '';
     ALL_DIVISIONS.forEach(div => {
-        const option = document.createElement('option');
-        option.value = div;
-        option.textContent = div;
-        select.appendChild(option);
-    });
-}
-
-async function onDivisionChange() {
-    const division = document.getElementById('reqDivision').value;
-    const stockSummary = document.getElementById('divisionStockSummary');
-    const itemsBody = document.getElementById('requisitionItemsBody');
-    
-    if (!division) {
-        stockSummary.style.display = 'none';
-        itemsBody.innerHTML = `
-            <tr>
-                <td colspan="11" class="text-center" style="padding: 20px; color: #6c757d;">
-                    <i class="bi bi-plus-circle" style="font-size: 1.5rem; display: block; margin-bottom: 5px;"></i>
-                    Select Division first, then click "Add Item" to start adding materials
-                </td>
-            </tr>
+        const label = document.createElement('label');
+        label.className = 'division-checkbox';
+        label.innerHTML = `
+            <input type="checkbox" value="${div}" onchange="onDivisionSelect()">
+            <span>${div}</span>
         `;
-        return;
-    }
-    
-    stockSummary.style.display = 'block';
-    document.getElementById('stockDivisionName').textContent = division;
-    
-    const stockData = await fetchDivisionStock(division);
-    if (stockData) {
-        document.getElementById('stockTotalItems').textContent = stockData.totalItems;
-        document.getElementById('stockVirtualTotal').textContent = stockData.virtualTotal.toLocaleString();
-        document.getElementById('stockCriticalItems').textContent = stockData.criticalItems;
-        document.getElementById('stockInTransit').textContent = stockData.inTransit.toLocaleString();
-    }
-    
-    // Reset items when division changes
-    requisitionItems = [];
-    rowCounter = 0;
-    itemsBody.innerHTML = `
-        <tr>
-            <td colspan="11" class="text-center" style="padding: 20px; color: #6c757d;">
-                <i class="bi bi-plus-circle" style="font-size: 1.5rem; display: block; margin-bottom: 5px;"></i>
-                Click "Add Item" to add materials for ${division}
-            </td>
-        </tr>
-    `;
+        grid.appendChild(label);
+    });
+    updateSelectedCount();
+}
+
+function onDivisionSelect() {
+    const checkboxes = document.querySelectorAll('#divisionCheckboxGrid input[type="checkbox"]:checked');
+    selectedDivisions = Array.from(checkboxes).map(cb => cb.value);
+    updateSelectedCount();
+    updateSuggestedTable();
+}
+
+function updateSelectedCount() {
+    document.getElementById('selectedCount').textContent = selectedDivisions.length;
+    document.getElementById('totalDivisions').textContent = selectedDivisions.length;
+    updateFinalBadge();
+}
+
+function selectAllDivisions() {
+    document.querySelectorAll('#divisionCheckboxGrid input[type="checkbox"]').forEach(cb => cb.checked = true);
+    onDivisionSelect();
+}
+
+function deselectAllDivisions() {
+    document.querySelectorAll('#divisionCheckboxGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+    onDivisionSelect();
 }
 
 // ================================================================
-// ENHANCED REQUISITION ITEMS - With Smart Material Selection
+// MATERIAL ROWS
 // ================================================================
-function addRequisitionRow() {
-    const division = document.getElementById('reqDivision').value;
-    if (!division) {
-        alert('Please select a Division first!');
+function addMaterialRow() {
+    if (selectedDivisions.length === 0) {
+        alert('Please select at least one division first!');
         return;
     }
     
     rowCounter++;
-    const rowId = `row-${rowCounter}`;
-    const itemsBody = document.getElementById('requisitionItemsBody');
+    const rowId = `mat-row-${rowCounter}`;
+    const tbody = document.getElementById('materialTableBody');
     
-    if (itemsBody.querySelector('.text-center')) {
-        itemsBody.innerHTML = '';
+    if (tbody.querySelector('.text-center')) {
+        tbody.innerHTML = '';
     }
     
     const tr = document.createElement('tr');
@@ -880,30 +925,17 @@ function addRequisitionRow() {
     tr.innerHTML = `
         <td style="text-align: center;">${rowCounter}</td>
         <td>
-            <select class="form-control form-control-sm material-group-select" onchange="onGroupSelect('${rowId}')">
-                <option value="">Select Group</option>
-            </select>
-        </td>
-        <td>
-            <input type="text" class="form-control form-control-sm material-name-input" 
-                   placeholder="Type to search..." 
-                   oninput="onMaterialNameSearch('${rowId}', this.value)"
-                   autocomplete="off">
-            <div class="search-results" id="${rowId}-name-results" style="display:none; position:absolute; background:white; border:1px solid #ddd; border-radius:6px; max-height:150px; overflow-y:auto; z-index:100; min-width:250px;"></div>
-        </td>
-        <td>
-            <input type="text" class="form-control form-control-sm material-code-input" 
-                   placeholder="MAT-001" 
-                   onchange="onMaterialCodeManual('${rowId}')"
+            <input type="text" class="form-control form-control-sm mat-code-input" 
+                   placeholder="Enter Code" onchange="onMaterialCodeChange('${rowId}')"
                    onkeyup="this.value=this.value.toUpperCase()">
         </td>
         <td>
-            <input type="number" class="form-control form-control-sm req-qty-input" 
-                   placeholder="0" min="1" onchange="updateRowTotals()">
+            <input type="text" class="form-control form-control-sm mat-name-input" 
+                   placeholder="Auto-filled" readonly>
         </td>
         <td>
-            <input type="text" class="form-control form-control-sm unit-input" 
-                   placeholder="Nos" readonly>
+            <input type="text" class="form-control form-control-sm mat-unit-input" 
+                   placeholder="NOS" readonly>
         </td>
         <td class="stock-cell" id="${rowId}-virtual">
             <span class="stock-badge">-</span>
@@ -914,899 +946,1181 @@ function addRequisitionRow() {
         <td class="stock-cell" id="${rowId}-zonal">
             <span class="stock-badge">-</span>
         </td>
-        <td class="status-cell" id="${rowId}-status">
-            <span class="status-badge status-pending">⏳ Check</span>
+        <td class="stock-cell" id="${rowId}-suggested">
+            <span class="stock-badge">-</span>
         </td>
         <td style="text-align: center;">
-            <button type="button" class="btn-remove-row" onclick="removeRequisitionRow('${rowId}')">
+            <button type="button" class="btn-remove-row" onclick="removeMaterialRow('${rowId}')">
                 <i class="bi bi-trash"></i>
             </button>
         </td>
     `;
-    itemsBody.appendChild(tr);
-    
-    // Populate material groups
-    populateMaterialGroups(rowId);
-    
-    // Focus on group select
-    tr.querySelector('.material-group-select').focus();
+    tbody.appendChild(tr);
+    tr.querySelector('.mat-code-input').focus();
 }
 
 function addMultipleRows() {
-    for (let i = 0; i < 5; i++) {
-        addRequisitionRow();
-    }
+    for (let i = 0; i < 5; i++) { addMaterialRow(); }
 }
 
-function populateMaterialGroups(rowId) {
-    const select = document.getElementById(rowId).querySelector('.material-group-select');
-    const groups = [...new Set(allMaterials.map(m => m.material_group).filter(g => g))].sort();
-    select.innerHTML = '<option value="">Select Group</option>';
-    groups.forEach(group => {
-        const option = document.createElement('option');
-        option.value = group;
-        option.textContent = group;
-        select.appendChild(option);
-    });
-}
-
-function onGroupSelect(rowId) {
-    const tr = document.getElementById(rowId);
-    const group = tr.querySelector('.material-group-select').value;
-    const nameInput = tr.querySelector('.material-name-input');
-    const codeInput = tr.querySelector('.material-code-input');
-    
-    if (group) {
-        nameInput.placeholder = 'Type to search in ' + group + '...';
-        nameInput.focus();
-    } else {
-        nameInput.placeholder = 'Type to search...';
-    }
-    
-    // Clear existing selections
-    nameInput.value = '';
-    codeInput.value = '';
-    clearStockDisplay(rowId);
-}
-
-function onMaterialNameSearch(rowId, searchText) {
-    const tr = document.getElementById(rowId);
-    const group = tr.querySelector('.material-group-select').value;
-    const resultsDiv = document.getElementById(`${rowId}-name-results`);
-    
-    if (searchText.length < 2) {
-        resultsDiv.style.display = 'none';
-        return;
-    }
-    
-    // Search in materials
-    let matches = allMaterials.filter(m => {
-        const nameMatch = m.material_name.toLowerCase().includes(searchText.toLowerCase());
-        const groupMatch = group ? m.material_group === group : true;
-        return nameMatch && groupMatch;
-    }).slice(0, 10);
-    
-    if (matches.length === 0) {
-        resultsDiv.innerHTML = '<div style="padding: 8px; color: #6c757d;">No matches found</div>';
-        resultsDiv.style.display = 'block';
-        return;
-    }
-    
-    // Position the results dropdown
-    const inputRect = tr.querySelector('.material-name-input').getBoundingClientRect();
-    resultsDiv.style.top = (inputRect.bottom + window.scrollY) + 'px';
-    resultsDiv.style.left = inputRect.left + 'px';
-    resultsDiv.style.width = Math.min(inputRect.width, 300) + 'px';
-    
-    resultsDiv.innerHTML = matches.map(m => `
-        <div class="search-result-item" onclick="selectMaterial('${rowId}', '${m.material_code}')" 
-             style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <strong>${m.material_name}</strong>
-                <div style="font-size: 0.7rem; color: #6c757d;">${m.material_code} | ${m.material_group}</div>
-            </div>
-            <span style="font-size: 0.7rem; color: #667eea;">${m.unit || 'Nos'}</span>
-        </div>
-    `).join('');
-    resultsDiv.style.display = 'block';
-}
-
-function selectMaterial(rowId, materialCode) {
-    const material = allMaterials.find(m => m.material_code === materialCode);
-    if (!material) return;
-    
-    const tr = document.getElementById(rowId);
-    tr.querySelector('.material-name-input').value = material.material_name;
-    tr.querySelector('.material-code-input').value = material.material_code;
-    tr.querySelector('.unit-input').value = material.unit || 'Nos';
-    
-    // Hide results
-    document.getElementById(`${rowId}-name-results`).style.display = 'none';
-    
-    // Fetch stock data
-    fetchMaterialStockAndUpdate(rowId, materialCode);
-}
-
-function onMaterialCodeManual(rowId) {
-    const tr = document.getElementById(rowId);
-    const codeInput = tr.querySelector('.material-code-input');
-    const materialCode = codeInput.value.trim();
-    
-    if (!materialCode) {
-        tr.querySelector('.material-name-input').value = '';
-        tr.querySelector('.unit-input').value = '';
-        clearStockDisplay(rowId);
-        return;
-    }
-    
-    // Try to find material by code
-    const material = allMaterials.find(m => m.material_code === materialCode);
-    if (material) {
-        tr.querySelector('.material-name-input').value = material.material_name;
-        tr.querySelector('.unit-input').value = material.unit || 'Nos';
-        // Set group if exists
-        if (material.material_group) {
-            tr.querySelector('.material-group-select').value = material.material_group;
-        }
-        fetchMaterialStockAndUpdate(rowId, materialCode);
-    } else {
-        // Allow manual entry - keep the code
-        tr.querySelector('.material-name-input').placeholder = 'Enter manually';
-        tr.querySelector('.unit-input').value = 'Nos';
-        // Still try to fetch stock
-        fetchMaterialStockAndUpdate(rowId, materialCode);
-    }
-}
-
-async function fetchMaterialStockAndUpdate(rowId, materialCode) {
-    const division = document.getElementById('reqDivision').value;
-    const tr = document.getElementById(rowId);
-    
-    if (!division || !materialCode) {
-        clearStockDisplay(rowId);
-        return;
-    }
-    
-    showLoading();
-    const stockData = await fetchMaterialStock(division, materialCode);
-    hideLoading();
-    
-    if (stockData) {
-        // Update UI with stock data
-        document.getElementById(`${rowId}-virtual`).innerHTML = 
-            `<span class="stock-badge ${stockData.virtualStock > 0 ? 'stock-available' : 'stock-critical'}">
-                ${stockData.virtualStock.toLocaleString()}
-            </span>`;
-        
-        document.getElementById(`${rowId}-avg`).innerHTML = 
-            `<span class="stock-badge">${stockData.monthlyAvg.toLocaleString()}</span>`;
-        
-        document.getElementById(`${rowId}-zonal`).innerHTML = 
-            `<span class="stock-badge">${stockData.zonalStock.toLocaleString()}</span>`;
-        
-        // Update status
-        let statusHtml = '';
-        if (stockData.virtualStock <= 0) {
-            statusHtml = '<span class="status-badge status-rejected">❌ Out of Stock</span>';
-        } else if (stockData.virtualStock <= stockData.monthlyAvg) {
-            statusHtml = '<span class="status-badge status-warning">⚠️ Low Stock</span>';
-        } else {
-            statusHtml = '<span class="status-badge status-approved">✅ Available</span>';
-        }
-        document.getElementById(`${rowId}-status`).innerHTML = statusHtml;
-        
-        // Update requisition items data
-        const existingItem = requisitionItems.find(item => item.rowId === rowId);
-        if (existingItem) {
-            Object.assign(existingItem, {
-                material_name: stockData.materialName || tr.querySelector('.material-name-input').value,
-                unit: stockData.unit || 'Nos',
-                virtual_stock: stockData.virtualStock,
-                monthly_avg: stockData.monthlyAvg,
-                zonal_stock: stockData.zonalStock,
-                material_group: stockData.materialGroup || tr.querySelector('.material-group-select').value
-            });
-        } else {
-            requisitionItems.push({
-                rowId: rowId,
-                material_code: materialCode,
-                material_name: stockData.materialName || tr.querySelector('.material-name-input').value || materialCode,
-                unit: stockData.unit || 'Nos',
-                virtual_stock: stockData.virtualStock,
-                monthly_avg: stockData.monthlyAvg,
-                zonal_stock: stockData.zonalStock,
-                requested_qty: 0,
-                material_group: stockData.materialGroup || tr.querySelector('.material-group-select').value || 'Uncategorized'
-            });
-        }
-    } else {
-        clearStockDisplay(rowId);
-        document.getElementById(`${rowId}-status`).innerHTML = '<span class="status-badge status-rejected">❌ Not Found</span>';
-    }
-}
-
-function clearStockDisplay(rowId) {
-    document.getElementById(`${rowId}-virtual`).innerHTML = '<span class="stock-badge">-</span>';
-    document.getElementById(`${rowId}-avg`).innerHTML = '<span class="stock-badge">-</span>';
-    document.getElementById(`${rowId}-zonal`).innerHTML = '<span class="stock-badge">-</span>';
-    document.getElementById(`${rowId}-status`).innerHTML = '<span class="status-badge status-pending">⏳ Check</span>';
-}
-
-function removeRequisitionRow(rowId) {
+function removeMaterialRow(rowId) {
     const tr = document.getElementById(rowId);
     if (tr) {
         tr.remove();
-        // Remove from requisitionItems
-        requisitionItems = requisitionItems.filter(item => item.rowId !== rowId);
-        // Re-number rows
-        document.querySelectorAll('#requisitionItemsBody tr').forEach((row, index) => {
+        materialRows = materialRows.filter(item => item.rowId !== rowId);
+        document.querySelectorAll('#materialTableBody tr').forEach((row, index) => {
             row.querySelector('td:first-child').textContent = index + 1;
         });
-        updateRowTotals();
+        updateSuggestedTable();
     }
 }
 
-function updateRowTotals() {
-    document.querySelectorAll('#requisitionItemsBody tr').forEach((tr) => {
-        const rowId = tr.id;
-        const qtyInput = tr.querySelector('.req-qty-input');
-        const item = requisitionItems.find(item => item.rowId === rowId);
-        if (item && qtyInput) {
-            item.requested_qty = parseFloat(qtyInput.value) || 0;
-        }
-    });
+async function onMaterialCodeChange(rowId) {
+    const tr = document.getElementById(rowId);
+    const codeInput = tr.querySelector('.mat-code-input');
+    const materialCode = codeInput.value.trim();
+    
+    if (!materialCode) {
+        tr.querySelector('.mat-name-input').value = '';
+        tr.querySelector('.mat-unit-input').value = '';
+        document.getElementById(`${rowId}-virtual`).innerHTML = '<span class="stock-badge">-</span>';
+        document.getElementById(`${rowId}-avg`).innerHTML = '<span class="stock-badge">-</span>';
+        document.getElementById(`${rowId}-zonal`).innerHTML = '<span class="stock-badge">-</span>';
+        document.getElementById(`${rowId}-suggested`).innerHTML = '<span class="stock-badge">-</span>';
+        return;
+    }
+    
+    const material = allMaterials.find(m => m.material_code === materialCode);
+    if (material) {
+        tr.querySelector('.mat-name-input').value = material.material_name;
+        tr.querySelector('.mat-unit-input').value = material.unit || 'NOS';
+    }
+    
+    await calculateSuggestedQuantity(rowId, materialCode);
 }
 
-// Close search results when clicking outside
-document.addEventListener('click', function(event) {
-    if (!event.target.closest('.material-name-input') && !event.target.closest('.search-results')) {
-        document.querySelectorAll('.search-results').forEach(el => {
-            el.style.display = 'none';
-        });
-    }
-});
-
-// ================================================================
-// SUBMIT REQUISITION
-// ================================================================
-async function submitRequisition(event) {
-    event.preventDefault();
-    
-    const division = document.getElementById('reqDivision').value;
-    const priority = document.getElementById('reqPriority').value;
-    const remarks = document.getElementById('reqRemarks').value;
-    
-    if (!division) {
-        alert('Please select a Division!');
-        return;
-    }
-    
-    // Get items with quantities and validate
-    const items = requisitionItems.filter(item => {
-        const qty = parseFloat(item.requested_qty) || 0;
-        return qty > 0 && item.material_code;
-    });
-    
-    if (items.length === 0) {
-        alert('Please add at least one item with material code and quantity!');
-        return;
-    }
-    
-    // Check for missing material codes
-    const missingCodes = items.filter(item => !item.material_code);
-    if (missingCodes.length > 0) {
-        alert('Please fill material codes for all items!');
-        return;
-    }
-    
-    const requisition = {
-        id: generateReqId(),
-        division: division,
-        priority: priority,
-        request_date: new Date().toISOString(),
-        requested_by: "{{ user.username if user else 'Unknown' }}",
-        requested_by_name: "{{ user.name if user else 'Unknown' }}",
-        status: 'Submitted',
-        remarks: remarks,
-        items: items.map(item => ({
-            ...item,
-            status: 'Pending'
-        })),
-        total_items: items.length,
-        total_requested: items.reduce((sum, item) => sum + (parseFloat(item.requested_qty) || 0), 0),
-        total_approved: 0
-    };
+async function calculateSuggestedQuantity(rowId, materialCode) {
+    const tr = document.getElementById(rowId);
+    if (!tr) return;
     
     showLoading();
     
     try {
-        const response = await fetch('/api/allotments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requisition)
-        });
+        const zonalStock = await fetchZonalStock(materialCode);
+        document.getElementById(`${rowId}-zonal`).innerHTML = 
+            `<span class="stock-badge">${zonalStock.toLocaleString()}</span>`;
         
-        const result = await response.json();
+        const divisionData = {};
+        let totalSuggested = 0;
+        let criticalCount = 0;
+        let firstDivData = null;
         
-        if (result.success) {
-            showToast(`✅ Requisition ${requisition.id} submitted successfully!`);
-            clearRequisitionForm();
-            loadMyRequisitions();
-            {% if user and (user.role == 'admin' or user.role == 'manager') %}
-            loadReviewRequisitions();
-            {% endif %}
-        } else {
-            showToast('❌ Failed to submit: ' + (result.error || 'Unknown error'), true);
+        for (const division of selectedDivisions) {
+            const stockMap = await fetchDivisionStock(division);
+            if (stockMap && stockMap[materialCode]) {
+                const data = stockMap[materialCode];
+                divisionData[division] = data;
+                if (!firstDivData) firstDivData = data;
+                
+                if (data.virtual_stock <= data.monthly_avg && data.monthly_avg > 0) {
+                    criticalCount++;
+                    const suggested = Math.max(0, Math.ceil((data.monthly_avg - data.virtual_stock) + (data.monthly_avg * 0.2)));
+                    totalSuggested += suggested;
+                }
+            }
         }
+        
+        if (firstDivData) {
+            document.getElementById(`${rowId}-virtual`).innerHTML = 
+                `<span class="stock-badge ${firstDivData.virtual_stock <= firstDivData.monthly_avg ? 'stock-critical' : 'stock-available'}">
+                    ${firstDivData.virtual_stock.toLocaleString()}
+                </span>`;
+            document.getElementById(`${rowId}-avg`).innerHTML = 
+                `<span class="stock-badge">${firstDivData.monthly_avg.toLocaleString()}</span>`;
+        }
+        
+        const suggestedQty = Math.ceil(totalSuggested / Math.max(1, selectedDivisions.length)) || 0;
+        document.getElementById(`${rowId}-suggested`).innerHTML = 
+            `<span class="stock-badge ${suggestedQty > 0 ? 'stock-available' : 'stock-critical'}">
+                ${suggestedQty.toLocaleString()}
+            </span>`;
+        
+        const materialName = tr.querySelector('.mat-name-input').value || materialCode;
+        const unit = tr.querySelector('.mat-unit-input').value || 'NOS';
+        
+        const existing = materialRows.find(item => item.rowId === rowId);
+        const matData = {
+            rowId: rowId,
+            material_code: materialCode,
+            material_name: materialName,
+            unit: unit,
+            suggested_qty: suggestedQty,
+            zonal_stock: zonalStock,
+            critical_count: criticalCount,
+            division_data: divisionData
+        };
+        
+        if (existing) {
+            Object.assign(existing, matData);
+        } else {
+            materialRows.push(matData);
+        }
+        
+        document.getElementById('criticalItems').textContent = criticalCount;
+        await updateSuggestedTable();
+        
     } catch (error) {
-        showToast('❌ Error submitting requisition: ' + error.message, true);
+        console.error('Error calculating suggested quantity:', error);
     }
     
     hideLoading();
 }
 
-function clearRequisitionForm() {
-    document.getElementById('reqDivision').value = '';
-    document.getElementById('reqPriority').value = 'Normal';
-    document.getElementById('reqRemarks').value = '';
-    document.getElementById('divisionStockSummary').style.display = 'none';
-    requisitionItems = [];
-    rowCounter = 0;
-    document.getElementById('requisitionItemsBody').innerHTML = `
-        <tr>
-            <td colspan="11" class="text-center" style="padding: 20px; color: #6c757d;">
-                <i class="bi bi-plus-circle" style="font-size: 1.5rem; display: block; margin-bottom: 5px;"></i>
-                Select Division first, then click "Add Item" to start adding materials
-            </td>
-        </tr>
-    `;
-}
-
 // ================================================================
-// MY REQUISITIONS
+// AUTO-SUGGEST FROM CRITICAL
 // ================================================================
-async function loadMyRequisitions() {
-    try {
-        const response = await fetch('/api/allotments');
-        const data = await response.json();
-        const username = "{{ user.username if user else 'unknown' }}";
-        allRequisitions = data.filter(req => req.requested_by === username || req.requested_by === 'mofiz');
-        renderMyRequisitions(allRequisitions);
-        updateStats(allRequisitions);
-    } catch (error) {
-        console.error('Error loading requisitions:', error);
-    }
-}
-
-function renderMyRequisitions(requisitions) {
-    const tbody = document.getElementById('myRequisitionsBody');
-    
-    if (!requisitions || requisitions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No requisitions found</td></tr>';
+async function autoSuggestFromCritical() {
+    if (selectedDivisions.length === 0) {
+        alert('Please select at least one division first!');
         return;
     }
     
-    tbody.innerHTML = requisitions.map((req, index) => {
-        const statusClass = req.status === 'Approved' ? 'status-approved' :
-                           req.status === 'Rejected' ? 'status-rejected' :
-                           req.status === 'Partially Approved' ? 'status-partial' :
-                           req.status === 'Under Review' ? 'status-pending' :
-                           'status-draft';
-        
-        const statusIcon = req.status === 'Approved' ? '✅' :
-                          req.status === 'Rejected' ? '❌' :
-                          req.status === 'Partially Approved' ? '📦' :
-                          req.status === 'Under Review' ? '⏳' : '📝';
-        
-        return `
-            <tr>
-                <td class="col-sno" data-col="sno">${index + 1}</td>
-                <td class="col-req-id" data-col="req-id"><code>${req.id}</code></td>
-                <td class="col-division" data-col="division">${req.division}</td>
-                <td class="col-material" data-col="material">${req.total_items} items</td>
-                <td class="col-req-qty" data-col="req-qty"><strong>${req.total_requested.toLocaleString()}</strong></td>
-                <td class="col-approved-qty" data-col="approved-qty"><strong>${(req.total_approved || 0).toLocaleString()}</strong></td>
-                <td class="col-status ${statusClass}" data-col="status"><span class="status-badge ${statusClass}">${statusIcon} ${req.status}</span></td>
-                <td class="col-action" data-col="action">
-                    ${req.status === 'Approved' || req.status === 'Partially Approved' ? 
-                        `<button class="btn-action view" onclick="viewAllotmentLetter('${req.id}')"><i class="bi bi-eye"></i> View</button>` :
-                        `<span class="action-text">${req.status}</span>`
-                    }
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function filterMyRequisitions() {
-    const filter = document.getElementById('myReqsFilter').value;
-    if (filter === 'all') {
-        renderMyRequisitions(allRequisitions);
-    } else {
-        const filtered = allRequisitions.filter(req => req.status === filter);
-        renderMyRequisitions(filtered);
-    }
-}
-
-// ================================================================
-// REVIEW REQUISITIONS
-// ================================================================
-async function loadReviewRequisitions() {
-    try {
-        const response = await fetch('/api/allotments');
-        const data = await response.json();
-        const pendingReqs = data.filter(req => 
-            req.status === 'Submitted' || req.status === 'Under Review'
-        );
-        renderReviewRequisitions(pendingReqs);
-        document.getElementById('pendingBadge').textContent = pendingReqs.length;
-        document.getElementById('pendingReview').textContent = pendingReqs.length;
-    } catch (error) {
-        console.error('Error loading review requisitions:', error);
-    }
-}
-
-function renderReviewRequisitions(requisitions) {
-    const tbody = document.getElementById('reviewRequisitionsBody');
-    
-    if (!requisitions || requisitions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No pending requisitions</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = requisitions.map((req, index) => {
-        const priorityClass = req.priority === 'Urgent' ? 'priority-urgent' :
-                             req.priority === 'High' ? 'priority-high' : '';
-        
-        return `
-            <tr>
-                <td class="col-sno" data-col="sno">${index + 1}</td>
-                <td class="col-req-id" data-col="req-id"><code>${req.id}</code></td>
-                <td class="col-division" data-col="division">${req.division}</td>
-                <td class="col-material" data-col="material">${req.total_items} items</td>
-                <td class="col-req-qty" data-col="req-qty"><strong>${req.total_requested.toLocaleString()}</strong></td>
-                <td class="col-status" data-col="status"><span class="priority-badge ${priorityClass}">${req.priority || 'Normal'}</span></td>
-                <td class="col-action" data-col="action">
-                    <button class="btn-action review" onclick="openReviewModal('${req.id}')">
-                        <i class="bi bi-eye"></i> Review
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function filterReviewRequisitions() {
-    loadReviewRequisitions();
-}
-
-// ================================================================
-// REVIEW MODAL
-// ================================================================
-async function openReviewModal(reqId) {
     showLoading();
     
     try {
-        const response = await fetch('/api/allotments');
-        const data = await response.json();
-        const requisition = data.find(req => req.id === reqId);
+        document.getElementById('materialTableBody').innerHTML = '';
+        materialRows = [];
+        rowCounter = 0;
         
-        if (!requisition) {
-            alert('Requisition not found!');
-            hideLoading();
+        const criticalMaterials = new Set();
+        
+        for (const division of selectedDivisions) {
+            const stockMap = await fetchDivisionStock(division);
+            if (stockMap) {
+                for (const [code, data] of Object.entries(stockMap)) {
+                    if (data.virtual_stock <= data.monthly_avg && data.monthly_avg > 0) {
+                        criticalMaterials.add(code);
+                    }
+                }
+            }
+        }
+        
+        for (const code of criticalMaterials) {
+            const material = allMaterials.find(m => m.material_code === code);
+            if (material) {
+                rowCounter++;
+                const rowId = `mat-row-${rowCounter}`;
+                const tbody = document.getElementById('materialTableBody');
+                
+                const tr = document.createElement('tr');
+                tr.id = rowId;
+                tr.innerHTML = `
+                    <td style="text-align: center;">${rowCounter}</td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm mat-code-input" 
+                               value="${material.material_code}" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm mat-name-input" 
+                               value="${material.material_name}" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm mat-unit-input" 
+                               value="${material.unit || 'NOS'}" readonly>
+                    </td>
+                    <td class="stock-cell" id="${rowId}-virtual">
+                        <span class="stock-badge">Loading...</span>
+                    </td>
+                    <td class="stock-cell" id="${rowId}-avg">
+                        <span class="stock-badge">Loading...</span>
+                    </td>
+                    <td class="stock-cell" id="${rowId}-zonal">
+                        <span class="stock-badge">Loading...</span>
+                    </td>
+                    <td class="stock-cell" id="${rowId}-suggested">
+                        <span class="stock-badge">Loading...</span>
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn-remove-row" onclick="removeMaterialRow('${rowId}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                await calculateSuggestedQuantity(rowId, material.material_code);
+            }
+        }
+        
+        showToast(`✅ Added ${criticalMaterials.size} critical materials from ${selectedDivisions.length} divisions`);
+        
+    } catch (error) {
+        console.error('Error auto-suggesting:', error);
+        showToast('❌ Error auto-suggesting: ' + error.message, true);
+    }
+    
+    hideLoading();
+}
+
+// ================================================================
+// SUGGESTED TABLE
+// ================================================================
+async function updateSuggestedTable() {
+    if (selectedDivisions.length === 0 || materialRows.length === 0) {
+        document.getElementById('suggestedTableContainer').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('suggestedTableContainer').style.display = 'block';
+    const tbody = document.getElementById('suggestedTableBody');
+    
+    suggestedData = [];
+    let rowIndex = 0;
+    
+    for (const material of materialRows) {
+        for (const division of selectedDivisions) {
+            rowIndex++;
+            const divData = material.division_data?.[division];
+            
+            let isCritical = false;
+            let suggestedQty = 0;
+            let virtualStock = 0;
+            let monthlyAvg = 0;
+            
+            if (divData) {
+                virtualStock = divData.virtual_stock || 0;
+                monthlyAvg = divData.monthly_avg || 0;
+                isCritical = (virtualStock <= monthlyAvg && monthlyAvg > 0);
+                if (isCritical) {
+                    suggestedQty = Math.max(0, Math.ceil((monthlyAvg - virtualStock) + (monthlyAvg * 0.2)));
+                }
+            }
+            
+            const isInFinal = finalData.some(f => 
+                f.material_code === material.material_code && 
+                f.division === division
+            );
+            
+            let existingAllotted = '';
+            if (isInFinal) {
+                const existing = finalData.find(f => 
+                    f.material_code === material.material_code && 
+                    f.division === division
+                );
+                if (existing) {
+                    existingAllotted = existing.allotted_qty;
+                }
+            }
+            
+            suggestedData.push({
+                sno: rowIndex,
+                division: division,
+                material_code: material.material_code,
+                material_name: material.material_name,
+                unit: material.unit || 'NOS',
+                virtual_stock: virtualStock,
+                monthly_avg: monthlyAvg,
+                zonal_stock: material.zonal_stock || 0,
+                suggested_qty: suggestedQty,
+                status: isCritical ? 'Critical' : 'Normal',
+                in_final: isInFinal,
+                allotted_qty: existingAllotted
+            });
+        }
+    }
+    
+    document.getElementById('totalMaterials').textContent = materialRows.length;
+    
+    tbody.innerHTML = suggestedData.map((row, idx) => {
+        const isChecked = row.in_final ? 'checked' : '';
+        const isDisabled = row.in_final ? 'disabled' : '';
+        const showAllotted = isChecked ? '' : 'style="display:none;"';
+        
+        return `
+            <tr>
+                <td style="text-align: center;">
+                    <input type="checkbox" class="suggested-checkbox" 
+                           data-idx="${idx}" ${isChecked} ${isDisabled}
+                           onchange="onSuggestedSelect(${idx}, this.checked)">
+                </td>
+                <td style="text-align: center;">${row.sno}</td>
+                <td><code>${row.material_code}</code></td>
+                <td title="${row.material_name}">${row.material_name.substring(0, 25)}${row.material_name.length > 25 ? '...' : ''}</td>
+                <td>${row.unit}</td>
+                <td class="${row.virtual_stock <= row.monthly_avg ? 'stock-critical' : 'stock-available'}">${row.virtual_stock}</td>
+                <td>${row.monthly_avg}</td>
+                <td><strong>${row.zonal_stock}</strong></td>
+                <td><strong>${row.suggested_qty}</strong></td>
+                <td><strong>${row.division}</strong></td>
+                <td ${showAllotted}>
+                    <input type="number" class="form-control form-control-sm allotted-input" 
+                           value="${row.allotted_qty || ''}" min="0" 
+                           data-idx="${idx}" 
+                           placeholder="Enter Qty"
+                           ${isDisabled ? 'disabled' : ''}
+                           onchange="updateAllottedQty(${idx}, this.value)">
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function onSuggestedSelect(idx, checked) {
+    if (checked) {
+        if (!selectedSuggestedRows.includes(idx)) {
+            selectedSuggestedRows.push(idx);
+        }
+        const row = document.querySelector(`#suggestedTableBody tr:nth-child(${idx + 1})`);
+        if (row) {
+            const td = row.querySelector('td:last-child');
+            if (td) {
+                td.style.display = '';
+                td.querySelector('input').focus();
+            }
+        }
+    } else {
+        selectedSuggestedRows = selectedSuggestedRows.filter(i => i !== idx);
+        const row = document.querySelector(`#suggestedTableBody tr:nth-child(${idx + 1})`);
+        if (row) {
+            const td = row.querySelector('td:last-child');
+            if (td) {
+                td.style.display = 'none';
+                td.querySelector('input').value = '';
+            }
+        }
+    }
+}
+
+function updateAllottedQty(idx, value) {
+    if (suggestedData[idx]) {
+        suggestedData[idx].allotted_qty = value;
+    }
+}
+
+function toggleAllSuggested() {
+    const checkboxes = document.querySelectorAll('.suggested-checkbox:not([disabled])');
+    const selectAll = document.getElementById('selectAllSuggested');
+    const isChecked = selectAll.checked;
+    
+    checkboxes.forEach((cb, index) => {
+        cb.checked = isChecked;
+        const dataIdx = parseInt(cb.dataset.idx);
+        const row = document.querySelector(`#suggestedTableBody tr:nth-child(${index + 1})`);
+        if (row) {
+            const td = row.querySelector('td:last-child');
+            if (td) {
+                if (isChecked) {
+                    td.style.display = '';
+                    if (!selectedSuggestedRows.includes(dataIdx)) {
+                        selectedSuggestedRows.push(dataIdx);
+                    }
+                } else {
+                    td.style.display = 'none';
+                    td.querySelector('input').value = '';
+                    selectedSuggestedRows = selectedSuggestedRows.filter(i => i !== dataIdx);
+                }
+            }
+        }
+    });
+}
+
+// ================================================================
+// ADD TO FINAL ALLOTMENT
+// ================================================================
+function addSelectedToFinal() {
+    const checkboxes = document.querySelectorAll('.suggested-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one item from Suggested Allotment to add to Final!');
+        return;
+    }
+    
+    let addedCount = 0;
+    let missingAllotted = false;
+    
+    checkboxes.forEach(cb => {
+        const idx = parseInt(cb.dataset.idx);
+        const row = suggestedData[idx];
+        
+        if (!row) return;
+        
+        const allottedQty = parseFloat(row.allotted_qty);
+        if (isNaN(allottedQty) || allottedQty < 0) {
+            missingAllotted = true;
             return;
         }
         
-        currentReviewRequisition = requisition;
+        const exists = finalData.some(f => 
+            f.material_code === row.material_code && 
+            f.division === row.division
+        );
         
-        const modalBody = document.getElementById('reviewModalBody');
-        modalBody.innerHTML = `
-            <div class="review-header">
-                <div class="review-info">
-                    <strong>Requisition ID:</strong> ${requisition.id}
-                </div>
-                <div class="review-info">
-                    <strong>Division:</strong> ${requisition.division}
-                </div>
-                <div class="review-info">
-                    <strong>Priority:</strong> <span class="priority-badge ${requisition.priority === 'Urgent' ? 'priority-urgent' : requisition.priority === 'High' ? 'priority-high' : ''}">${requisition.priority || 'Normal'}</span>
-                </div>
-                <div class="review-info">
-                    <strong>Date:</strong> ${new Date(requisition.request_date).toLocaleDateString('en-IN')}
-                </div>
-                <div class="review-info">
-                    <strong>Requested By:</strong> ${requisition.requested_by_name || requisition.requested_by}
-                </div>
+        if (!exists) {
+            finalData.push({
+                sno: finalData.length + 1,
+                division: row.division,
+                material_code: row.material_code,
+                material_name: row.material_name,
+                unit: row.unit,
+                suggested_qty: row.suggested_qty,
+                allotted_qty: allottedQty,
+                sto_no: stoCache[row.division] || '',
+                virtual_stock: row.virtual_stock,
+                monthly_avg: row.monthly_avg,
+                zonal_stock: row.zonal_stock,
+                status: row.status
+            });
+            addedCount++;
+        }
+    });
+    
+    if (missingAllotted) {
+        alert('⚠️ Please enter Allotted Quantity for all selected items before adding to Final!');
+        return;
+    }
+    
+    if (addedCount === 0) {
+        showToast('ℹ️ Selected items already exist in Final Allotment');
+        return;
+    }
+    
+    selectedSuggestedRows = [];
+    document.getElementById('selectAllSuggested').checked = false;
+    
+    updateSuggestedTable();
+    renderFinalTable();
+    document.getElementById('finalEmptyState').style.display = 'none';
+    document.getElementById('finalAllotmentContainer').style.display = 'block';
+    updateFinalBadge();
+    
+    showToast(`✅ ${addedCount} item(s) added to Final Allotment. Total: ${finalData.length} items`);
+    switchTab('step2');
+}
+
+// ================================================================
+// FINAL TABLE - STO No per Division
+// ================================================================
+function renderFinalTable() {
+    const tbody = document.getElementById('finalTableBody');
+    
+    if (finalData.length === 0) {
+        document.getElementById('finalAllotmentContainer').style.display = 'none';
+        document.getElementById('finalEmptyState').style.display = 'block';
+        updateFinalBadge();
+        return;
+    }
+    
+    document.getElementById('finalAllotmentContainer').style.display = 'block';
+    document.getElementById('finalEmptyState').style.display = 'none';
+    
+    finalData.forEach((row, idx) => {
+        row.sno = idx + 1;
+    });
+    
+    tbody.innerHTML = finalData.map((row, idx) => {
+        const isFirstForDivision = finalData.findIndex(r => r.division === row.division) === idx;
+        
+        return `
+            <tr>
+                <td style="text-align: center;">${row.sno}</td>
+                <td><code>${row.material_code}</code></td>
+                <td title="${row.material_name}">${row.material_name.substring(0, 20)}${row.material_name.length > 20 ? '...' : ''}</td>
+                <td>${row.unit}</td>
+                <td><strong>${row.division}</strong></td>
+                <td>${row.suggested_qty}</td>
+                <td><strong>${row.allotted_qty}</strong></td>
+                <td>
+                    ${isFirstForDivision ? `
+                        <input type="text" class="form-control form-control-sm sto-input" 
+                               value="${stoCache[row.division] || ''}" 
+                               placeholder="10 digit STO" 
+                               maxlength="10"
+                               pattern="[0-9]{10}"
+                               data-division="${row.division}"
+                               onchange="updateDivisionSTO('${row.division}', this.value)"
+                               oninput="validateSTOInput(this)">
+                    ` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    updateFinalBadge();
+}
+
+function validateSTOInput(input) {
+    input.value = input.value.replace(/[^0-9]/g, '');
+    if (input.value.length > 10) {
+        input.value = input.value.slice(0, 10);
+    }
+    if (input.value.length === 10) {
+        input.style.borderColor = '#28a745';
+    } else {
+        input.style.borderColor = '#dc3545';
+    }
+}
+
+function updateDivisionSTO(division, value) {
+    const sto = value.trim();
+    if (sto === '' || validateSTO(sto)) {
+        stoCache[division] = sto;
+        finalData.forEach(row => {
+            if (row.division === division) {
+                row.sto_no = sto;
+            }
+        });
+        document.querySelectorAll(`.sto-input[data-division="${division}"]`).forEach(input => {
+            input.value = sto;
+        });
+    } else {
+        alert('STO Number must be exactly 10 digits (0-9)');
+        const input = document.querySelector(`.sto-input[data-division="${division}"]`);
+        if (input) {
+            input.value = stoCache[division] || '';
+        }
+    }
+}
+
+// ================================================================
+// GENERATE DRAFT LETTER (User)
+// ================================================================
+function generateDraftLetter() {
+    if (finalData.length === 0) {
+        alert('No final allotment data to generate draft!');
+        return;
+    }
+    
+    const uniqueDivisions = [...new Set(finalData.map(row => row.division))];
+    const missingSTO = uniqueDivisions.some(div => !stoCache[div] || stoCache[div].trim() === '');
+    if (missingSTO) {
+        if (!confirm('Some divisions are missing STO numbers. Continue with draft?')) {
+            return;
+        }
+    }
+    
+    showConfirmModal(
+        'Do you want to generate a DRAFT allotment letter?\n\nVerify the draft, print it, and then click "Send to Manager" to save as Pending.',
+        function() {
+            generateLetterHTML('draft');
+        }
+    );
+}
+
+// ================================================================
+// GENERATE FINAL LETTER (Manager)
+// ================================================================
+function generateFinalLetter() {
+    if (finalData.length === 0) {
+        alert('No final allotment data to generate letter!');
+        return;
+    }
+    
+    const uniqueDivisions = [...new Set(finalData.map(row => row.division))];
+    const missingSTO = uniqueDivisions.some(div => !stoCache[div] || !validateSTO(stoCache[div]));
+    if (missingSTO) {
+        alert('⚠️ Please enter valid 10-digit STO numbers for all divisions before generating final letter!');
+        return;
+    }
+    
+    showConfirmModal(
+        'Do you want to generate the FINAL allotment letter?\n\nThis will create the official allotment letter. Click "Save to Database" to finalize.',
+        function() {
+            generateLetterHTML('final');
+        }
+    );
+}
+
+// ================================================================
+// GENERATE LETTER HTML - A4 SINGLE PAGE OPTIMIZED
+// ================================================================
+function generateLetterHTML(type) {
+    const isDraft = type === 'draft';
+    const allotmentNo = document.getElementById('allotmentNo').value || generateAllotmentNo();
+    const allotmentDate = document.getElementById('allotmentDate').value || new Date().toISOString().split('T')[0];
+    const memoNo = document.getElementById('memoNo').value || `ZM/ZOS/TV-16/${Math.floor(Math.random() * 9000 + 1000)}`;
+    
+    const dateObj = new Date(allotmentDate);
+    const formattedDate = dateObj.toLocaleDateString('en-IN', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    
+    const divisions = {};
+    finalData.forEach(row => {
+        if (!divisions[row.division]) { divisions[row.division] = []; }
+        divisions[row.division].push(row);
+    });
+    
+    const materials = {};
+    finalData.forEach(row => {
+        if (!materials[row.material_code]) {
+            materials[row.material_code] = {
+                code: row.material_code,
+                name: row.material_name,
+                unit: row.unit
+            };
+        }
+    });
+    
+    const divisionKeys = Object.keys(divisions);
+    const allDivisionsList = divisionKeys.join(', ');
+    
+    const divisionSTOs = {};
+    divisionKeys.forEach(div => {
+        divisionSTOs[div] = stoCache[div] || '';
+    });
+    
+    const uniqueRegions = getUniqueRegions(divisionKeys);
+    const regionsList = uniqueRegions.join(', ');
+    
+    // Table rows HTML
+    let tableRowsHTML = '';
+    let grandTotalAll = 0;
+    
+    Object.keys(materials).forEach((code, idx) => {
+        const material = materials[code];
+        let grandTotal = 0;
+        const divisionCols = divisionKeys.map(div => {
+            const row = divisions[div].find(r => r.material_code === code);
+            const qty = row ? row.allotted_qty : 0;
+            grandTotal += qty;
+            return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${qty}</td>`;
+        }).join('');
+        grandTotalAll += grandTotal;
+        tableRowsHTML += `
+            <tr>
+                <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${idx + 1}</td>
+                <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${code}</td>
+                <td style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-size: 8.5px;">${material.name}</td>
+                ${divisionCols}
+                <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8.5px;">${grandTotal}</td>
+            </tr>
+        `;
+    });
+    
+    // STO row
+    const stoRow = divisionKeys.map(div => {
+        const sto = divisionSTOs[div] || '';
+        return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">${sto}</td>`;
+    }).join('');
+    
+    // Copy forwarded HTML
+    const copyForwardedHTML = `
+        <p style="font-size: 9px; margin: 2px 0 0 0; font-weight: 700;">Copy forwarded for information:</p>
+        <p style="font-size: 9px; margin: 1px 0 1px 20px;">1) The Regional Manager : ${regionsList}</p>
+        <p style="font-size: 9px; margin: 1px 0 1px 20px;">2) The Divisional Manager : ${allDivisionsList}</p>
+        <p style="font-size: 9px; margin: 1px 0 0 20px;">3) Office Copy</p>
+    `;
+    
+    const letterHTML = `
+        <div class="allotment-letter" id="allotmentLetterContent" style="position: relative; padding: 10px 15px; max-width: 1000px; margin: 0 auto; background: white; font-family: 'Times New Roman', Times, serif; font-size: 10px; line-height: 1.3;">
+            ${isDraft ? `
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 4rem; color: rgba(255, 0, 0, 0.06); font-weight: 900; pointer-events: none; z-index: 0; text-align: center; line-height: 1.2; white-space: nowrap;">
+                DRAFT<br>NOT FOR OFFICIAL USE
             </div>
-            
-            <div class="review-remarks">
-                <strong>Remarks:</strong> ${requisition.remarks || 'No remarks'}
-            </div>
-            
-            <div class="table-responsive">
-                <table class="data-table review-items-table">
+            ` : ''}
+            <div style="position: relative; z-index: 1;">
+                <!-- Company Header -->
+                <div style="text-align: center; border-bottom: 2px solid #1a3c6e; padding-bottom: 5px; margin-bottom: 6px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px;">West Bengal State Electricity Distribution Company Limited</div>
+                    <div style="font-size: 8px; color: #333; font-weight: 500;">(A Government of West Bengal Enterprise)</div>
+                    <div style="font-size: 10px; font-weight: 700; color: #1a3c6e; margin-top: 2px;">Zonal Office Siliguri</div>
+                    <div style="font-size: 8px; color: #333;">2nd Mile, Sevoke Road, Siliguri, Darjeeling, Pin – 734001</div>
+                    <div style="font-size: 8px; color: #333;">Tel: 0353-2540432, 2542747 | E-mail: zm.siliguri@wbsedcl.in</div>
+                </div>
+                
+                ${isDraft ? `
+                <div style="text-align: center; padding: 3px; background: #fff3cd; border: 1px solid #dc3545; border-radius: 3px; margin-bottom: 6px;">
+                    <span style="font-size: 9px; font-weight: 700; color: #dc3545;">⚠️ THIS IS A DRAFT ALLOTMENT ORDER</span>
+                </div>
+                ` : ''}
+                
+                <!-- Allotment Title - Single Line -->
+                <div style="text-align: center; margin-bottom: 4px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px; text-decoration: underline;">
+                        ALLOTMENT ORDER No: ${allotmentNo} &nbsp;&nbsp; Date: ${formattedDate}
+                    </div>
+                </div>
+                
+                <!-- MEMO NO and Dated -->
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; margin: 3px 0; padding: 3px 8px; background: #f8fafd; border: 1px solid #ddd; border-radius: 3px;">
+                    <div style="font-size: 9px;"><strong>MEMO NO:-</strong> ${memoNo}</div>
+                    <div style="font-size: 9px;"><strong>Dated:</strong> ${formattedDate}</div>
+                </div>
+                
+                <!-- To -->
+                <div style="margin: 4px 0;">
+                    <p style="font-size: 9px; margin: 2px 0;"><strong>To,</strong></p>
+                    <p style="font-size: 9px; margin: 1px 0 1px 20px;">A.E &amp; Manager(Store)</p>
+                    <p style="font-size: 9px; margin: 1px 0 1px 20px;">Siliguri Zonal Store</p>
+                </div>
+                
+                <!-- Subject -->
+                <div style="margin: 3px 0;">
+                    <p style="font-size: 9px; margin: 2px 0;"><strong>Subject:</strong> Allotment of materials to various divisions based on their requisition and stock availability at Siliguri Zonal Store</p>
+                </div>
+                
+                <!-- Sir and Opening -->
+                <div style="margin: 3px 0;">
+                    <p style="font-size: 9px; margin: 2px 0;"><strong>Sir,</strong></p>
+                    <p style="font-size: 9px; margin: 2px 0; text-align: justify;">
+                        Please find below the allotment details for the following divisions who made requisition for below mentioned materials or allotted based on their low stock availability as well as stock present at Siliguri Zonal Store.
+                    </p>
+                </div>
+                
+                <!-- Main Table - Compact -->
+                <table style="width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 8.5px;">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Material Code</th>
-                            <th>Material Name</th>
-                            <th>Group</th>
-                            <th>Requested</th>
-                            <th>Virtual Stock</th>
-                            <th>Monthly Avg</th>
-                            <th>Zonal Stock</th>
-                            <th>Allotted Qty</th>
-                            <th>Status</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 28px;">Sl</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 70px;">Mat Code</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 100px;">Material Description</th>
+                            ${divisionKeys.map(div => `<th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 45px; font-size: 7px;" colspan="1">${div}</th>`).join('')}
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px;">Total</th>
+                        </tr>
+                        <tr>
+                            ${divisionKeys.map(() => `<th style="border: 1px solid #000; padding: 1px 2px; text-align: center; background: #f0f0f0; font-weight: 600; font-size: 7px;">Qty</th>`).join('')}
                         </tr>
                     </thead>
                     <tbody>
-                        ${requisition.items.map((item, idx) => `
-                            <tr>
-                                <td>${idx + 1}</td>
-                                <td><code>${item.material_code}</code></td>
-                                <td>${item.material_name}</td>
-                                <td>${item.material_group || '-'}</td>
-                                <td><strong>${item.requested_qty}</strong></td>
-                                <td class="${item.virtual_stock <= item.monthly_avg ? 'stock-critical' : 'stock-available'}">${item.virtual_stock || 0}</td>
-                                <td>${item.monthly_avg || 0}</td>
-                                <td>${item.zonal_stock || 0}</td>
-                                <td>
-                                    <input type="number" class="form-control form-control-sm allot-qty-input" 
-                                           value="${item.approved_qty || item.requested_qty}" 
-                                           min="0" max="${item.requested_qty}"
-                                           data-idx="${idx}"
-                                           onchange="updateAllotmentTotal()">
-                                </td>
-                                <td>
-                                    <select class="form-control form-control-sm item-status-select" data-idx="${idx}">
-                                        <option value="Pending" ${item.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                                        <option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option>
-                                        <option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-                                    </select>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        ${tableRowsHTML}
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" style="text-align: right; font-weight: 700;">Totals:</td>
-                            <td><strong id="reviewTotalRequested">${requisition.total_requested}</strong></td>
-                            <td colspan="3"></td>
-                            <td><strong id="reviewTotalAllotted">${requisition.total_approved || 0}</strong></td>
-                            <td></td>
+                            <td colspan="${3 + divisionKeys.length}" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Materials STO No</td>
+                            <td style="border: 1px solid #000; padding: 2px 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
+                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
+                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
+                            ${stoRow}
+                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
                         </tr>
                     </tfoot>
                 </table>
-            </div>
-            
-            <div class="review-actions">
-                <label><i class="bi bi-chat"></i> Review Remarks:</label>
-                <input type="text" id="reviewRemarksInput" class="form-control" placeholder="Add review remarks..." value="${requisition.review_remarks || ''}">
-            </div>
-        `;
-        
-        document.getElementById('reviewModal').style.display = 'flex';
-        updateAllotmentTotal();
-        
-    } catch (error) {
-        console.error('Error opening review modal:', error);
-        alert('Error loading requisition details: ' + error.message);
-    }
-    
-    hideLoading();
-}
-
-function updateAllotmentTotal() {
-    const inputs = document.querySelectorAll('.allot-qty-input');
-    let total = 0;
-    inputs.forEach(input => {
-        total += parseFloat(input.value) || 0;
-    });
-    document.getElementById('reviewTotalAllotted').textContent = total;
-}
-
-function closeReviewModal() {
-    document.getElementById('reviewModal').style.display = 'none';
-    currentReviewRequisition = null;
-}
-
-async function approveRequisition() {
-    if (!currentReviewRequisition) return;
-    
-    const items = [];
-    const qtyInputs = document.querySelectorAll('.allot-qty-input');
-    const statusSelects = document.querySelectorAll('.item-status-select');
-    
-    qtyInputs.forEach((input, idx) => {
-        const status = statusSelects[idx]?.value || 'Pending';
-        items.push({
-            ...currentReviewRequisition.items[idx],
-            approved_qty: parseFloat(input.value) || 0,
-            status: status
-        });
-    });
-    
-    const totalApproved = items.reduce((sum, item) => sum + (item.approved_qty || 0), 0);
-    const allApproved = items.every(item => item.status === 'Approved');
-    const allRejected = items.every(item => item.status === 'Rejected');
-    const someApproved = items.some(item => item.status === 'Approved');
-    
-    let status = 'Under Review';
-    if (allApproved && totalApproved > 0) status = 'Approved';
-    else if (allRejected) status = 'Rejected';
-    else if (someApproved) status = 'Partially Approved';
-    
-    const updatedRequisition = {
-        ...currentReviewRequisition,
-        items: items,
-        total_approved: totalApproved,
-        status: status,
-        review_remarks: document.getElementById('reviewRemarksInput')?.value || '',
-        reviewed_by: "{{ user.username if user else 'Unknown' }}",
-        reviewed_by_name: "{{ user.name if user else 'Unknown' }}",
-        review_date: new Date().toISOString()
-    };
-    
-    showLoading();
-    
-    try {
-        const response = await fetch(`/api/allotments/${currentReviewRequisition.id}/approve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedRequisition)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast(`✅ Requisition ${currentReviewRequisition.id} ${status}!`);
-            closeReviewModal();
-            loadReviewRequisitions();
-            loadMyRequisitions();
-            loadLetterRequisitions();
-        } else {
-            showToast('❌ Failed to approve: ' + (result.error || 'Unknown error'), true);
-        }
-    } catch (error) {
-        showToast('❌ Error approving: ' + error.message, true);
-    }
-    
-    hideLoading();
-}
-
-async function rejectRequisition() {
-    if (!currentReviewRequisition) return;
-    
-    if (!confirm(`Are you sure you want to reject requisition ${currentReviewRequisition.id}?`)) return;
-    
-    showLoading();
-    
-    try {
-        const response = await fetch(`/api/allotments/${currentReviewRequisition.id}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                remarks: document.getElementById('reviewRemarksInput')?.value || 'Rejected by manager'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast(`✅ Requisition ${currentReviewRequisition.id} rejected!`);
-            closeReviewModal();
-            loadReviewRequisitions();
-            loadMyRequisitions();
-        } else {
-            showToast('❌ Failed to reject: ' + (result.error || 'Unknown error'), true);
-        }
-    } catch (error) {
-        showToast('❌ Error rejecting: ' + error.message, true);
-    }
-    
-    hideLoading();
-}
-
-// ================================================================
-// ALLOTMENT LETTER
-// ================================================================
-async function loadLetterRequisitions() {
-    try {
-        const response = await fetch('/api/allotments');
-        const data = await response.json();
-        const approvedReqs = data.filter(req => 
-            req.status === 'Approved' || req.status === 'Partially Approved'
-        );
-        renderLetterRequisitions(approvedReqs);
-        document.getElementById('readyToPrint').textContent = approvedReqs.length;
-    } catch (error) {
-        console.error('Error loading letter requisitions:', error);
-    }
-}
-
-function renderLetterRequisitions(requisitions) {
-    const tbody = document.getElementById('letterRequisitionsBody');
-    
-    if (!requisitions || requisitions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No approved requisitions</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = requisitions.map((req, index) => {
-        return `
-            <tr>
-                <td class="col-sno" data-col="sno">${index + 1}</td>
-                <td class="col-req-id" data-col="req-id"><code>${req.id}</code></td>
-                <td class="col-division" data-col="division">${req.division}</td>
-                <td class="col-material" data-col="material">${req.total_items} items</td>
-                <td class="col-approved-qty" data-col="approved-qty"><strong>${(req.total_approved || 0).toLocaleString()}</strong></td>
-                <td class="col-status" data-col="status"><span class="status-badge status-approved">✅ ${req.status}</span></td>
-                <td class="col-action" data-col="action">
-                    <button class="btn-action view" onclick="viewAllotmentLetter('${req.id}')">
-                        <i class="bi bi-eye"></i> View
-                    </button>
-                    <button class="btn-action print" onclick="printAllotmentLetterById('${req.id}')">
-                        <i class="bi bi-printer"></i> Print
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function filterLetterRequisitions() {
-    loadLetterRequisitions();
-}
-
-async function viewAllotmentLetter(reqId) {
-    showLoading();
-    
-    try {
-        const response = await fetch('/api/allotments');
-        const data = await response.json();
-        const requisition = data.find(req => req.id === reqId);
-        
-        if (!requisition) {
-            alert('Requisition not found!');
-            hideLoading();
-            return;
-        }
-        
-        currentLetterRequisition = requisition;
-        
-        const modalBody = document.getElementById('letterModalBody');
-        modalBody.innerHTML = generateAllotmentLetterHTML(requisition);
-        
-        document.getElementById('letterModal').style.display = 'flex';
-        
-    } catch (error) {
-        console.error('Error loading allotment letter:', error);
-        alert('Error loading allotment letter: ' + error.message);
-    }
-    
-    hideLoading();
-}
-
-function generateAllotmentLetterHTML(requisition) {
-    const today = new Date().toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'long', year: 'numeric'
-    });
-    
-    return `
-        <div class="allotment-letter" id="allotmentLetterContent">
-            <div class="letter-header">
-                <div class="letter-company">
-                    <h2>IMS Siliguri</h2>
-                    <p>Electrical Infrastructure - Siliguri Zone</p>
-                </div>
-                <div class="letter-title">
-                    <h1>ALLOTMENT LETTER</h1>
-                    <p>Date: ${today}</p>
-                </div>
-            </div>
-            
-            <div class="letter-body">
-                <div class="letter-ref">
-                    <p><strong>Ref No:</strong> ${requisition.id}</p>
-                    <p><strong>Division:</strong> ${requisition.division}</p>
-                    <p><strong>Priority:</strong> ${requisition.priority || 'Normal'}</p>
+                
+                <!-- Signature Block - Right Aligned with Space -->
+                <div style="margin-top: 6px; text-align: right;">
+                    <div style="display: inline-block; text-align: center;">
+                        <p style="margin: 1px 0; font-size: 9px;">Yours faithfully,</p>
+                        <div style="height: 20px;"></div>
+                        <p style="margin: 2px 0 1px 0; font-size: 10px; font-weight: 700;">(D. Mondal)</p>
+                        <p style="margin: 1px 0; font-size: 9px; font-weight: 700;">C.E. &amp; Zonal Manager</p>
+                        <p style="margin: 1px 0; font-size: 9px;">Zonal Office Siliguri, WBSEDCL</p>
+                    </div>
                 </div>
                 
-                <div class="letter-content">
-                    <p>Dear Sir/Madam,</p>
-                    <p>This is to inform you that the following materials have been <strong>ALLOTTED</strong> to your division as per the requisition submitted.</p>
-                    
-                    <table class="letter-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Material Code</th>
-                                <th>Material Name</th>
-                                <th>Group</th>
-                                <th>Requested</th>
-                                <th>Allotted</th>
-                                <th>UOM</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${requisition.items.map((item, idx) => `
-                                <tr>
-                                    <td>${idx + 1}</td>
-                                    <td>${item.material_code}</td>
-                                    <td>${item.material_name}</td>
-                                    <td>${item.material_group || '-'}</td>
-                                    <td>${item.requested_qty}</td>
-                                    <td><strong>${item.approved_qty || 0}</strong></td>
-                                    <td>${item.unit || 'Nos'}</td>
-                                    <td><span class="status-badge ${item.status === 'Approved' ? 'status-approved' : 'status-rejected'}">${item.status}</span></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="4" style="text-align: right; font-weight: 700;">TOTAL:</td>
-                                <td><strong>${requisition.total_requested}</strong></td>
-                                <td><strong>${requisition.total_approved || 0}</strong></td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                    
-                    <div class="letter-remarks">
-                        <p><strong>Remarks:</strong> ${requisition.review_remarks || requisition.remarks || 'No remarks'}</p>
-                        <p><strong>Reviewed By:</strong> ${requisition.reviewed_by_name || 'Manager'}</p>
-                        <p><strong>Reviewed Date:</strong> ${requisition.review_date ? new Date(requisition.review_date).toLocaleDateString('en-IN') : today}</p>
-                    </div>
-                    
-                    <div class="letter-signature">
-                        <div class="signature-line">
-                            <p>_________________________</p>
-                            <p><strong>Authorized Signatory</strong></p>
-                            <p>IMS Siliguri</p>
-                        </div>
+                <!-- MEMO NO and Dated - Middle -->
+                <div style="display: flex; justify-content: space-between; flex-wrap: wrap; margin: 4px 0 3px 0; padding: 3px 8px; background: #f8fafd; border: 1px solid #ddd; border-radius: 3px;">
+                    <div style="font-size: 9px;"><strong>MEMO NO:-</strong> ${memoNo}</div>
+                    <div style="font-size: 9px;"><strong>Dated:</strong> ${formattedDate}</div>
+                </div>
+                
+                <!-- Copy forwarded -->
+                <div style="margin: 3px 0;">
+                    ${copyForwardedHTML}
+                </div>
+                
+                <!-- Second Signature -->
+                <div style="margin-top: 4px; text-align: right;">
+                    <div style="display: inline-block; text-align: center;">
+                        <p style="margin: 2px 0 1px 0; font-size: 10px; font-weight: 700;">(D. Mondal)</p>
+                        <p style="margin: 1px 0; font-size: 9px; font-weight: 700;">C.E. &amp; Zonal Manager</p>
+                        <p style="margin: 1px 0; font-size: 9px;">Zonal Office Siliguri, WBSEDCL</p>
                     </div>
                 </div>
-            </div>
-            
-            <div class="letter-footer">
-                <p>This is a system-generated allotment letter. Please verify the stock availability before collection.</p>
+                
+                <!-- Registered Office - Footer -->
+                <div style="margin-top: 6px; border-top: 1px solid #ccc; padding-top: 4px; text-align: center; font-size: 7px; color: #555;">
+                    <p style="margin: 1px 0;">Registered Office: Vidyut Bhavan, Block – DJ, Sector – II, Salt Lake, Kolkata – 700091</p>
+                    <p style="margin: 1px 0;">Tel. – 033-2359-1917 Fax: 033-2337-3002, CIN: U40109WB2007SGC113473 Website: www.wbsedcl.in</p>
+                </div>
             </div>
         </div>
     `;
+    
+    if (isDraft) {
+        document.getElementById('draftLetterPreview').style.display = 'block';
+        document.getElementById('draftLetterPreview').innerHTML = letterHTML;
+        document.getElementById('draftEmptyState').style.display = 'none';
+        document.getElementById('draftActions').style.display = 'flex';
+        document.getElementById('draftLetterPreview').scrollIntoView({ behavior: 'smooth' });
+        showToast('📄 Draft letter generated successfully!');
+    } else {
+        document.getElementById('finalLetterPreview').style.display = 'block';
+        document.getElementById('finalLetterPreview').innerHTML = letterHTML;
+        document.getElementById('finalLetterEmptyState').style.display = 'none';
+        document.getElementById('finalLetterActions').style.display = 'flex';
+        document.getElementById('finalLetterPreview').scrollIntoView({ behavior: 'smooth' });
+        showToast('📄 Final letter generated successfully!');
+    }
 }
 
-function closeLetterModal() {
-    document.getElementById('letterModal').style.display = 'none';
-    currentLetterRequisition = null;
+// ================================================================
+// SEND DRAFT TO MANAGER - Save as Pending
+// ================================================================
+function sendDraftToManager() {
+    if (finalData.length === 0) {
+        alert('No final allotment data to send!');
+        return;
+    }
+    
+    const uniqueDivisions = [...new Set(finalData.map(row => row.division))];
+    const missingSTO = uniqueDivisions.some(div => !stoCache[div] || stoCache[div].trim() === '');
+    if (missingSTO) {
+        alert('⚠️ Please enter STO numbers for all divisions before sending to Manager!');
+        return;
+    }
+    
+    showConfirmModal(
+        'Send this DRAFT allotment to Manager?\n\nThis will save the allotment as PENDING in the database. Manager can review and finalize it.',
+        function() {
+            saveAllotmentToDB('Pending');
+        }
+    );
 }
 
-function printAllotmentLetter() {
+// ================================================================
+// SAVE ALLOTMENT TO DATABASE
+// ================================================================
+async function saveAllotmentToDB(status) {
+    showLoading();
+    
+    try {
+        const allotmentNo = document.getElementById('allotmentNo').value || generateAllotmentNo();
+        const memoNo = document.getElementById('memoNo').value || `ZM/ZOS/TV-16/${Math.floor(Math.random() * 9000 + 1000)}`;
+        
+        const data = {
+            allotment_no: allotmentNo,
+            memo_no: memoNo,
+            allotment_date: document.getElementById('allotmentDate').value,
+            divisions: selectedDivisions,
+            materials: materialRows.map(m => ({
+                material_code: m.material_code,
+                material_name: m.material_name,
+                unit: m.unit
+            })),
+            allotments: finalData,
+            sto_numbers: stoCache,
+            status: status,
+            created_by: currentUser,
+            created_by_name: currentUserName,
+            user_role: "{{ user.role if user else 'user' }}",
+            created_date: new Date().toISOString()
+        };
+        
+        let endpoint = '/api/allotments/bulk';
+        let method = 'POST';
+        
+        if (currentAllotmentId && status === 'Completed') {
+            endpoint = `/api/allotments/${currentAllotmentId}/finalize`;
+            method = 'PUT';
+        } else if (status === 'Pending') {
+            endpoint = '/api/allotments/bulk/save-pending';
+            method = 'POST';
+        }
+        
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (status === 'Pending') {
+                showToast(`✅ Draft sent to Manager successfully! Allotment ${allotmentNo} saved as PENDING.`);
+                currentAllotmentId = result.id;
+                clearFinalData();
+                switchTab('history');
+            } else {
+                showToast(`✅ Allotment ${allotmentNo} saved as COMPLETED successfully!`);
+                loadHistory();
+                clearAllotment();
+                switchTab('history');
+            }
+            loadHistory();
+        } else {
+            showToast('❌ Error saving: ' + (result.error || 'Unknown error'), true);
+        }
+        
+    } catch (error) {
+        console.error('Error saving allotment:', error);
+        showToast('❌ Error saving: ' + error.message, true);
+    }
+    
+    hideLoading();
+}
+
+// ================================================================
+// SAVE FINAL TO DATABASE (Manager) - Save as Completed
+// ================================================================
+function saveFinalToDB() {
+    if (!isManager) {
+        alert('⚠️ Only Manager can save to database!');
+        return;
+    }
+    
+    if (finalData.length === 0) {
+        alert('No final allotment data to save!');
+        return;
+    }
+    
+    const uniqueDivisions = [...new Set(finalData.map(row => row.division))];
+    const invalidSTO = uniqueDivisions.some(div => !stoCache[div] || !validateSTO(stoCache[div]));
+    if (invalidSTO) {
+        alert('⚠️ Please enter valid 10-digit STO numbers for all divisions before saving!');
+        return;
+    }
+    
+    showConfirmModal(
+        'Do you want to save this FINAL allotment to database?\n\nThis will mark the allotment as COMPLETED and save it permanently.',
+        function() {
+            saveAllotmentToDB('Completed');
+        }
+    );
+}
+
+// ================================================================
+// LOAD PENDING ALLOTMENT (Manager)
+// ================================================================
+async function loadPendingAllotment() {
+    if (!isManager) {
+        alert('Only Manager can load pending allotments.');
+        return;
+    }
+    
+    showLoading();
+    
+    try {
+        const response = await fetch('/api/allotments/bulk/pending');
+        const pendingAllotments = await response.json();
+        
+        hideLoading();
+        
+        if (!pendingAllotments || pendingAllotments.length === 0) {
+            alert('📋 No pending allotments found.\n\nAll allotments have been processed or none are waiting for approval.');
+            return;
+        }
+        
+        let message = '📋 SELECT PENDING ALLOTMENT\n';
+        message += '='.repeat(50) + '\n\n';
+        
+        pendingAllotments.forEach((item, idx) => {
+            const date = item.created_date ? new Date(item.created_date).toLocaleDateString('en-IN') : 'N/A';
+            const divisions = item.divisions?.join(', ') || 'N/A';
+            message += `${idx + 1}. ${item.allotment_no}\n`;
+            message += `   Created By: ${item.created_by_name || item.created_by || 'Unknown'}\n`;
+            message += `   Date: ${date}\n`;
+            message += `   Divisions: ${divisions}\n\n`;
+        });
+        
+        message += '='.repeat(50) + '\n';
+        message += `Enter number (1-${pendingAllotments.length}) to load:`;
+        
+        const choice = prompt(message);
+        if (choice === null) {
+            return;
+        }
+        
+        const index = parseInt(choice) - 1;
+        if (isNaN(index) || index < 0 || index >= pendingAllotments.length) {
+            alert('❌ Invalid selection. Please enter a number between 1 and ' + pendingAllotments.length);
+            return;
+        }
+        
+        const selected = pendingAllotments[index];
+        showLoading();
+        loadAllotmentData(selected);
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error loading pending allotments:', error);
+        hideLoading();
+        showToast('❌ Error loading pending allotments: ' + error.message, true);
+    }
+}
+
+function loadAllotmentData(allotment) {
+    clearAllotmentData();
+    
+    document.getElementById('allotmentNo').value = allotment.allotment_no || '';
+    document.getElementById('memoNo').value = allotment.memo_no || '';
+    document.getElementById('allotmentDate').value = allotment.allotment_date || new Date().toISOString().split('T')[0];
+    
+    currentAllotmentId = allotment._id || allotment.id || null;
+    
+    const divisions = allotment.divisions || [];
+    if (divisions.length === 0) {
+        showToast('⚠️ No divisions found in this allotment', true);
+        return;
+    }
+    
+    document.querySelectorAll('#divisionCheckboxGrid input[type="checkbox"]').forEach(cb => {
+        cb.checked = divisions.includes(cb.value);
+    });
+    onDivisionSelect();
+    
+    finalData = allotment.allotments || [];
+    stoCache = allotment.sto_numbers || {};
+    
+    if (finalData.length === 0) {
+        showToast('⚠️ No materials found in this allotment', true);
+        return;
+    }
+    
+    const uniqueMaterials = {};
+    finalData.forEach(item => {
+        if (!uniqueMaterials[item.material_code]) {
+            uniqueMaterials[item.material_code] = {
+                material_code: item.material_code,
+                material_name: item.material_name || item.material_code,
+                unit: item.unit || 'NOS',
+                suggested_qty: item.suggested_qty || 0,
+                zonal_stock: item.zonal_stock || 0
+            };
+        }
+    });
+    
+    const tbody = document.getElementById('materialTableBody');
+    tbody.innerHTML = '';
+    materialRows = [];
+    rowCounter = 0;
+    
+    for (const [code, mat] of Object.entries(uniqueMaterials)) {
+        rowCounter++;
+        const rowId = `mat-row-${rowCounter}`;
+        
+        const tr = document.createElement('tr');
+        tr.id = rowId;
+        tr.innerHTML = `
+            <td style="text-align: center;">${rowCounter}</td>
+            <td>
+                <input type="text" class="form-control form-control-sm mat-code-input" 
+                       value="${mat.material_code}" readonly>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm mat-name-input" 
+                       value="${mat.material_name}" readonly>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm mat-unit-input" 
+                       value="${mat.unit || 'NOS'}" readonly>
+            </td>
+            <td class="stock-cell" id="${rowId}-virtual">
+                <span class="stock-badge">-</span>
+            </td>
+            <td class="stock-cell" id="${rowId}-avg">
+                <span class="stock-badge">-</span>
+            </td>
+            <td class="stock-cell" id="${rowId}-zonal">
+                <span class="stock-badge">${mat.zonal_stock || 0}</span>
+            </td>
+            <td class="stock-cell" id="${rowId}-suggested">
+                <span class="stock-badge">${mat.suggested_qty || 0}</span>
+            </td>
+            <td style="text-align: center;">
+                <button type="button" class="btn-remove-row" onclick="removeMaterialRow('${rowId}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        
+        materialRows.push({
+            rowId: rowId,
+            material_code: mat.material_code,
+            material_name: mat.material_name,
+            unit: mat.unit || 'NOS',
+            suggested_qty: mat.suggested_qty || 0,
+            zonal_stock: mat.zonal_stock || 0
+        });
+    }
+    
+    updateSuggestedTable();
+    renderFinalTable();
+    document.getElementById('finalEmptyState').style.display = 'none';
+    document.getElementById('finalAllotmentContainer').style.display = 'block';
+    updateFinalBadge();
+    
+    switchTab('step2');
+    showToast(`✅ Loaded pending allotment: ${allotment.allotment_no}`);
+}
+
+function clearAllotmentData() {
+    document.getElementById('allotmentNo').value = generateAllotmentNo();
+    document.getElementById('memoNo').value = '';
+    document.getElementById('allotmentDate').value = new Date().toISOString().split('T')[0];
+    
+    document.querySelectorAll('#divisionCheckboxGrid input[type="checkbox"]').forEach(cb => cb.checked = false);
+    selectedDivisions = [];
+    updateSelectedCount();
+    
+    const tbody = document.getElementById('materialTableBody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
+                <i class="bi bi-plus-circle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                Select divisions first, then click "Add Material" or "Auto-Suggest Critical"
+            </td>
+        </tr>
+    `;
+    materialRows = [];
+    rowCounter = 0;
+    suggestedData = [];
+    finalData = [];
+    stoCache = {};
+    selectedSuggestedRows = [];
+    currentAllotmentId = null;
+    
+    document.getElementById('suggestedTableContainer').style.display = 'none';
+    document.getElementById('finalEmptyState').style.display = 'block';
+    document.getElementById('finalAllotmentContainer').style.display = 'none';
+    document.getElementById('draftLetterPreview').style.display = 'none';
+    document.getElementById('draftEmptyState').style.display = 'block';
+    document.getElementById('draftActions').style.display = 'none';
+    document.getElementById('finalLetterPreview').style.display = 'none';
+    document.getElementById('finalLetterEmptyState').style.display = 'block';
+    document.getElementById('finalLetterActions').style.display = 'none';
+    
+    document.getElementById('criticalItems').textContent = '0';
+    document.getElementById('totalMaterials').textContent = '0';
+    document.getElementById('readyForFinal').textContent = '0';
+    updateFinalBadge();
+}
+
+// ================================================================
+// PRINT FUNCTIONS
+// ================================================================
+function printDraftLetter() {
     const content = document.getElementById('allotmentLetterContent');
     if (content) {
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        printLetter('Draft Allotment Letter');
+    }
+}
+
+function printFinalLetter() {
+    const content = document.getElementById('allotmentLetterContent');
+    if (content) {
+        printLetter('Final Allotment Letter');
+    }
+}
+
+function printLetter(title) {
+    const content = document.getElementById('allotmentLetterContent');
+    if (content) {
+        const printWindow = window.open('', '_blank', 'width=1000,height=800');
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Allotment Letter - ${currentLetterRequisition?.id || 'IMS Siliguri'}</title>
+                    <title>${title}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 40px; }
-                        ${document.querySelector('style').innerHTML}
-                        .allotment-letter { max-width: 800px; margin: 0 auto; }
-                        .letter-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                        .letter-table th, .letter-table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-                        .letter-table th { background: #f8fafd; }
-                        .letter-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; }
-                        .letter-title h1 { color: #e74c3c; margin: 5px 0; }
-                        .letter-footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; text-align: center; font-size: 0.8rem; color: #666; }
-                        .letter-signature { margin-top: 30px; text-align: right; }
-                        .signature-line { display: inline-block; text-align: center; }
-                        .status-badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
-                        .status-approved { background: #d4edda; color: #155724; }
-                        .status-rejected { background: #f8d7da; color: #721c24; }
-                        .status-pending { background: #fff3cd; color: #856404; }
-                        .letter-remarks { margin: 15px 0; padding: 10px; background: #f8fafd; border-radius: 8px; }
-                        .letter-ref { display: flex; gap: 30px; flex-wrap: wrap; margin: 15px 0; }
+                        body { font-family: 'Times New Roman', Times, serif; padding: 15px; background: white; margin: 0; }
+                        .allotment-letter { max-width: 1000px; margin: 0 auto; }
+                        @media print { 
+                            body { padding: 10px; }
+                            .no-print { display: none !important; }
+                        }
                     </style>
                 </head>
                 <body>
@@ -1822,90 +2136,128 @@ function printAllotmentLetter() {
     }
 }
 
-function printAllotmentLetterById(reqId) {
-    viewAllotmentLetter(reqId);
-    setTimeout(() => {
-        printAllotmentLetter();
-    }, 1000);
+// ================================================================
+// CLEAR FUNCTIONS
+// ================================================================
+function clearDraft() {
+    document.getElementById('draftLetterPreview').style.display = 'none';
+    document.getElementById('draftEmptyState').style.display = 'block';
+    document.getElementById('draftActions').style.display = 'none';
 }
 
-async function saveAllotmentToDB() {
-    if (!currentLetterRequisition) return;
-    
-    showLoading();
-    
+function clearFinalLetter() {
+    document.getElementById('finalLetterPreview').style.display = 'none';
+    document.getElementById('finalLetterEmptyState').style.display = 'block';
+    document.getElementById('finalLetterActions').style.display = 'none';
+}
+
+function clearFinalData() {
+    if (!confirm('Clear all items from Final Allotment?')) return;
+    finalData = [];
+    stoCache = {};
+    renderFinalTable();
+    updateSuggestedTable();
+    updateFinalBadge();
+    showToast('🗑️ Final Allotment cleared');
+}
+
+function clearAllotment() {
+    if (!confirm('Clear all allotment data?')) return;
+    clearAllotmentData();
+    switchTab('step1');
+}
+
+// ================================================================
+// HISTORY
+// ================================================================
+async function loadHistory() {
     try {
-        const response = await fetch(`/api/allotments/${currentLetterRequisition.id}/approve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...currentLetterRequisition,
-                status: 'Completed',
-                printed_date: new Date().toISOString()
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast(`✅ Allotment ${currentLetterRequisition.id} saved to database!`);
-            closeLetterModal();
-            loadLetterRequisitions();
-            loadMyRequisitions();
-        } else {
-            showToast('❌ Failed to save: ' + (result.error || 'Unknown error'), true);
-        }
+        const response = await fetch('/api/allotments/bulk/history');
+        const data = await response.json();
+        renderHistory(data);
     } catch (error) {
-        showToast('❌ Error saving: ' + error.message, true);
+        console.error('Error loading history:', error);
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No history found</td></tr>';
+    }
+}
+
+function renderHistory(history) {
+    const tbody = document.getElementById('historyBody');
+    if (!history || history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No history found</td></tr>';
+        return;
     }
     
-    hideLoading();
+    tbody.innerHTML = history.map((item, idx) => `
+        <tr>
+            <td style="text-align: center;">${idx + 1}</td>
+            <td><code>${item.allotment_no}</code></td>
+            <td>${item.divisions?.join(', ') || '-'}</td>
+            <td>${item.materials?.length || 0} items</td>
+            <td><strong>${item.total_allotted || 0}</strong></td>
+            <td>
+                <span class="status-badge ${item.status === 'Completed' ? 'status-approved' : 'status-pending'}">
+                    ${item.status === 'Completed' ? '✅ Completed' : '⏳ Pending'}
+                </span>
+            </td>
+            <td>${item.created_by_name || item.created_by || '-'}</td>
+            <td>
+                <button class="btn-action view" onclick="viewHistoryAllotment('${item.allotment_no}')">
+                    <i class="bi bi-eye"></i> View
+                </button>
+                ${isManager && item.status === 'Pending' ? `
+                <button class="btn-action view" onclick="loadPendingById('${item._id}')" style="background: #28a745;">
+                    <i class="bi bi-pencil"></i> Load
+                </button>
+                ` : ''}
+            </td>
+        </tr>
+    `).join('');
 }
 
-// ================================================================
-// UPDATE STATS
-// ================================================================
-function updateStats(requisitions) {
-    if (!requisitions) return;
-    
-    const total = requisitions.length;
-    const pending = requisitions.filter(r => r.status === 'Submitted' || r.status === 'Under Review').length;
-    const approved = requisitions.filter(r => r.status === 'Approved' || r.status === 'Partially Approved').length;
-    const readyToPrint = requisitions.filter(r => r.status === 'Approved').length;
-    
-    document.getElementById('totalRequisitions').textContent = total;
-    document.getElementById('pendingReview').textContent = pending;
-    document.getElementById('approvedCount').textContent = approved;
-    document.getElementById('readyToPrint').textContent = readyToPrint;
+function viewHistoryAllotment(allotmentNo) {
+    alert(`Viewing allotment: ${allotmentNo}\n\nThis feature will show the complete allotment details.`);
+}
+
+async function loadPendingById(allotmentId) {
+    showLoading();
+    try {
+        const response = await fetch(`/api/allotments/bulk/pending/${allotmentId}`);
+        const data = await response.json();
+        if (data && data._id) {
+            loadAllotmentData(data);
+        } else {
+            showToast('❌ Allotment not found', true);
+        }
+    } catch (error) {
+        console.error('Error loading allotment:', error);
+        showToast('❌ Error loading allotment: ' + error.message, true);
+    }
+    hideLoading();
 }
 
 // ================================================================
 // TAB SWITCHING
 // ================================================================
 function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('active'); });
     
     const tabContent = document.getElementById(`tab-${tabName}`);
-    if (tabContent) {
-        tabContent.classList.add('active');
-    }
+    if (tabContent) { tabContent.classList.add('active'); }
     
     const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
-    if (btn) {
-        btn.classList.add('active');
-    }
+    if (btn) { btn.classList.add('active'); }
     
-    if (tabName === 'my-requisitions') {
-        loadMyRequisitions();
-    } else if (tabName === 'review') {
-        loadReviewRequisitions();
-    } else if (tabName === 'allotment-letter') {
-        loadLetterRequisitions();
+    if (tabName === 'history') { loadHistory(); }
+    if (tabName === 'step2') {
+        if (finalData.length > 0) {
+            renderFinalTable();
+        }
+    }
+    if (tabName === 'step1') {
+        updateSuggestedTable();
     }
 }
 
@@ -1913,64 +2265,44 @@ function switchTab(tabName) {
 // EXPORT FUNCTIONS
 // ================================================================
 function exportToExcel() {
-    const requisitions = allRequisitions || [];
-    if (requisitions.length === 0) {
+    const data = finalData.length > 0 ? finalData : suggestedData;
+    if (data.length === 0) {
         alert('No data to export!');
         return;
     }
     
     const wb = XLSX.utils.book_new();
-    const sheetData = [['ALLOTMENT TRACKER REPORT'], ['Generated on:', new Date().toLocaleString()], []];
-    sheetData.push(['Req ID', 'Division', 'Priority', 'Material Code', 'Material Name', 'Material Group',
-                   'Requested Qty', 'Allotted Qty', 'UOM', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Status', 'Remarks']);
+    const sheetData = [
+        ['BULK ALLOTMENT REPORT'],
+        ['Generated on:', new Date().toLocaleString()],
+        [],
+        ['#', 'Material Code', 'Material Name', 'UOM', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No']
+    ];
     
-    requisitions.forEach(req => {
-        req.items.forEach(item => {
-            sheetData.push([
-                req.id,
-                req.division,
-                req.priority || 'Normal',
-                item.material_code,
-                item.material_name,
-                item.material_group || '',
-                item.requested_qty,
-                item.approved_qty || 0,
-                item.unit || 'Nos',
-                item.virtual_stock || 0,
-                item.monthly_avg || 0,
-                item.zonal_stock || 0,
-                item.status || req.status,
-                req.remarks || ''
-            ]);
-        });
+    data.forEach((row, idx) => {
+        sheetData.push([
+            row.sno,
+            row.material_code,
+            row.material_name,
+            row.unit,
+            row.virtual_stock || '',
+            row.monthly_avg || '',
+            row.zonal_stock || '',
+            row.suggested_qty,
+            row.division,
+            row.allotted_qty || row.suggested_qty,
+            stoCache[row.division] || ''
+        ]);
     });
     
     const sheet = XLSX.utils.aoa_to_sheet(sheetData);
-    XLSX.utils.book_append_sheet(wb, sheet, 'Allotment Tracker');
-    XLSX.writeFile(wb, `Allotment_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, sheet, 'Bulk Allotment');
+    XLSX.writeFile(wb, `Bulk_Allotment_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
     showToast('✅ Exported successfully!');
 }
 
-function exportToPDF() {
-    const element = document.querySelector('.content-card');
-    if (element) {
-        html2pdf().set({ 
-            margin: 0.5, 
-            filename: `Allotment_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, 
-            image: { type: 'png', quality: 0.98 }, 
-            html2canvas: { scale: 2 }, 
-            jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' } 
-        }).from(element).save();
-        showToast('📄 Generating PDF report...');
-    }
-}
-
 function refreshData() {
-    loadMyRequisitions();
-    {% if user and (user.role == 'admin' or user.role == 'manager') %}
-    loadReviewRequisitions();
-    loadLetterRequisitions();
-    {% endif %}
+    loadHistory();
     showToast('🔄 Data refreshed!');
 }
 
@@ -1982,16 +2314,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadDivisions();
     loadColumnPreferences();
     await loadAllMaterials();
-    
-    loadMyRequisitions();
-    {% if user and (user.role == 'admin' or user.role == 'manager') %}
-    loadReviewRequisitions();
-    loadLetterRequisitions();
-    {% endif %}
-    
-    setInterval(() => {
-        refreshData();
-    }, 300000);
+    await loadDivisionRegionMapping();
+    document.getElementById('allotmentNo').value = generateAllotmentNo();
+    loadHistory();
+    updateFinalBadge();
 });
 </script>
 
@@ -1999,85 +2325,37 @@ document.addEventListener('DOMContentLoaded', async function() {
 /* ================================================================
    BASE STYLES
    ================================================================ */
-.filter-section { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 20px; }
-.filter-group label { display: block; margin-bottom: 8px; font-size: 0.7rem; font-weight: 700; color: #1e2b3a; text-transform: uppercase; }
-.filter-group label i { color: #667eea; margin-right: 6px; }
-.filter-select { width: 100%; padding: 12px 15px; border: 2px solid #eef2f6; border-radius: 12px; background: white; cursor: pointer; font-size: 0.9rem; transition: all 0.3s; }
-.filter-select:hover { border-color: #667eea; }
-.filter-select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
-
-.content-card { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-.section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; }
-.section-title i { font-size: 1.3rem; color: #667eea; }
-.section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-
 .welcome-banner { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; padding: 25px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
 .welcome-text h1 { font-size: 1.6rem; font-weight: 700; color: #333; margin-bottom: 5px; }
 .welcome-text h1 i { color: #e74c3c; }
 .welcome-text p { color: #666; font-size: 0.95rem; }
 .date-badge { background: white; padding: 8px 18px; border-radius: 50px; font-size: 0.9rem; white-space: nowrap; }
 
-/* ================================================================
-   QUICK STATS
-   ================================================================ */
-.quick-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    background: white;
-    border-radius: 15px;
-    padding: 15px 25px;
-    margin-bottom: 30px;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-    border: 1px solid #eef2f6;
-    justify-content: space-around;
-}
-.quick-stat-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    color: #666;
-}
+.role-banner { border-radius: 12px; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; font-size: 0.9rem; }
+.role-banner.role-manager { background: #d4edda; border: 1px solid #28a745; color: #155724; }
+.role-banner.role-manager i { color: #28a745; font-size: 1.2rem; }
+.role-banner.role-user { background: #cce5ff; border: 1px solid #007bff; color: #004085; }
+.role-banner.role-user i { color: #007bff; font-size: 1.2rem; }
+
+.content-card { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+.section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; }
+.section-title i { font-size: 1.3rem; color: #667eea; }
+.section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+
+.quick-stats { display: flex; flex-wrap: wrap; gap: 20px; background: white; border-radius: 15px; padding: 15px 25px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); border: 1px solid #eef2f6; justify-content: space-around; }
+.quick-stat-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #666; }
 .quick-stat-item i { font-size: 1.3rem; }
 .quick-stat-item strong { color: #1e2b3a; }
 
-/* ================================================================
-   TAB SECTION
-   ================================================================ */
 .tab-section { margin-bottom: 25px; }
 .tab-buttons { display: flex; gap: 5px; flex-wrap: wrap; background: #f8fafd; padding: 5px; border-radius: 12px; }
-.tab-btn { 
-    padding: 10px 20px; 
-    border: none; 
-    border-radius: 8px; 
-    cursor: pointer; 
-    font-weight: 600; 
-    font-size: 0.85rem;
-    transition: all 0.3s; 
-    background: transparent; 
-    color: #6c757d; 
-    display: flex; 
-    align-items: center; 
-    gap: 8px;
-}
+.tab-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.3s; background: transparent; color: #6c757d; display: flex; align-items: center; gap: 8px; }
 .tab-btn:hover { background: rgba(0,0,0,0.05); }
 .tab-btn.active { background: white; color: #1e2b3a; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.tab-btn .badge-pending { 
-    background: #dc3545; 
-    color: white; 
-    border-radius: 50%; 
-    padding: 2px 8px; 
-    font-size: 0.7rem;
-    margin-left: 4px;
-}
+.tab-btn .badge-pending { background: #28a745; color: white; border-radius: 50%; padding: 2px 8px; font-size: 0.7rem; margin-left: 4px; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* ================================================================
-   FORM STYLES
-   ================================================================ */
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-group label { font-size: 0.8rem; font-weight: 600; color: #1e2b3a; }
@@ -2085,9 +2363,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 .form-control { padding: 10px 12px; border: 2px solid #eef2f6; border-radius: 10px; font-size: 0.9rem; transition: all 0.3s; }
 .form-control:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
 .form-control-sm { padding: 6px 10px; font-size: 0.8rem; }
-textarea.form-control { resize: vertical; min-height: 60px; }
 
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 15px; border-top: 2px solid #eef2f6; }
+.form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 15px; border-top: 2px solid #eef2f6; flex-wrap: wrap; }
 .btn-submit { background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
 .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(40,167,69,0.3); }
 .btn-cancel { background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
@@ -2100,99 +2377,52 @@ textarea.form-control { resize: vertical; min-height: 60px; }
 .btn-action { border: none; padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 0.7rem; font-weight: 600; transition: all 0.2s; margin: 2px; }
 .btn-action.view { background: #667eea; color: white; }
 .btn-action.view:hover { background: #5a6fd6; transform: scale(1.05); }
-.btn-action.review { background: #ffc107; color: #1e2b3a; }
-.btn-action.review:hover { background: #e0a800; transform: scale(1.05); }
-.btn-action.print { background: #17a2b8; color: white; }
-.btn-action.print:hover { background: #138496; transform: scale(1.05); }
 
-.btn-approve { background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-.btn-approve:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(40,167,69,0.3); }
-.btn-reject { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-.btn-reject:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220,53,69,0.3); }
 .btn-print { background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
 .btn-print:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(23,162,184,0.3); }
+
 .btn-save { background: linear-gradient(135deg, #6f42c1, #5a32a3); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
 .btn-save:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(111,66,193,0.3); }
 
-/* ================================================================
-   STOCK SUMMARY
-   ================================================================ */
-.stock-summary { background: #f8fafd; border-radius: 12px; padding: 15px 20px; margin: 10px 0 20px; border: 1px solid #eef2f6; }
-.stock-summary-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.9rem; color: #1e2b3a; }
-.stock-summary-header i { color: #667eea; font-size: 1.2rem; }
-.stock-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; }
-.stock-item { display: flex; flex-direction: column; }
-.stock-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
-.stock-value { font-size: 1.1rem; font-weight: 700; color: #1e2b3a; }
-.stock-value.critical { color: #dc3545; }
+.btn-select-all { background: #28a745; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; }
+.btn-deselect-all { background: #dc3545; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; }
 
-/* ================================================================
-   SEARCH RESULTS
-   ================================================================ */
-.search-results { 
-    position: absolute; 
-    background: white; 
-    border: 2px solid #eef2f6; 
-    border-radius: 10px; 
-    max-height: 200px; 
-    overflow-y: auto; 
-    z-index: 999; 
-    min-width: 250px; 
-    box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
-}
-.search-result-item:hover { background: #f0f2f5; }
+.division-select-container { background: #f8fafd; border-radius: 12px; padding: 15px; border: 1px solid #eef2f6; }
+.division-select-all { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.division-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.division-checkbox { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; border: 1px solid #eef2f6; }
+.division-checkbox:hover { background: #eef2f6; border-color: #667eea; }
+.division-checkbox input[type="checkbox"] { accent-color: #667eea; cursor: pointer; width: 16px; height: 16px; }
+.division-checkbox input[type="checkbox"]:checked + span { color: #667eea; font-weight: 600; }
 
-/* ================================================================
-   TABLE STYLES
-   ================================================================ */
-.data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
-.data-table th { padding: 10px 8px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; position: sticky; top: 0; white-space: nowrap; z-index: 10; }
-.data-table td { padding: 8px 8px; border-bottom: 1px solid #eef2f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.data-table tr:hover { background: #f8fafd; }
-.table-responsive { overflow-x: auto; max-height: 70vh; }
-
-.requisition-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.requisition-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
 .requisition-table th { padding: 8px 6px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; font-size: 0.7rem; }
 .requisition-table td { padding: 6px 6px; border-bottom: 1px solid #eef2f6; }
-.requisition-table input, .requisition-table select { width: 100%; }
+.requisition-table input { width: 100%; }
 
-/* Column Widths for Data Table */
-.col-sno { width: 30px; min-width: 30px; max-width: 30px; text-align: center; }
-.col-req-id { width: 120px; min-width: 110px; max-width: 140px; }
-.col-division { width: 130px; min-width: 110px; max-width: 160px; }
-.col-material { width: 100px; min-width: 80px; max-width: 120px; }
-.col-req-qty { width: 80px; min-width: 70px; max-width: 90px; text-align: right; }
-.col-approved-qty { width: 80px; min-width: 70px; max-width: 90px; text-align: right; }
-.col-status { width: 120px; min-width: 100px; max-width: 140px; }
-.col-action { width: 110px; min-width: 100px; max-width: 130px; text-align: center; }
-
-/* ================================================================
-   STATUS BADGES
-   ================================================================ */
-.status-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; display: inline-block; white-space: nowrap; }
-.status-approved { background: #d4edda; color: #155724; }
-.status-rejected { background: #f8d7da; color: #721c24; }
-.status-pending { background: #fff3cd; color: #856404; }
-.status-partial { background: #cce5ff; color: #004085; }
-.status-draft { background: #e9ecef; color: #495057; }
-.status-warning { background: #fff3cd; color: #856404; }
-
-.priority-badge { padding: 2px 10px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
-.priority-urgent { background: #f8d7da; color: #721c24; }
-.priority-high { background: #fff3cd; color: #856404; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed; }
+.data-table th { padding: 8px 6px; text-align: left; background: #f8fafd; font-weight: 700; border-bottom: 2px solid #eef2f6; position: sticky; top: 0; white-space: nowrap; z-index: 10; font-size: 0.7rem; }
+.data-table td { padding: 6px 6px; border-bottom: 1px solid #eef2f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-table tr:hover { background: #f8fafd; }
+.table-responsive { overflow-x: auto; max-height: 70vh; }
 
 .stock-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
 .stock-available { color: #28a745; }
 .stock-critical { color: #dc3545; }
 
-/* ================================================================
-   MODAL STYLES
-   ================================================================ */
+.allot-input, .sto-input, .allotted-input { width: 100%; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.75rem; }
+.allot-input:focus, .sto-input:focus, .allotted-input:focus { outline: none; border-color: #667eea; }
+.sto-input { font-family: 'Courier New', monospace; letter-spacing: 2px; }
+
+.text-center { text-align: center; }
+code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-family: 'Courier New', monospace; }
+.loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+.spinner-border { width: 3rem; height: 3rem; border: 0.25rem solid #f3f3f3; border-top: 0.25rem solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }
 .modal-overlay.show { display: flex; }
-.modal-content { background: white; border-radius: 20px; max-width: 95%; width: 900px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
-.modal-content.modal-large { width: 1000px; }
-.modal-content.modal-letter { width: 800px; }
+.modal-content { background: white; border-radius: 20px; max-width: 95%; width: 500px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #eef2f6; }
 .modal-header h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
 .modal-header h3 i { color: #667eea; }
@@ -2201,100 +2431,47 @@ textarea.form-control { resize: vertical; min-height: 60px; }
 .modal-body { padding: 25px; overflow-y: auto; flex: 1; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 15px 25px; border-top: 1px solid #eef2f6; background: #f8fafd; border-radius: 0 0 20px 20px; }
 
-/* ================================================================
-   ALLOTMENT LETTER STYLES
-   ================================================================ */
-.allotment-letter { font-family: Arial, sans-serif; padding: 20px; }
-.letter-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
-.letter-company h2 { margin: 0; font-size: 1.8rem; color: #1e2b3a; }
-.letter-company p { margin: 0; color: #6c757d; font-size: 0.9rem; }
-.letter-title h1 { color: #e74c3c; margin: 5px 0; font-size: 1.6rem; }
-.letter-title p { margin: 0; color: #6c757d; }
-.letter-body { padding: 10px 0; }
-.letter-ref { display: flex; gap: 30px; flex-wrap: wrap; margin: 15px 0; padding: 10px 15px; background: #f8fafd; border-radius: 8px; }
-.letter-ref p { margin: 0; }
-.letter-content p { line-height: 1.6; }
-.letter-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-.letter-table th, .letter-table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 0.85rem; }
-.letter-table th { background: #f8fafd; font-weight: 700; }
-.letter-table tfoot td { font-weight: 700; background: #f8fafd; }
-.letter-remarks { margin: 15px 0; padding: 10px 15px; background: #f8fafd; border-radius: 8px; }
-.letter-remarks p { margin: 3px 0; }
-.letter-signature { margin-top: 30px; text-align: right; }
-.signature-line { display: inline-block; text-align: center; }
-.signature-line p { margin: 2px 0; }
-.signature-line p:first-child { border-top: 1px solid #333; padding-top: 5px; width: 200px; }
-.letter-footer { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; text-align: center; font-size: 0.8rem; color: #6c757d; }
+.status-badge { padding: 3px 12px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+.status-approved { background: #d4edda; color: #155724; }
+.status-pending { background: #fff3cd; color: #856404; }
 
-.filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-.filter-bar .filter-select { width: auto; min-width: 150px; padding: 8px 15px; }
-
-.review-header { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px; }
-.review-info { padding: 8px 12px; background: #f8fafd; border-radius: 6px; }
-.review-info strong { color: #1e2b3a; }
-.review-remarks { margin: 10px 0 15px; padding: 10px 15px; background: #f8fafd; border-radius: 6px; }
-.review-actions { margin-top: 15px; }
-.review-actions label { font-weight: 600; display: block; margin-bottom: 5px; }
-
-.text-center { text-align: center; }
-code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-family: 'Courier New', monospace; }
-.loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
-.spinner-border { width: 3rem; height: 3rem; border: 0.25rem solid #f3f3f3; border-top: 0.25rem solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* ================================================================
-   MOBILE RESPONSIVE
-   ================================================================ */
 @media (max-width: 768px) {
     .tab-buttons { flex-direction: column; }
     .tab-btn { justify-content: center; }
     .form-row { grid-template-columns: 1fr; }
     .quick-stats { flex-direction: column; align-items: center; gap: 8px; }
-    .stock-summary-grid { grid-template-columns: 1fr 1fr; }
     .welcome-banner { flex-direction: column; text-align: center; }
     .welcome-text h1 { font-size: 1.3rem; }
-    .modal-content { width: 98%; max-height: 95vh; }
-    .modal-content.modal-large { width: 98%; }
-    .modal-content.modal-letter { width: 98%; }
-    .review-header { grid-template-columns: 1fr; }
+    .division-checkbox-grid { grid-template-columns: 1fr 1fr; }
     .data-table { font-size: 0.65rem; }
     .data-table th, .data-table td { padding: 4px 4px; }
-    .requisition-table { font-size: 0.65rem; }
-    .requisition-table th, .requisition-table td { padding: 4px 4px; }
-    .letter-table { font-size: 0.7rem; }
-    .letter-table th, .letter-table td { padding: 4px 6px; }
-    .col-req-id { width: 80px; min-width: 70px; }
-    .col-division { width: 90px; min-width: 70px; }
-    .col-status { width: 80px; min-width: 70px; }
-    .col-action { width: 80px; min-width: 70px; }
 }
 
 @media (max-width: 576px) {
-    .stock-summary-grid { grid-template-columns: 1fr; }
+    .division-checkbox-grid { grid-template-columns: 1fr; }
     .form-actions { flex-direction: column; }
     .form-actions button { width: 100%; justify-content: center; }
-    .modal-footer { flex-direction: column; }
-    .modal-footer button { width: 100%; justify-content: center; }
     .data-table { font-size: 0.55rem; }
     .data-table th, .data-table td { padding: 3px 3px; }
     .requisition-table { font-size: 0.55rem; }
-    .requisition-table th, .requisition-table td { padding: 3px 3px; }
-    .letter-table { font-size: 0.6rem; }
-    .letter-table th, .letter-table td { padding: 3px 4px; }
+    .modal-content { width: 98%; }
 }
 
 @media print {
     .filter-section, .filter-actions, .btn-reset, .column-toggle-wrapper,
-    #guidanceMessage, #errorMessage, .back-button, .export-buttons,
-    .tab-buttons, .quick-stats, .filter-bar {
+    .back-button, .export-buttons, .tab-buttons, .quick-stats,
+    .form-actions, .btn-add-item, .btn-remove-row, .role-banner,
+    .modal-overlay {
         display: none !important;
     }
     .content-card { box-shadow: none; padding: 0; }
     .data-table th { background: #f0f0f0; }
-    .modal-overlay { display: none !important; }
-    .allotment-letter { padding: 0; }
+    .allotment-letter { padding: 5px !important; }
     .letter-header { border-bottom-color: #000; }
     .letter-table th { background: #eee; }
+    .tab-content { display: block !important; }
+    .tab-content:not(#tab-allotment-letter):not(#tab-draft-letter) { display: none !important; }
+    body { margin: 0; padding: 0; }
 }
 </style>
 {% endblock %}
