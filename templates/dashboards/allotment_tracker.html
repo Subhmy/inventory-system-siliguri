@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - Complete with A4 Single Page Optimization -->
+<!-- allotment_tracker.html - Complete with Editable Allotment No and Memo No -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -193,7 +193,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label><i class="bi bi-hash"></i> Allotment No.</label>
-                <input type="text" id="allotmentNo" class="form-control" readonly value="SZ/Allotment/E-2606/">
+                <input type="text" id="allotmentNo" class="form-control" placeholder="Enter Number (e.g., 504)">
             </div>
             <div class="form-group">
                 <label><i class="bi bi-calendar"></i> Allotment Date</label>
@@ -201,7 +201,7 @@
             </div>
             <div class="form-group">
                 <label><i class="bi bi-file-text"></i> Memo No.</label>
-                <input type="text" id="memoNo" class="form-control" placeholder="ZM/ZOS/TV-16/2869">
+                <input type="text" id="memoNo" class="form-control" placeholder="SZ/Allotment/E-12/">
             </div>
         </div>
         
@@ -748,13 +748,28 @@ function displayCurrentDate() {
     });
 }
 
+function formatAllotmentNo(number) {
+    // Convert to string and pad with leading zeros to 4 digits
+    const numStr = String(number);
+    if (numStr.length === 1) return '000' + numStr;
+    if (numStr.length === 2) return '00' + numStr;
+    if (numStr.length === 3) return '0' + numStr;
+    return numStr;
+}
+
 function generateAllotmentNo() {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-    return `SZ/Allotment/E-${year}${month}/${random}`;
+    // Generate a random number between 1 and 9999 and format as 4 digits
+    const num = Math.floor(Math.random() * 9999) + 1;
+    return formatAllotmentNo(num);
+}
+
+function getFullAllotmentNo(inputNo) {
+    // Get the number from input and format as 4 digits
+    const num = parseInt(inputNo);
+    if (!isNaN(num) && num > 0 && num <= 9999) {
+        return formatAllotmentNo(num);
+    }
+    return generateAllotmentNo();
 }
 
 function updateFinalBadge() {
@@ -1534,9 +1549,48 @@ function generateFinalLetter() {
 // ================================================================
 function generateLetterHTML(type) {
     const isDraft = type === 'draft';
-    const allotmentNo = document.getElementById('allotmentNo').value || generateAllotmentNo();
+    
+    // Get Allotment Number
+    const allotmentInput = document.getElementById('allotmentNo').value.trim();
+    let allotmentNo = '';
+    if (allotmentInput) {
+        // Parse the input as number and format as 4 digits
+        const num = parseInt(allotmentInput);
+        if (!isNaN(num) && num > 0 && num <= 9999) {
+            allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(num);
+        } else {
+            alert('⚠️ Please enter a valid Allotment Number (1-9999)');
+            return;
+        }
+    } else {
+        // Auto-generate if empty
+        const genNum = Math.floor(Math.random() * 9999) + 1;
+        allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(genNum);
+    }
+    
+    // Get Memo No - always starts with "SZ/Allotment/E-12/"
+    const memoInput = document.getElementById('memoNo').value.trim();
+    let memoNo = '';
+    if (memoInput) {
+        // If user entered full memo no, use as is
+        if (memoInput.startsWith('SZ/Allotment/E-12/')) {
+            memoNo = memoInput;
+        } else {
+            // If user entered only number, append to prefix
+            const num = parseInt(memoInput);
+            if (!isNaN(num) && num > 0) {
+                memoNo = 'SZ/Allotment/E-12/' + String(num).padStart(3, '0');
+            } else {
+                memoNo = 'SZ/Allotment/E-12/' + memoInput;
+            }
+        }
+    } else {
+        // Auto-generate if empty
+        const genNum = Math.floor(Math.random() * 9000) + 1000;
+        memoNo = 'SZ/Allotment/E-12/' + String(genNum);
+    }
+    
     const allotmentDate = document.getElementById('allotmentDate').value || new Date().toISOString().split('T')[0];
-    const memoNo = document.getElementById('memoNo').value || `ZM/ZOS/TV-16/${Math.floor(Math.random() * 9000 + 1000)}`;
     
     const dateObj = new Date(allotmentDate);
     const formattedDate = dateObj.toLocaleDateString('en-IN', {
@@ -1786,8 +1840,41 @@ async function saveAllotmentToDB(status) {
     showLoading();
     
     try {
-        const allotmentNo = document.getElementById('allotmentNo').value || generateAllotmentNo();
-        const memoNo = document.getElementById('memoNo').value || `ZM/ZOS/TV-16/${Math.floor(Math.random() * 9000 + 1000)}`;
+        // Get Allotment Number
+        const allotmentInput = document.getElementById('allotmentNo').value.trim();
+        let allotmentNo = '';
+        if (allotmentInput) {
+            const num = parseInt(allotmentInput);
+            if (!isNaN(num) && num > 0 && num <= 9999) {
+                allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(num);
+            } else {
+                alert('⚠️ Please enter a valid Allotment Number (1-9999)');
+                hideLoading();
+                return;
+            }
+        } else {
+            const genNum = Math.floor(Math.random() * 9999) + 1;
+            allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(genNum);
+        }
+        
+        // Get Memo No
+        const memoInput = document.getElementById('memoNo').value.trim();
+        let memoNo = '';
+        if (memoInput) {
+            if (memoInput.startsWith('SZ/Allotment/E-12/')) {
+                memoNo = memoInput;
+            } else {
+                const num = parseInt(memoInput);
+                if (!isNaN(num) && num > 0) {
+                    memoNo = 'SZ/Allotment/E-12/' + String(num).padStart(3, '0');
+                } else {
+                    memoNo = 'SZ/Allotment/E-12/' + memoInput;
+                }
+            }
+        } else {
+            const genNum = Math.floor(Math.random() * 9000) + 1000;
+            memoNo = 'SZ/Allotment/E-12/' + String(genNum);
+        }
         
         const data = {
             allotment_no: allotmentNo,
@@ -1944,8 +2031,28 @@ async function loadPendingAllotment() {
 function loadAllotmentData(allotment) {
     clearAllotmentData();
     
-    document.getElementById('allotmentNo').value = allotment.allotment_no || '';
-    document.getElementById('memoNo').value = allotment.memo_no || '';
+    // Extract allotment number and memo no
+    const allotmentNo = allotment.allotment_no || '';
+    const memoNo = allotment.memo_no || '';
+    
+    // Extract the number part from allotment no (SZ/Allotment/E-2606/0504 -> 504)
+    const allotmentMatch = allotmentNo.match(/\/(\d+)$/);
+    if (allotmentMatch) {
+        document.getElementById('allotmentNo').value = parseInt(allotmentMatch[1]);
+    } else {
+        document.getElementById('allotmentNo').value = allotmentNo;
+    }
+    
+    // Extract the number part from memo no or show full
+    if (memoNo) {
+        const memoMatch = memoNo.match(/\/E-12\/(\d+)$/);
+        if (memoMatch) {
+            document.getElementById('memoNo').value = 'SZ/Allotment/E-12/' + memoMatch[1];
+        } else {
+            document.getElementById('memoNo').value = memoNo;
+        }
+    }
+    
     document.getElementById('allotmentDate').value = allotment.allotment_date || new Date().toISOString().split('T')[0];
     
     currentAllotmentId = allotment._id || allotment.id || null;
@@ -2048,7 +2155,7 @@ function loadAllotmentData(allotment) {
 }
 
 function clearAllotmentData() {
-    document.getElementById('allotmentNo').value = generateAllotmentNo();
+    document.getElementById('allotmentNo').value = '';
     document.getElementById('memoNo').value = '';
     document.getElementById('allotmentDate').value = new Date().toISOString().split('T')[0];
     
@@ -2315,7 +2422,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadColumnPreferences();
     await loadAllMaterials();
     await loadDivisionRegionMapping();
-    document.getElementById('allotmentNo').value = generateAllotmentNo();
+    document.getElementById('allotmentNo').value = '';
     loadHistory();
     updateFinalBadge();
 });
