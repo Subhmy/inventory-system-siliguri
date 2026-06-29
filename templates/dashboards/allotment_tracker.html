@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - Complete with Editable Allotment No and Memo No -->
+<!-- allotment_tracker.html - Complete with A4 Single Page Optimization & Manager Rejection -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -125,7 +125,7 @@
     <i class="bi {% if user and (user.role == 'admin' or user.role == 'manager') %}bi-shield-check{% else %}bi-eye{% endif %}"></i>
     <span>
         {% if user and (user.role == 'admin' or user.role == 'manager') %}
-            <strong>Manager Access:</strong> Review pending allotments, modify quantities, enter STO, and <strong>SAVE</strong> final allotment.
+            <strong>Manager Access:</strong> Review pending allotments, modify quantities, enter STO, <strong>REJECT</strong> or <strong>SAVE</strong> final allotment.
         {% else %}
             <strong>User Access:</strong> Enter allotted quantities → Generate Draft → Print → <strong>Send to Manager</strong> (saves as Pending)
         {% endif %}
@@ -372,6 +372,9 @@
                 {% if user and (user.role == 'admin' or user.role == 'manager') %}
                 <button type="button" class="btn-submit" onclick="generateFinalLetter()">
                     <i class="bi bi-printer"></i> Generate Final Letter
+                </button>
+                <button type="button" class="btn-cancel" onclick="rejectAllotment()" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <i class="bi bi-x-circle"></i> Reject & Return
                 </button>
                 {% else %}
                 <button type="button" class="btn-add-item" onclick="generateDraftLetter()" style="background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a;">
@@ -749,7 +752,6 @@ function displayCurrentDate() {
 }
 
 function formatAllotmentNo(number) {
-    // Convert to string and pad with leading zeros to 4 digits
     const numStr = String(number);
     if (numStr.length === 1) return '000' + numStr;
     if (numStr.length === 2) return '00' + numStr;
@@ -758,13 +760,11 @@ function formatAllotmentNo(number) {
 }
 
 function generateAllotmentNo() {
-    // Generate a random number between 1 and 9999 and format as 4 digits
     const num = Math.floor(Math.random() * 9999) + 1;
     return formatAllotmentNo(num);
 }
 
 function getFullAllotmentNo(inputNo) {
-    // Get the number from input and format as 4 digits
     const num = parseInt(inputNo);
     if (!isNaN(num) && num > 0 && num <= 9999) {
         return formatAllotmentNo(num);
@@ -1545,38 +1545,122 @@ function generateFinalLetter() {
 }
 
 // ================================================================
-// GENERATE LETTER HTML - A4 SINGLE PAGE OPTIMIZED
+// REJECT ALLOTMENT (Manager) - Return to User
+// ================================================================
+function rejectAllotment() {
+    if (!isManager) {
+        alert('⚠️ Only Manager can reject allotments!');
+        return;
+    }
+    
+    if (finalData.length === 0) {
+        alert('No final allotment data to reject!');
+        return;
+    }
+    
+    const reason = prompt('Please enter the reason for rejection (optional):', '');
+    if (reason === null) {
+        return; // User cancelled
+    }
+    
+    showConfirmModal(
+        'Do you want to REJECT this allotment and return it to the user?\n\n' + 
+        (reason ? 'Reason: ' + reason : 'No reason provided.') + 
+        '\n\nThe allotment will be marked as REJECTED and returned to the user.',
+        function() {
+            rejectAllotmentToDB(reason);
+        }
+    );
+}
+
+async function rejectAllotmentToDB(reason) {
+    showLoading();
+    
+    try {
+        const allotmentNo = document.getElementById('allotmentNo').value || generateAllotmentNo();
+        const memoNo = document.getElementById('memoNo').value || `SZ/Allotment/E-12/${Math.floor(Math.random() * 9000 + 1000)}`;
+        
+        const data = {
+            allotment_no: 'SZ/Allotment/E-2606/' + allotmentNo,
+            memo_no: memoNo,
+            allotment_date: document.getElementById('allotmentDate').value,
+            divisions: selectedDivisions,
+            materials: materialRows.map(m => ({
+                material_code: m.material_code,
+                material_name: m.material_name,
+                unit: m.unit
+            })),
+            allotments: finalData,
+            sto_numbers: stoCache,
+            status: 'Rejected',
+            rejection_reason: reason || 'No reason provided',
+            rejected_by: currentUser,
+            rejected_by_name: currentUserName,
+            created_by: currentUser,
+            created_by_name: currentUserName,
+            user_role: "{{ user.role if user else 'user' }}",
+            created_date: new Date().toISOString(),
+            rejected_date: new Date().toISOString()
+        };
+        
+        const response = await fetch('/api/allotments/bulk/reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`❌ Allotment REJECTED and returned to user successfully!`);
+            loadHistory();
+            clearAllotment();
+            switchTab('history');
+        } else {
+            showToast('❌ Error rejecting: ' + (result.error || 'Unknown error'), true);
+        }
+        
+    } catch (error) {
+        console.error('Error rejecting allotment:', error);
+        showToast('❌ Error rejecting: ' + error.message, true);
+    }
+    
+    hideLoading();
+}
+
+// ================================================================
+// GENERATE LETTER HTML - A4 SINGLE PAGE OPTIMIZED WITH BOOK ANTIQUA
 // ================================================================
 function generateLetterHTML(type) {
     const isDraft = type === 'draft';
     
-    // Get Allotment Number
+    // Get Allotment Number - only the number part (e.g., 0206)
     const allotmentInput = document.getElementById('allotmentNo').value.trim();
-    let allotmentNo = '';
+    let allotmentNoDisplay = '';
+    let allotmentNoFull = '';
+    
     if (allotmentInput) {
-        // Parse the input as number and format as 4 digits
         const num = parseInt(allotmentInput);
         if (!isNaN(num) && num > 0 && num <= 9999) {
-            allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(num);
+            allotmentNoDisplay = formatAllotmentNo(num);
+            allotmentNoFull = 'SZ/Allotment/E-2606/' + allotmentNoDisplay;
         } else {
             alert('⚠️ Please enter a valid Allotment Number (1-9999)');
             return;
         }
     } else {
-        // Auto-generate if empty
         const genNum = Math.floor(Math.random() * 9999) + 1;
-        allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(genNum);
+        allotmentNoDisplay = formatAllotmentNo(genNum);
+        allotmentNoFull = 'SZ/Allotment/E-2606/' + allotmentNoDisplay;
     }
     
     // Get Memo No - always starts with "SZ/Allotment/E-12/"
     const memoInput = document.getElementById('memoNo').value.trim();
     let memoNo = '';
     if (memoInput) {
-        // If user entered full memo no, use as is
         if (memoInput.startsWith('SZ/Allotment/E-12/')) {
             memoNo = memoInput;
         } else {
-            // If user entered only number, append to prefix
             const num = parseInt(memoInput);
             if (!isNaN(num) && num > 0) {
                 memoNo = 'SZ/Allotment/E-12/' + String(num).padStart(3, '0');
@@ -1585,7 +1669,6 @@ function generateLetterHTML(type) {
             }
         }
     } else {
-        // Auto-generate if empty
         const genNum = Math.floor(Math.random() * 9000) + 1000;
         memoNo = 'SZ/Allotment/E-12/' + String(genNum);
     }
@@ -1625,9 +1708,8 @@ function generateLetterHTML(type) {
     const uniqueRegions = getUniqueRegions(divisionKeys);
     const regionsList = uniqueRegions.join(', ');
     
-    // Table rows HTML
+    // Table rows HTML - Compact for A4
     let tableRowsHTML = '';
-    let grandTotalAll = 0;
     
     Object.keys(materials).forEach((code, idx) => {
         const material = materials[code];
@@ -1638,7 +1720,6 @@ function generateLetterHTML(type) {
             grandTotal += qty;
             return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${qty}</td>`;
         }).join('');
-        grandTotalAll += grandTotal;
         tableRowsHTML += `
             <tr>
                 <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${idx + 1}</td>
@@ -1665,18 +1746,18 @@ function generateLetterHTML(type) {
     `;
     
     const letterHTML = `
-        <div class="allotment-letter" id="allotmentLetterContent" style="position: relative; padding: 10px 15px; max-width: 1000px; margin: 0 auto; background: white; font-family: 'Times New Roman', Times, serif; font-size: 10px; line-height: 1.3;">
+        <div class="allotment-letter" id="allotmentLetterContent" style="position: relative; padding: 10px 15px; max-width: 1000px; margin: 0 auto; background: white; font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 10px; line-height: 1.3;">
             ${isDraft ? `
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 4rem; color: rgba(255, 0, 0, 0.06); font-weight: 900; pointer-events: none; z-index: 0; text-align: center; line-height: 1.2; white-space: nowrap;">
                 DRAFT<br>NOT FOR OFFICIAL USE
             </div>
             ` : ''}
             <div style="position: relative; z-index: 1;">
-                <!-- Company Header -->
+                <!-- Company Header - Prominent -->
                 <div style="text-align: center; border-bottom: 2px solid #1a3c6e; padding-bottom: 5px; margin-bottom: 6px;">
-                    <div style="font-size: 12px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px;">West Bengal State Electricity Distribution Company Limited</div>
-                    <div style="font-size: 8px; color: #333; font-weight: 500;">(A Government of West Bengal Enterprise)</div>
-                    <div style="font-size: 10px; font-weight: 700; color: #1a3c6e; margin-top: 2px;">Zonal Office Siliguri</div>
+                    <div style="font-size: 14px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px;">West Bengal State Electricity Distribution Company Limited</div>
+                    <div style="font-size: 9px; color: #333; font-weight: 500;">(A Government of West Bengal Enterprise)</div>
+                    <div style="font-size: 11px; font-weight: 700; color: #1a3c6e; margin-top: 2px;">Zonal Office Siliguri</div>
                     <div style="font-size: 8px; color: #333;">2nd Mile, Sevoke Road, Siliguri, Darjeeling, Pin – 734001</div>
                     <div style="font-size: 8px; color: #333;">Tel: 0353-2540432, 2542747 | E-mail: zm.siliguri@wbsedcl.in</div>
                 </div>
@@ -1687,10 +1768,10 @@ function generateLetterHTML(type) {
                 </div>
                 ` : ''}
                 
-                <!-- Allotment Title - Single Line -->
+                <!-- Allotment Title - Only Number and Date -->
                 <div style="text-align: center; margin-bottom: 4px;">
                     <div style="font-size: 12px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px; text-decoration: underline;">
-                        ALLOTMENT ORDER No: ${allotmentNo} &nbsp;&nbsp; Date: ${formattedDate}
+                        ALLOTMENT ORDER No: ${allotmentNoDisplay} &nbsp;&nbsp; Date: ${formattedDate}
                     </div>
                 </div>
                 
@@ -1724,11 +1805,11 @@ function generateLetterHTML(type) {
                 <table style="width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 8.5px;">
                     <thead>
                         <tr>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 28px;">Sl</th>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 70px;">Mat Code</th>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 100px;">Material Description</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 28px; font-size: 7.5px;">Sl</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 70px; font-size: 7.5px;">Mat Code</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 100px; font-size: 7.5px;">Material Description</th>
                             ${divisionKeys.map(div => `<th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 45px; font-size: 7px;" colspan="1">${div}</th>`).join('')}
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px;">Total</th>
+                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px; font-size: 7.5px;">Total</th>
                         </tr>
                         <tr>
                             ${divisionKeys.map(() => `<th style="border: 1px solid #000; padding: 1px 2px; text-align: center; background: #f0f0f0; font-weight: 600; font-size: 7px;">Qty</th>`).join('')}
@@ -1840,7 +1921,6 @@ async function saveAllotmentToDB(status) {
     showLoading();
     
     try {
-        // Get Allotment Number
         const allotmentInput = document.getElementById('allotmentNo').value.trim();
         let allotmentNo = '';
         if (allotmentInput) {
@@ -1857,7 +1937,6 @@ async function saveAllotmentToDB(status) {
             allotmentNo = 'SZ/Allotment/E-2606/' + formatAllotmentNo(genNum);
         }
         
-        // Get Memo No
         const memoInput = document.getElementById('memoNo').value.trim();
         let memoNo = '';
         if (memoInput) {
@@ -2031,19 +2110,18 @@ async function loadPendingAllotment() {
 function loadAllotmentData(allotment) {
     clearAllotmentData();
     
-    // Extract allotment number and memo no
     const allotmentNo = allotment.allotment_no || '';
     const memoNo = allotment.memo_no || '';
     
-    // Extract the number part from allotment no (SZ/Allotment/E-2606/0504 -> 504)
+    // Extract only the number part from allotment no (SZ/Allotment/E-2606/0206 -> 0206)
     const allotmentMatch = allotmentNo.match(/\/(\d+)$/);
     if (allotmentMatch) {
+        // Store as number (e.g., 206) for editing
         document.getElementById('allotmentNo').value = parseInt(allotmentMatch[1]);
     } else {
         document.getElementById('allotmentNo').value = allotmentNo;
     }
     
-    // Extract the number part from memo no or show full
     if (memoNo) {
         const memoMatch = memoNo.match(/\/E-12\/(\d+)$/);
         if (memoMatch) {
@@ -2222,7 +2300,7 @@ function printLetter(title) {
                 <head>
                     <title>${title}</title>
                     <style>
-                        body { font-family: 'Times New Roman', Times, serif; padding: 15px; background: white; margin: 0; }
+                        body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; padding: 15px; background: white; margin: 0; }
                         .allotment-letter { max-width: 1000px; margin: 0 auto; }
                         @media print { 
                             body { padding: 10px; }
@@ -2304,8 +2382,8 @@ function renderHistory(history) {
             <td>${item.materials?.length || 0} items</td>
             <td><strong>${item.total_allotted || 0}</strong></td>
             <td>
-                <span class="status-badge ${item.status === 'Completed' ? 'status-approved' : 'status-pending'}">
-                    ${item.status === 'Completed' ? '✅ Completed' : '⏳ Pending'}
+                <span class="status-badge ${item.status === 'Completed' ? 'status-approved' : item.status === 'Rejected' ? 'status-rejected' : 'status-pending'}">
+                    ${item.status === 'Completed' ? '✅ Completed' : item.status === 'Rejected' ? '❌ Rejected' : '⏳ Pending'}
                 </span>
             </td>
             <td>${item.created_by_name || item.created_by || '-'}</td>
@@ -2317,6 +2395,9 @@ function renderHistory(history) {
                 <button class="btn-action view" onclick="loadPendingById('${item._id}')" style="background: #28a745;">
                     <i class="bi bi-pencil"></i> Load
                 </button>
+                ` : ''}
+                ${item.status === 'Rejected' ? `
+                <span style="font-size:0.6rem;color:#dc3545;">🔴 Rejected</span>
                 ` : ''}
             </td>
         </tr>
@@ -2541,6 +2622,7 @@ code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.7
 .status-badge { padding: 3px 12px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
 .status-approved { background: #d4edda; color: #155724; }
 .status-pending { background: #fff3cd; color: #856404; }
+.status-rejected { background: #f8d7da; color: #721c24; }
 
 @media (max-width: 768px) {
     .tab-buttons { flex-direction: column; }
