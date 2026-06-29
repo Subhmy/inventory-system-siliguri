@@ -315,10 +315,10 @@
                     <th class="col-doc-no" data-col="doc-no">Doc No</th>
                     <th class="col-doc-date" data-col="doc-date">Date</th>
                     <th class="col-material-code" data-col="material-code">Mat Code</th>
-                    <th class="col-material-name" data-col="material-name">Material Name</th>
+                    <th class="col-material-name" data-col="material-name" style="text-align: left;">Material Name</th>
                     <th class="col-material-group" data-col="material-group">Group</th>
-                    <th class="col-from" data-col="from">From</th>
-                    <th class="col-to" data-col="to">To</th>
+                    <th class="col-from" data-col="from" style="text-align: left;">From</th>
+                    <th class="col-to" data-col="to" style="text-align: left;">To</th>
                     <th class="col-order-qty" data-col="order-qty">Order</th>
                     <th class="col-balance-qty" data-col="balance-qty">Balance</th>
                     <th class="col-unit" data-col="unit">UOM</th>
@@ -850,21 +850,21 @@
                 
                 return `
                     <tr>
-                        <td class="col-sno">${rowNum}</td>
-                        <td class="col-doc-type"><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
-                        <td class="col-doc-no"><code>${item.document_no || '-'}</code></td>
-                        <td class="col-doc-date">${docDate}</td>
-                        <td class="col-material-code"><code>${item.material_code || '-'}</code></td>
-                        <td class="col-material-name" title="${item.material_name || item.material_code}">${(item.material_name || item.material_code || '-').substring(0, 35)}${(item.material_name || '').length > 35 ? '...' : ''}</td>
-                        <td class="col-material-group"><span class="badge-group">${item.material_group || '-'}</span></td>
-                        <td class="col-from">${fromDisplay}</td>
-                        <td class="col-to">${toDisplay}</td>
-                        <td class="col-order-qty">${parseFloat(orderQty).toLocaleString()}</td>
-                        <td class="col-balance-qty"><strong>${parseFloat(balanceQty).toLocaleString()}</strong></td>
-                        <td class="col-unit">${item.unit || 'Units'}</td>
-                        <td class="col-pending">${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
-                        <td class="col-delay ${delayClass}"><strong>${delayDisplay}</strong></td>
-                        <td class="col-status">${statusBadge}</td>
+                        <td class="col-sno" data-col="sno">${rowNum}</td>
+                        <td class="col-doc-type" data-col="doc-type"><span class="badge ${item.document_type === 'DI' ? 'badge-di' : 'badge-stn'}">${item.document_type}</span></td>
+                        <td class="col-doc-no" data-col="doc-no"><code>${item.document_no || '-'}</code></td>
+                        <td class="col-doc-date" data-col="doc-date">${docDate}</td>
+                        <td class="col-material-code" data-col="material-code"><code>${item.material_code || '-'}</code></td>
+                        <td class="col-material-name" data-col="material-name" style="text-align: left;" title="${item.material_name || item.material_code}">${(item.material_name || item.material_code || '-').substring(0, 35)}${(item.material_name || '').length > 35 ? '...' : ''}</td>
+                        <td class="col-material-group" data-col="material-group"><span class="badge-group">${item.material_group || '-'}</span></td>
+                        <td class="col-from" data-col="from" style="text-align: left;">${fromDisplay}</td>
+                        <td class="col-to" data-col="to" style="text-align: left;">${toDisplay}</td>
+                        <td class="col-order-qty" data-col="order-qty">${parseFloat(orderQty).toLocaleString()}</td>
+                        <td class="col-balance-qty" data-col="balance-qty"><strong>${parseFloat(balanceQty).toLocaleString()}</strong></td>
+                        <td class="col-unit" data-col="unit">${item.unit || 'Units'}</td>
+                        <td class="col-pending" data-col="pending">${pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-'}</td>
+                        <td class="col-delay ${delayClass}" data-col="delay"><strong>${delayDisplay}</strong></td>
+                        <td class="col-status" data-col="status">${statusBadge}</td>
                     </tr>
                 `;
             }).join('');
@@ -1069,18 +1069,18 @@
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
     
     /* ================================================================
-       TABLE STYLES - FIXED WIDTH TO PREVENT DRAGGING
+       TABLE STYLES - AUTO ADJUSTED WIDTHS
        ================================================================ */
     .data-table { 
         width: 100%; 
         border-collapse: collapse; 
         font-size: 0.78rem;
-        table-layout: fixed;
+        table-layout: auto;
     }
     
     .data-table th { 
         padding: 10px 8px; 
-        text-align: left; 
+        text-align: center; 
         background: #f8fafd; 
         font-weight: 700; 
         border-bottom: 2px solid #eef2f6; 
@@ -1094,38 +1094,38 @@
         padding: 8px 8px; 
         border-bottom: 1px solid #eef2f6;
         word-wrap: break-word;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        text-align: center;
+        vertical-align: middle;
     }
     
     .data-table tr:hover { background: #f8fafd; }
     .table-responsive { overflow-x: auto; max-height: 70vh; }
     
     /* ================================================================
-       FIXED COLUMN WIDTHS - PREVENT DRAGGING/STRETCHING
+       LEFT ALIGN FOR MATERIAL NAME, FROM, TO
        ================================================================ */
-    .col-sno { width: 40px; min-width: 40px; max-width: 40px; text-align: center; }
-    .col-doc-type { width: 60px; min-width: 60px; max-width: 60px; text-align: center; }
-    .col-doc-no { width: 100px; min-width: 100px; max-width: 120px; }
-    .col-doc-date { width: 85px; min-width: 85px; max-width: 85px; }
-    .col-material-code { width: 85px; min-width: 85px; max-width: 100px; }
-    .col-material-name { width: 160px; min-width: 140px; max-width: 200px; }
-    .col-material-group { width: 80px; min-width: 80px; max-width: 100px; }
-    .col-from { width: 120px; min-width: 100px; max-width: 150px; }
-    .col-to { width: 120px; min-width: 100px; max-width: 150px; }
-    .col-order-qty { width: 70px; min-width: 70px; max-width: 80px; text-align: right; }
-    .col-balance-qty { width: 75px; min-width: 75px; max-width: 85px; text-align: right; }
-    .col-unit { width: 50px; min-width: 50px; max-width: 60px; text-align: center; }
-    .col-pending { width: 70px; min-width: 70px; max-width: 80px; text-align: center; }
-    .col-delay { width: 80px; min-width: 70px; max-width: 90px; text-align: center; }
-    .col-status { width: 110px; min-width: 100px; max-width: 120px; text-align: center; }
-    
-    .data-table th,
-    .data-table td {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .col-material-name, .col-from, .col-to {
+        text-align: left !important;
     }
+    
+    /* ================================================================
+       AUTO-ADJUST COLUMN WIDTHS (No fixed widths - content based)
+       ================================================================ */
+    .col-sno { text-align: center; white-space: nowrap; }
+    .col-doc-type { text-align: center; white-space: nowrap; }
+    .col-doc-no { white-space: nowrap; }
+    .col-doc-date { text-align: center; white-space: nowrap; }
+    .col-material-code { white-space: nowrap; }
+    .col-material-name { min-width: 120px; white-space: normal; word-break: break-word; }
+    .col-material-group { text-align: center; white-space: nowrap; }
+    .col-from { min-width: 100px; white-space: normal; word-break: break-word; }
+    .col-to { min-width: 100px; white-space: normal; word-break: break-word; }
+    .col-order-qty { text-align: right; white-space: nowrap; }
+    .col-balance-qty { text-align: right; white-space: nowrap; }
+    .col-unit { text-align: center; white-space: nowrap; }
+    .col-pending { text-align: center; white-space: nowrap; }
+    .col-delay { text-align: center; white-space: nowrap; }
+    .col-status { text-align: center; white-space: nowrap; }
     
     /* ================================================================
        DELAY COLUMN STYLES
@@ -1180,10 +1180,9 @@
        MOBILE RESPONSIVE
        ================================================================ */
     @media (max-width: 1024px) {
-        .col-doc-no { width: 80px; min-width: 80px; max-width: 100px; }
-        .col-material-name { width: 120px; min-width: 100px; max-width: 150px; }
-        .col-from, .col-to { width: 100px; min-width: 80px; max-width: 120px; }
         .data-table { font-size: 0.72rem; }
+        .col-material-name { min-width: 80px; }
+        .col-from, .col-to { min-width: 70px; }
     }
     
     @media (max-width: 768px) {
@@ -1193,19 +1192,10 @@
         .welcome-text h1 { font-size: 1.4rem; }
         .welcome-text p { font-size: 0.85rem; }
         
-        .col-sno { width: 30px; min-width: 30px; max-width: 30px; }
-        .col-doc-date { width: 70px; min-width: 70px; max-width: 70px; }
-        .col-material-code { width: 65px; min-width: 65px; max-width: 75px; }
-        .col-material-name { width: 90px; min-width: 80px; max-width: 120px; }
-        .col-from, .col-to { width: 70px; min-width: 60px; max-width: 90px; }
-        .col-order-qty { width: 55px; min-width: 55px; max-width: 65px; }
-        .col-balance-qty { width: 60px; min-width: 60px; max-width: 70px; }
-        .col-unit { width: 40px; min-width: 40px; max-width: 50px; }
-        .col-delay { width: 55px; min-width: 50px; max-width: 65px; }
-        .col-status { width: 80px; min-width: 70px; max-width: 90px; }
-        
-        .data-table { font-size: 0.62rem; }
-        .data-table th, .data-table td { padding: 4px 4px; }
+        .data-table { font-size: 0.65rem; }
+        .data-table th, .data-table td { padding: 6px 4px; }
+        .col-material-name { min-width: 60px; }
+        .col-from, .col-to { min-width: 50px; }
         .page-btn { padding: 4px 8px; font-size: 0.7rem; }
         .page-info { display: none; }
         
@@ -1223,14 +1213,9 @@
         .kpi-icon i { font-size: 1.2rem; }
         .kpi-value { font-size: 1.2rem; }
         .data-table { font-size: 0.55rem; }
-        .data-table th, .data-table td { padding: 3px 2px; }
-        .col-sno { width: 25px; min-width: 25px; max-width: 25px; }
-        .col-doc-date { width: 60px; min-width: 60px; max-width: 60px; }
-        .col-material-code { width: 55px; min-width: 55px; max-width: 65px; }
-        .col-material-name { width: 70px; min-width: 60px; max-width: 90px; }
-        .col-from, .col-to { width: 60px; min-width: 50px; max-width: 75px; }
-        .col-delay { width: 50px; min-width: 45px; max-width: 60px; }
-        .col-status { width: 65px; min-width: 60px; max-width: 75px; }
+        .data-table th, .data-table td { padding: 4px 3px; }
+        .col-material-name { min-width: 50px; }
+        .col-from, .col-to { min-width: 40px; }
         .page-btn { padding: 3px 6px; font-size: 0.6rem; }
         .badge { font-size: 0.5rem; padding: 1px 4px; }
         code { font-size: 0.5rem; }

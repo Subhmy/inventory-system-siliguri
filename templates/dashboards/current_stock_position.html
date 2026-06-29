@@ -333,9 +333,9 @@
                 <tr>
                     <th class="col-sno" data-col="sno">#</th>
                     <th class="col-mat-code" data-col="mat-code">Mat Code</th>
-                    <th class="col-mat-name" data-col="mat-name">Material</th>
+                    <th class="col-mat-name" data-col="mat-name" style="text-align: left;">Material</th>
                     <th class="col-group" data-col="group">Group</th>
-                    <th class="col-division" data-col="division">Division</th>
+                    <th class="col-division" data-col="division" style="text-align: left;">Division</th>
                     <th class="col-current-stock" data-col="current-stock">Stock</th>
                     <th class="col-unit" data-col="unit">Unit</th>
                     <th class="col-transit" data-col="transit">🚚 Transit</th>
@@ -366,8 +366,8 @@
                 <tr>
                     <th class="crit-sno">#</th>
                     <th class="crit-code">Mat Code</th>
-                    <th class="crit-name">Material</th>
-                    <th class="crit-division">Division</th>
+                    <th class="crit-name" style="text-align: left;">Material</th>
+                    <th class="crit-division" style="text-align: left;">Division</th>
                     <th class="crit-stock">Stock</th>
                     <th class="crit-transit">🚚 Transit</th>
                     <th class="crit-virtual">Virtual</th>
@@ -983,9 +983,9 @@
                 <tr>
                     <td class="col-sno" data-col="sno">${item.sl}</td>
                     <td class="col-mat-code" data-col="mat-code"><code>${item.material_code}</code></td>
-                    <td class="col-mat-name" data-col="mat-name" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 28)}${(item.material_description || '').length > 28 ? '...' : ''}</td>
+                    <td class="col-mat-name" data-col="mat-name" style="text-align: left;" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 28)}${(item.material_description || '').length > 28 ? '...' : ''}</td>
                     <td class="col-group" data-col="group"><span class="badge-group">${item.material_group || '-'}</span></td>
-                    <td class="col-division" data-col="division">${item.division_name}</td>
+                    <td class="col-division" data-col="division" style="text-align: left;">${item.division_name}</td>
                     <td class="col-current-stock ${item.status_class}" data-col="current-stock"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
                     <td class="col-unit" data-col="unit">${item.unit || 'Units'}</td>
                     <td class="col-transit ${item.has_transit ? 'has-transit' : ''}" data-col="transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
@@ -1012,8 +1012,8 @@
                 <tr>
                     <td class="crit-sno">${idx + 1}</td>
                     <td class="crit-code"><code>${item.material_code}</code></td>
-                    <td class="crit-name" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 25)}${(item.material_description || '').length > 25 ? '...' : ''}</td>
-                    <td class="crit-division">${item.division_name}</td>
+                    <td class="crit-name" style="text-align: left;" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 25)}${(item.material_description || '').length > 25 ? '...' : ''}</td>
+                    <td class="crit-division" style="text-align: left;">${item.division_name}</td>
                     <td class="crit-stock status-critical"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
                     <td class="crit-transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
                     <td class="crit-virtual status-critical"><strong>${parseFloat(item.virtual_stock).toLocaleString()}</strong></td>
@@ -1153,7 +1153,7 @@
     
     .data-table th { 
         padding: 8px 5px; 
-        text-align: left; 
+        text-align: center; 
         background: #f8fafd; 
         font-weight: 700; 
         border-bottom: 2px solid #eef2f6; 
@@ -1172,40 +1172,54 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        text-align: center;
     }
     
     .data-table tr:hover { background: #f8fafd; }
     .table-responsive { overflow-x: auto; max-height: 70vh; }
     
     /* ================================================================
+       LEFT ALIGN FOR MATERIAL AND DIVISION
+       ================================================================ */
+    .col-mat-name, .col-division,
+    .crit-name, .crit-division {
+        text-align: left !important;
+    }
+    
+    .col-mat-name, .col-division,
+    .crit-name, .crit-division {
+        text-align: left !important;
+    }
+    
+    /* ================================================================
        OPTIMIZED COLUMN WIDTHS
        ================================================================ */
-    .col-sno { width: 30px; min-width: 30px; max-width: 30px; text-align: center; }
+    .col-sno { width: 30px; min-width: 30px; max-width: 30px; }
     .col-mat-code { width: 80px; min-width: 75px; max-width: 90px; }
     .col-mat-name { width: 140px; min-width: 120px; max-width: 170px; }
     .col-group { width: 70px; min-width: 65px; max-width: 85px; }
     .col-division { width: 100px; min-width: 85px; max-width: 130px; }
-    .col-current-stock { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
-    .col-unit { width: 40px; min-width: 35px; max-width: 50px; text-align: center; }
-    .col-transit { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
-    .col-virtual-stock { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
-    .col-monthly-avg { width: 65px; min-width: 60px; max-width: 75px; text-align: right; }
-    .col-reorder { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
-    .col-status { width: 70px; min-width: 65px; max-width: 85px; text-align: center; }
-    .col-stock-months { width: 60px; min-width: 55px; max-width: 70px; text-align: center; }
-    .col-action { width: 50px; min-width: 45px; max-width: 60px; text-align: center; }
+    .col-current-stock { width: 60px; min-width: 55px; max-width: 70px; }
+    .col-unit { width: 40px; min-width: 35px; max-width: 50px; }
+    .col-transit { width: 65px; min-width: 60px; max-width: 75px; }
+    .col-virtual-stock { width: 65px; min-width: 60px; max-width: 75px; }
+    .col-monthly-avg { width: 65px; min-width: 60px; max-width: 75px; }
+    .col-reorder { width: 60px; min-width: 55px; max-width: 70px; }
+    .col-status { width: 70px; min-width: 65px; max-width: 85px; }
+    .col-stock-months { width: 60px; min-width: 55px; max-width: 70px; }
+    .col-action { width: 50px; min-width: 45px; max-width: 60px; }
     
     /* Critical Table */
-    .crit-sno { width: 30px; min-width: 30px; max-width: 30px; text-align: center; }
+    .crit-sno { width: 30px; min-width: 30px; max-width: 30px; }
     .crit-code { width: 80px; min-width: 75px; max-width: 90px; }
     .crit-name { width: 130px; min-width: 110px; max-width: 160px; }
     .crit-division { width: 100px; min-width: 85px; max-width: 130px; }
-    .crit-stock { width: 55px; min-width: 50px; max-width: 65px; text-align: right; }
-    .crit-transit { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
-    .crit-virtual { width: 60px; min-width: 55px; max-width: 70px; text-align: right; }
-    .crit-avg { width: 50px; min-width: 45px; max-width: 60px; text-align: right; }
-    .crit-shortage { width: 55px; min-width: 50px; max-width: 65px; text-align: right; }
-    .crit-action { width: 60px; min-width: 55px; max-width: 70px; text-align: center; }
+    .crit-stock { width: 55px; min-width: 50px; max-width: 65px; }
+    .crit-transit { width: 60px; min-width: 55px; max-width: 70px; }
+    .crit-virtual { width: 60px; min-width: 55px; max-width: 70px; }
+    .crit-avg { width: 50px; min-width: 45px; max-width: 60px; }
+    .crit-shortage { width: 55px; min-width: 50px; max-width: 65px; }
+    .crit-action { width: 60px; min-width: 55px; max-width: 70px; }
     
     /* ================================================================
        STATUS & BADGE
