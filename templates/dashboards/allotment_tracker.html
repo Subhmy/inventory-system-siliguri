@@ -1629,12 +1629,12 @@ async function rejectAllotmentToDB(reason) {
 }
 
 // ================================================================
-// GENERATE LETTER HTML - A4 SINGLE PAGE OPTIMIZED WITH BOOK ANTIQUA
+// GENERATE LETTER HTML - A4 SINGLE PAGE OPTIMIZED WITH UOM
 // ================================================================
 function generateLetterHTML(type) {
     const isDraft = type === 'draft';
     
-    // Get Allotment Number - only the number part (e.g., 0206)
+    // Get Allotment Number - only the number part (e.g., 3077)
     const allotmentInput = document.getElementById('allotmentNo').value.trim();
     let allotmentNoDisplay = '';
     let allotmentNoFull = '';
@@ -1692,7 +1692,7 @@ function generateLetterHTML(type) {
             materials[row.material_code] = {
                 code: row.material_code,
                 name: row.material_name,
-                unit: row.unit
+                unit: row.unit || 'NOS'
             };
         }
     });
@@ -1708,7 +1708,7 @@ function generateLetterHTML(type) {
     const uniqueRegions = getUniqueRegions(divisionKeys);
     const regionsList = uniqueRegions.join(', ');
     
-    // Table rows HTML - Compact for A4
+    // Table rows HTML - UOM column after Material Description
     let tableRowsHTML = '';
     
     Object.keys(materials).forEach((code, idx) => {
@@ -1725,17 +1725,30 @@ function generateLetterHTML(type) {
                 <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${idx + 1}</td>
                 <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${code}</td>
                 <td style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-size: 8.5px;">${material.name}</td>
+                <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 8.5px;">${material.unit}</td>
                 ${divisionCols}
                 <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8.5px;">${grandTotal}</td>
             </tr>
         `;
     });
     
-    // STO row
-    const stoRow = divisionKeys.map(div => {
-        const sto = divisionSTOs[div] || '';
-        return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">${sto}</td>`;
-    }).join('');
+    // Calculate total columns: Sl + Code + Name + UOM + Divisions + Total
+    const totalCols = 4 + divisionKeys.length + 1;
+    
+    // STO row (spans all columns except total)
+    let stoRowHTML = '';
+    if (divisionKeys.length > 0) {
+        stoRowHTML = `
+            <tr>
+                <td colspan="4" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Materials STO No</td>
+                ${divisionKeys.map(div => {
+                    const sto = divisionSTOs[div] || '';
+                    return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">${sto}</td>`;
+                }).join('')}
+                <td style="border: 1px solid #000; padding: 2px 4px;"></td>
+            </tr>
+        `;
+    }
     
     // Copy forwarded HTML
     const copyForwardedHTML = `
@@ -1801,15 +1814,16 @@ function generateLetterHTML(type) {
                     </p>
                 </div>
                 
-                <!-- Main Table - Compact -->
+                <!-- Main Table - With UOM Column -->
                 <table style="width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 8.5px;">
                     <thead>
                         <tr>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 28px; font-size: 7.5px;">Sl</th>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 70px; font-size: 7.5px;">Mat Code</th>
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 100px; font-size: 7.5px;">Material Description</th>
+                            <th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 28px; font-size: 7.5px;">Sl</th>
+                            <th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 70px; font-size: 7.5px;">Mat Code</th>
+                            <th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 100px; font-size: 7.5px;">Material Description</th>
+                            <th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px; font-size: 7.5px;">UOM</th>
                             ${divisionKeys.map(div => `<th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; min-width: 45px; font-size: 7px;" colspan="1">${div}</th>`).join('')}
-                            <th rowspan="2" style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px; font-size: 7.5px;">Total</th>
+                            <th style="border: 1px solid #000; padding: 2px 3px; text-align: center; background: #f0f0f0; font-weight: 700; width: 40px; font-size: 7.5px;">Total</th>
                         </tr>
                         <tr>
                             ${divisionKeys.map(() => `<th style="border: 1px solid #000; padding: 1px 2px; text-align: center; background: #f0f0f0; font-weight: 600; font-size: 7px;">Qty</th>`).join('')}
@@ -1819,17 +1833,7 @@ function generateLetterHTML(type) {
                         ${tableRowsHTML}
                     </tbody>
                     <tfoot>
-                        <tr>
-                            <td colspan="${3 + divisionKeys.length}" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Materials STO No</td>
-                            <td style="border: 1px solid #000; padding: 2px 4px;"></td>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
-                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
-                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
-                            ${stoRow}
-                            <td style="border: 1px solid #000; padding: 1px 3px;"></td>
-                        </tr>
+                        ${stoRowHTML}
                     </tfoot>
                 </table>
                 
