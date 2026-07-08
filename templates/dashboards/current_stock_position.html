@@ -3,169 +3,74 @@
 {% block title %}Current Stock Position - IMS Siliguri{% endblock %}
 
 {% block content %}
-<!-- Back Navigation -->
-<div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-    <a href="{{ url_for('main.inventory_dashboard') }}" style="
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 24px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        text-decoration: none;
-        border-radius: 50px;
-        font-size: 1.1rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
-        onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
-        onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
-        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
+
+<!-- ================================================================
+     BACK NAVIGATION
+     ================================================================ -->
+<div class="nav-bar">
+    <a href="{{ url_for('main.inventory_dashboard') }}" class="btn-back">
+        <i class="bi bi-arrow-left-circle-fill"></i>
         <span>Back to Inventory Dashboard</span>
     </a>
     
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button onclick="exportToExcel()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+    <div class="nav-actions">
+        <button onclick="exportToExcel()" class="btn-excel">
             <i class="bi bi-file-excel-fill"></i>
             <span>Export Excel</span>
         </button>
-        <button onclick="exportToPDF()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <button onclick="exportToPDF()" class="btn-pdf">
             <i class="bi bi-file-pdf-fill"></i>
             <span>Export PDF</span>
         </button>
-        <button onclick="refreshData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <button onclick="refreshData()" class="btn-refresh">
             <i class="bi bi-arrow-repeat"></i>
             <span>Refresh</span>
         </button>
         
-        <!-- ============================================================
-             SHOW/HIDE COLUMNS BUTTON - EXTREME RIGHT CORNER
-             ============================================================ -->
-        <div class="column-toggle-wrapper" style="position: relative; display: inline-block;">
-            <button onclick="toggleColumnMenu()" style="
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 12px 20px;
-                background: linear-gradient(135deg, #6c757d, #495057);
-                color: white;
-                border: none;
-                border-radius: 50px;
-                cursor: pointer;
-                font-weight: 500;
-                transition: all 0.3s ease;"
-                onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(108, 117, 125, 0.5)';" 
-                onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+        <!-- Column Toggle -->
+        <div class="column-toggle-wrapper">
+            <button onclick="toggleColumnMenu()" class="btn-columns">
                 <i class="bi bi-layout-three-columns"></i>
-                <span>Show/Hide Columns</span>
-                <i class="bi bi-chevron-down" id="columnToggleIcon" style="font-size: 0.7rem;"></i>
+                <span>Columns</span>
+                <i class="bi bi-chevron-down" id="columnToggleIcon"></i>
             </button>
-            
-            <!-- Dropdown Menu -->
-            <div id="columnMenu" style="
-                display: none;
-                position: absolute;
-                right: 0;
-                top: calc(100% + 10px);
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                padding: 15px 20px;
-                min-width: 200px;
-                z-index: 1000;
-                border: 1px solid #eef2f6;
-                max-height: 400px;
-                overflow-y: auto;
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f0f2f5;">
-                    <span style="font-weight: 700; font-size: 0.85rem; color: #1e2b3a;">
-                        <i class="bi bi-eye" style="color: #667eea;"></i> Show/Hide Columns
-                    </span>
-                    <button onclick="resetColumnVisibility()" style="
-                        background: none;
-                        border: none;
-                        color: #667eea;
-                        font-size: 0.7rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        text-decoration: underline;
-                    ">Reset</button>
+            <div id="columnMenu" class="column-menu">
+                <div class="column-menu-header">
+                    <span><i class="bi bi-eye"></i> Show/Hide Columns</span>
+                    <button onclick="resetColumnVisibility()">Reset</button>
                 </div>
-                
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <!-- Column visibility checkboxes -->
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="sno" checked onchange="updateColumnVisibility()">
-                        <span>#</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="mat-code" checked onchange="updateColumnVisibility()">
-                        <span>Mat Code</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="mat-name" checked onchange="updateColumnVisibility()">
-                        <span>Material Name</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="group" checked onchange="updateColumnVisibility()">
-                        <span>Group</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="division" checked onchange="updateColumnVisibility()">
-                        <span>Division</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="current-stock" checked onchange="updateColumnVisibility()">
-                        <span>Stock</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="unit" checked onchange="updateColumnVisibility()">
-                        <span>Unit</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="transit" checked onchange="updateColumnVisibility()">
-                        <span>🚚 Transit</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="virtual-stock" checked onchange="updateColumnVisibility()">
-                        <span>Virtual</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="monthly-avg" checked onchange="updateColumnVisibility()">
-                        <span>Monthly Avg</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="reorder" checked onchange="updateColumnVisibility()">
-                        <span>Reorder</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="status" checked onchange="updateColumnVisibility()">
-                        <span>Status</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="stock-months" checked onchange="updateColumnVisibility()">
-                        <span>Stock Mos</span>
-                    </label>
-                    <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="col-toggle" data-col="action" checked onchange="updateColumnVisibility()">
-                        <span>Action</span>
-                    </label>
+                <div class="column-menu-items">
+                    <label><input type="checkbox" class="col-toggle" data-col="sno" checked onchange="updateColumnVisibility()"> #</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="mat-code" checked onchange="updateColumnVisibility()"> Mat Code</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="mat-name" checked onchange="updateColumnVisibility()"> Material</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="group" checked onchange="updateColumnVisibility()"> Group</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="division" checked onchange="updateColumnVisibility()"> Division</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="current-stock" checked onchange="updateColumnVisibility()"> Stock</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="unit" checked onchange="updateColumnVisibility()"> Unit</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="transit" checked onchange="updateColumnVisibility()"> 🚚 Transit</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="virtual-stock" checked onchange="updateColumnVisibility()"> Virtual</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="monthly-avg" checked onchange="updateColumnVisibility()"> Monthly Avg</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="reorder" checked onchange="updateColumnVisibility()"> Reorder</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="status" checked onchange="updateColumnVisibility()"> Status</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="stock-months" checked onchange="updateColumnVisibility()"> Stock Mos</label>
+                    <label><input type="checkbox" class="col-toggle" data-col="action" checked onchange="updateColumnVisibility()"> Action</label>
                 </div>
-                
-                <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #f0f2f5; display: flex; gap: 8px;">
-                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Show All</button>
-                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Hide All</button>
+                <div class="column-menu-footer">
+                    <button onclick="showAllColumns()">Show All</button>
+                    <button onclick="hideAllColumns()">Hide All</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Welcome Banner -->
+<!-- ================================================================
+     WELCOME BANNER
+     ================================================================ -->
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-box-seam"></i> Current Stock Position</h1>
-        <p>Virtual Stock = Current Stock + In-Transit Quantity</p>
+        <p>Virtual Stock = Current Stock + In-Transit Quantity | Critical = Virtual Stock ≤ Reorder Level</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -173,9 +78,12 @@
     </div>
 </div>
 
-<!-- Filter Section -->
+<!-- ================================================================
+     FILTER SECTION
+     ================================================================ -->
 <div class="filter-section">
     <div class="filter-grid">
+        <!-- Zone Filter -->
         <div class="filter-group">
             <label><i class="bi bi-globe2"></i> ZONE</label>
             <select id="zoneFilter" class="filter-select" onchange="onZoneChange()">
@@ -184,20 +92,43 @@
             </select>
         </div>
         
+        <!-- Region Filter - Multi-select Checkbox -->
         <div class="filter-group">
             <label><i class="bi bi-pin-map"></i> REGION</label>
-            <select id="regionFilter" class="filter-select" onchange="onRegionChange()">
-                <option value="all">All Regions</option>
-            </select>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-trigger" onclick="toggleMultiSelect('regionMultiSelect')">
+                    <span id="regionDisplayText">All Regions</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="multi-select-dropdown" id="regionMultiSelect">
+                    <div class="multi-select-actions">
+                        <button onclick="selectAllRegions()">Select All</button>
+                        <button onclick="deselectAllRegions()">Deselect All</button>
+                    </div>
+                    <div class="multi-select-options" id="regionOptions"></div>
+                </div>
+            </div>
         </div>
         
+        <!-- Division Filter - Multi-select Checkbox -->
         <div class="filter-group">
             <label><i class="bi bi-diagram-3"></i> DIVISION</label>
-            <select id="divisionFilter" class="filter-select" onchange="onDivisionChange()">
-                <option value="all">All Divisions</option>
-            </select>
+            <div class="multi-select-wrapper">
+                <div class="multi-select-trigger" onclick="toggleMultiSelect('divisionMultiSelect')">
+                    <span id="divisionDisplayText">All Divisions</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+                <div class="multi-select-dropdown" id="divisionMultiSelect">
+                    <div class="multi-select-actions">
+                        <button onclick="selectAllDivisions()">Select All</button>
+                        <button onclick="deselectAllDivisions()">Deselect All</button>
+                    </div>
+                    <div class="multi-select-options" id="divisionOptions"></div>
+                </div>
+            </div>
         </div>
         
+        <!-- Material Group Filter -->
         <div class="filter-group">
             <label><i class="bi bi-tags"></i> MATERIAL GROUP</label>
             <select id="groupFilter" class="filter-select" onchange="onMaterialGroupChange()">
@@ -205,6 +136,7 @@
             </select>
         </div>
         
+        <!-- Material Filter -->
         <div class="filter-group">
             <label><i class="bi bi-box-seam"></i> MATERIAL</label>
             <select id="materialFilter" class="filter-select" onchange="loadStockData()">
@@ -212,6 +144,7 @@
             </select>
         </div>
         
+        <!-- Sort By Filter -->
         <div class="filter-group">
             <label><i class="bi bi-sort-numeric-down"></i> SORT BY</label>
             <select id="sortFilter" class="filter-select" onchange="filterTable()">
@@ -228,16 +161,6 @@
                 <option value="status">Status (Critical First)</option>
             </select>
         </div>
-        
-        <div class="filter-group">
-            <label><i class="bi bi-exclamation-triangle"></i> STOCK STATUS</label>
-            <select id="statusFilter" class="filter-select" onchange="filterTable()">
-                <option value="all">All Items</option>
-                <option value="critical">Critical Stock Only</option>
-                <option value="normal">Normal Stock Only</option>
-                <option value="in_transit">With In-Transit Only</option>
-            </select>
-        </div>
     </div>
     <div class="filter-actions">
         <button class="btn-reset" onclick="resetFilters()">
@@ -246,86 +169,92 @@
     </div>
 </div>
 
-<!-- User Guidance Message -->
-<div id="guidanceMessage" style="display: none; background: #e3f0ff; color: #1e2b3a; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+<!-- ================================================================
+     STATUS FILTER CARDS
+     ================================================================ -->
+<div class="status-filter-section">
+    <div class="status-filter-title">
+        <i class="bi bi-funnel"></i>
+        <span>Filter by Stock Status</span>
+    </div>
+    <div class="status-filter-cards">
+        <div class="status-card active" data-status="all" onclick="setStatusFilter('all')">
+            <div class="status-card-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+            </div>
+            <div class="status-card-info">
+                <div class="status-card-label">All Items</div>
+            </div>
+            <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
+        </div>
+        <div class="status-card" data-status="critical" onclick="setStatusFilter('critical')">
+            <div class="status-card-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="status-card-info">
+                <div class="status-card-label">Critical Stock</div>
+            </div>
+            <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
+        </div>
+        <div class="status-card" data-status="normal" onclick="setStatusFilter('normal')">
+            <div class="status-card-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="status-card-info">
+                <div class="status-card-label">Normal Stock</div>
+            </div>
+            <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
+        </div>
+        <div class="status-card" data-status="in_transit" onclick="setStatusFilter('in_transit')">
+            <div class="status-card-icon" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                <i class="bi bi-truck"></i>
+            </div>
+            <div class="status-card-info">
+                <div class="status-card-label">In-Transit</div>
+            </div>
+            <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     GUIDANCE & ERROR MESSAGES
+     ================================================================ -->
+<div id="guidanceMessage" class="guidance-message" style="display:none;">
     <i class="bi bi-info-circle-fill"></i>
     <span id="guidanceText"></span>
 </div>
-
-<div id="errorMessage" style="display: none; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+<div id="errorMessage" class="error-message" style="display:none;">
     <i class="bi bi-exclamation-triangle-fill"></i>
     <span id="errorText"></span>
 </div>
 
+<!-- ================================================================
+     LOADING SPINNER
+     ================================================================ -->
 <div id="loading" class="loading">
-    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-    <p style="margin-top: 15px; color: white;">Loading stock data...</p>
+    <div class="spinner-border"></div>
+    <p>Loading stock data...</p>
 </div>
 
-<!-- KPI Cards -->
-<div class="kpi-title">
-    <i class="bi bi-graph-up"></i>
-    <h2>Stock Summary</h2>
-</div>
-<div class="kpi-grid">
-    <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-            <i class="bi bi-box-seam"></i>
-        </div>
-        <div class="kpi-info">
-            <div class="kpi-label">Total Items</div>
-            <div class="kpi-value" id="totalItems">0</div>
-            <div class="kpi-unit">Materials</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-        </div>
-        <div class="kpi-info">
-            <div class="kpi-label">Critical Stock</div>
-            <div class="kpi-value" id="criticalCount">0</div>
-            <div class="kpi-unit">Items</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
-            <i class="bi bi-truck"></i>
-        </div>
-        <div class="kpi-info">
-            <div class="kpi-label">In-Transit Qty</div>
-            <div class="kpi-value" id="inTransitCount">0</div>
-            <div class="kpi-unit">Units</div>
-        </div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
-            <i class="bi bi-boxes"></i>
-        </div>
-        <div class="kpi-info">
-            <div class="kpi-label">Virtual Stock Items</div>
-            <div class="kpi-value" id="virtualStockCount">0</div>
-            <div class="kpi-unit">With Transit</div>
-        </div>
-    </div>
-</div>
-
-<!-- Legend -->
+<!-- ================================================================
+     LEGEND
+     ================================================================ -->
 <div class="legend-container">
-    <span class="legend-badge critical">🔴 Critical - Stock ≤ Monthly Avg</span>
-    <span class="legend-badge normal">🟢 Normal - Stock > Monthly Avg</span>
+    <span class="legend-badge critical">🔴 Critical - Virtual Stock ≤ Reorder Level</span>
+    <span class="legend-badge normal">🟢 Normal - Virtual Stock > Reorder Level</span>
     <span class="legend-badge transit">🚚 In-Transit</span>
     <span class="legend-badge virtual">🔵 Virtual = Stock + Transit</span>
 </div>
 
-<!-- Stock Table -->
+<!-- ================================================================
+     STOCK TABLE
+     ================================================================ -->
 <div class="content-card">
     <div class="section-title">
         <i class="bi bi-table"></i>
         <h2>Current Stock Position</h2>
-        <span style="margin-left: auto; font-size: 0.7rem; color: #6c757d;" class="desktop-only">
-            <i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit
-        </span>
+        <span class="desktop-only"><i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit</span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="stockTable">
@@ -333,9 +262,9 @@
                 <tr>
                     <th class="col-sno" data-col="sno">#</th>
                     <th class="col-mat-code" data-col="mat-code">Mat Code</th>
-                    <th class="col-mat-name" data-col="mat-name" style="text-align: left;">Material</th>
+                    <th class="col-mat-name" data-col="mat-name" style="text-align:left;">Material</th>
                     <th class="col-group" data-col="group">Group</th>
-                    <th class="col-division" data-col="division" style="text-align: left;">Division</th>
+                    <th class="col-division" data-col="division" style="text-align:left;">Division</th>
                     <th class="col-current-stock" data-col="current-stock">Stock</th>
                     <th class="col-unit" data-col="unit">Unit</th>
                     <th class="col-transit" data-col="transit">🚚 Transit</th>
@@ -354,846 +283,1254 @@
     </div>
 </div>
 
-<!-- Critical Alert -->
-<div class="content-card" id="criticalAlertSection" style="display: none;">
-    <div class="section-title">
-        <i class="bi bi-exclamation-triangle-fill" style="color: #dc3545;"></i>
-        <h2 style="color: #dc3545;">⚠️ Critical Stock Alert</h2>
-    </div>
-    <div class="table-responsive">
-        <table class="data-table critical-table">
-            <thead>
-                <tr>
-                    <th class="crit-sno">#</th>
-                    <th class="crit-code">Mat Code</th>
-                    <th class="crit-name" style="text-align: left;">Material</th>
-                    <th class="crit-division" style="text-align: left;">Division</th>
-                    <th class="crit-stock">Stock</th>
-                    <th class="crit-transit">🚚 Transit</th>
-                    <th class="crit-virtual">Virtual</th>
-                    <th class="crit-avg">Avg</th>
-                    <th class="crit-shortage">Shortage</th>
-                    <th class="crit-action">Action</th>
-                </tr>
-            </thead>
-            <tbody id="criticalAlertBody"></tbody>
-        </table>
-    </div>
-</div>
-
+<!-- ================================================================
+     SCRIPTS
+     ================================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-    let currentStockData = [];
-    let monthlyAvgApiData = {};
-    let transitData = [];
-    let currentStockRaw = [];
-    
+    /**
+     * ================================================================
+     * CURRENT STOCK POSITION - Optimized for Performance
+     * ================================================================
+     * - Stock data loads first for faster initial render
+     * - Dropdown styles match Material Group style
+     * - "Cord Road" appears in region dropdown
+     * ================================================================
+     */
+
     // ================================================================
-    // COLUMN VISIBILITY CONTROL
+    // 1. CONFIGURATION
     // ================================================================
-    function toggleColumnMenu() {
-        const menu = document.getElementById('columnMenu');
-        const icon = document.getElementById('columnToggleIcon');
-        if (menu.style.display === 'block') {
-            menu.style.display = 'none';
-            icon.className = 'bi bi-chevron-down';
-        } else {
-            menu.style.display = 'block';
-            icon.className = 'bi bi-chevron-up';
-        }
-    }
-    
-    // Close column menu when clicking outside
-    document.addEventListener('click', function(event) {
-        const wrapper = document.querySelector('.column-toggle-wrapper');
-        if (wrapper && !wrapper.contains(event.target)) {
-            const menu = document.getElementById('columnMenu');
-            const icon = document.getElementById('columnToggleIcon');
-            if (menu) {
-                menu.style.display = 'none';
-                if (icon) icon.className = 'bi bi-chevron-down';
-            }
-        }
-    });
-    
-    function updateColumnVisibility() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => {
-            const colName = cb.dataset.col;
-            const columnClass = `.col-${colName}`;
-            const elements = document.querySelectorAll(columnClass);
-            const isChecked = cb.checked;
-            
-            elements.forEach(el => {
-                if (isChecked) {
-                    el.style.display = '';
-                    el.style.visibility = '';
-                } else {
-                    el.style.display = 'none';
-                    el.style.visibility = 'collapse';
-                }
-            });
-        });
+    const CONFIG = {
+        EXCLUDED_GROUPS: ['monthly=', 'monthly=27', 'monthly= (27 month)', 'qterly=', 'qterly=3', 'quarterly=3', 'quarterly=', 'yearly', 'yearly='],
+        API: {
+            GROUPS: '/api/consumption/material-groups',
+            MATERIALS: '/api/consumption/materials',
+            MONTHLY_AVG: '/api/consumption/monthly-average-by-plant',
+            TRANSIT: '/api/inventory/material-in-transit',
+            STOCK: '/api/inventory/current-stock'
+        },
+        // Plant mappings
+        PLANT_MAP: {
+            'Siliguri Town Division': '3412', 'Kurseong Division': '3413',
+            'Darjeeling Division': '3414', 'Sub-Urban Division': '3415',
+            'Kalimpong Division': '3471', 'Jalpaiguri Division': '3422',
+            'Mal Division': '3427', 'Coochbehar Division': '3444',
+            'Mathabhanga Division': '3445', 'Dinhata Division': '3446',
+            'Alipurduar Division': '3453', 'Cord Road': '3600',
+            'Siliguri Zonal Store': '3400'
+        },
+        PLANT_TO_DIV: {
+            '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division',
+            '3413': 'Kurseong Division', '3414': 'Darjeeling Division',
+            '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
+            '3427': 'Mal Division', '3444': 'Coochbehar Division',
+            '3445': 'Mathabhanga Division', '3446': 'Dinhata Division',
+            '3453': 'Alipurduar Division', '3471': 'Kalimpong Division',
+            '3600': 'Cord Road'
+        },
+        REGION_DIVISIONS: {
+            'darjeeling': ['Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division'],
+            'kalimpong': ['Kalimpong Division'],
+            'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
+            'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
+            'alipurduar': ['Alipurduar Division'],
+            'cord_road': ['Cord Road'],
+            'siliguri_zone': ['Siliguri Zonal Store']
+        },
+        REGION_NAMES: {
+            'darjeeling': 'Darjeeling', 'kalimpong': 'Kalimpong',
+            'jalpaiguri': 'Jalpaiguri', 'coochbehar': 'Coochbehar',
+            'alipurduar': 'Alipurduar', 'cord_road': 'Cord Road',
+            'siliguri_zone': 'Siliguri Zone'
+        },
+        ALL_REGIONS: ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'cord_road', 'siliguri_zone'],
+        ALL_DIVISIONS: [
+            'Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division',
+            'Kalimpong Division', 'Jalpaiguri Division', 'Mal Division', 'Coochbehar Division',
+            'Mathabhanga Division', 'Dinhata Division', 'Alipurduar Division',
+            'Cord Road', 'Siliguri Zonal Store'
+        ]
+    };
+
+    // ================================================================
+    // 2. STATE
+    // ================================================================
+    const State = {
+        stockData: [],
+        monthlyAvg: {},
+        transit: [],
+        selectedRegions: [],
+        selectedDivisions: [],
+        allRegions: [],
+        allDivisions: [],
+        statusFilter: 'all',
+        isLoaded: false
+    };
+
+    // ================================================================
+    // 3. UTILITIES
+    // ================================================================
+    const Utils = {
+        roundUp: (v) => v && !isNaN(v) ? Math.ceil(v) : 0,
         
-        // Save preference to localStorage
-        const prefs = {};
-        checkboxes.forEach(cb => {
-            prefs[cb.dataset.col] = cb.checked;
-        });
-        localStorage.setItem('stock_column_prefs', JSON.stringify(prefs));
-    }
-    
-    function loadColumnPreferences() {
-        const saved = localStorage.getItem('stock_column_prefs');
-        if (saved) {
+        isExcluded: (group) => {
+            if (!group) return false;
+            const g = group.toLowerCase().trim();
+            return CONFIG.EXCLUDED_GROUPS.some(e => g === e.toLowerCase() || g.includes(e.toLowerCase())) ||
+                   (g.includes('monthly') && g.includes('=')) ||
+                   (g.includes('quarterly') && g.includes('=')) ||
+                   g === 'yearly';
+        },
+        
+        sanitize: (v) => {
+            if (!v) return '';
+            const d = document.createElement('div');
+            d.textContent = v;
+            return d.innerHTML;
+        },
+        
+        formatNum: (n) => parseFloat(n || 0).toLocaleString(),
+        
+        debounce: (fn, d = 300) => {
+            let t;
+            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), d); };
+        }
+    };
+
+    // ================================================================
+    // 4. API SERVICE - With caching and retry
+    // ================================================================
+    const Api = {
+        _cache: {},
+        
+        async fetch(url, opts = {}, retries = 2) {
+            if (this._cache[url]) return this._cache[url];
+            for (let i = 1; i <= retries; i++) {
+                try {
+                    const r = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json' } });
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    const data = await r.json();
+                    this._cache[url] = data;
+                    return data;
+                } catch (e) {
+                    if (i === retries) throw e;
+                    await new Promise(r => setTimeout(r, 500 * i));
+                }
+            }
+        },
+        
+        getGroups: () => Api.fetch(CONFIG.API.GROUPS),
+        getMaterials: (g) => Api.fetch(g && g !== 'all' ? `${CONFIG.API.MATERIALS}?group=${encodeURIComponent(g)}` : CONFIG.API.MATERIALS),
+        getMonthlyAvg: (plants, g, code) => {
+            let url = `${CONFIG.API.MONTHLY_AVG}?`;
+            if (plants?.length) url += `plants=${plants.join(',')}&`;
+            if (g && g !== 'all') url += `material_group=${encodeURIComponent(g)}&`;
+            if (code && code !== 'all') url += `material_code=${code}&`;
+            return Api.fetch(url);
+        },
+        getTransit: () => Api.fetch(CONFIG.API.TRANSIT),
+        getStock: () => Api.fetch(CONFIG.API.STOCK)
+    };
+
+    // ================================================================
+    // 5. UI SERVICE
+    // ================================================================
+    const Ui = {
+        dom: {},
+        
+        init: () => {
+            const s = {
+                loading: '#loading', guidance: '#guidanceMessage', gText: '#guidanceText',
+                error: '#errorMessage', eText: '#errorText', table: '#stockTableBody',
+                date: '#currentDate', zone: '#zoneFilter', group: '#groupFilter',
+                material: '#materialFilter', sort: '#sortFilter',
+                regionOpts: '#regionOptions', divOpts: '#divisionOptions',
+                regionDisplay: '#regionDisplayText', divDisplay: '#divisionDisplayText',
+                colMenu: '#columnMenu', colIcon: '#columnToggleIcon'
+            };
+            for (const [k, v] of Object.entries(s)) Ui.dom[k] = document.querySelector(v);
+        },
+        
+        setLoading: (show) => { if (Ui.dom.loading) Ui.dom.loading.style.display = show ? 'flex' : 'none'; },
+        
+        showGuidance: (msg) => {
+            const el = Ui.dom.guidance, t = Ui.dom.gText;
+            if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 6000); }
+        },
+        
+        showError: (msg) => {
+            const el = Ui.dom.error, t = Ui.dom.eText;
+            if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 5000); }
+        },
+        
+        renderTable: (data) => {
+            const tb = Ui.dom.table;
+            if (!tb) return;
+            if (!data?.length) {
+                const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
+                tb.innerHTML = `<tr><td colspan="14" class="text-center">No ${names[State.statusFilter] || 'items'} found</td></tr>`;
+                return;
+            }
+            tb.innerHTML = data.map(item => `
+                <tr>
+                    <td class="col-sno">${item.sl}</td>
+                    <td class="col-mat-code"><code>${Utils.sanitize(item.material_code)}</code></td>
+                    <td class="col-mat-name" title="${Utils.sanitize(item.material_name || 'Unknown')}">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 28))}${(item.material_name || '').length > 28 ? '...' : ''}</td>
+                    <td class="col-group"><span class="badge-group">${Utils.sanitize(item.material_group || '-')}</span></td>
+                    <td class="col-division">${Utils.sanitize(item.division_name)}</td>
+                    <td class="col-current-stock ${item.status_class}"><strong>${Utils.formatNum(item.current_stock)}</strong></td>
+                    <td class="col-unit">${Utils.sanitize(item.unit || 'Units')}</td>
+                    <td class="col-transit ${item.has_transit ? 'has-transit' : ''}">${item.has_transit ? '🚚 ' + Utils.formatNum(item.transit_qty) : '-'}</td>
+                    <td class="col-virtual-stock ${item.status_class}"><strong>${Utils.formatNum(item.virtual_stock)}</strong></td>
+                    <td class="col-monthly-avg"><strong>${item.monthly_avg}</strong></td>
+                    <td class="col-reorder"><strong>${item.reorder_level}</strong></td>
+                    <td class="col-status ${item.status_class}">${item.status}${item.has_transit ? ' 🚚' : ''}</td>
+                    <td class="col-stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
+                    <td class="col-action">${item.status === 'Critical' ? `<button class="btn-action" onclick="requestAllotment('${Utils.sanitize(item.material_code)}', '${Utils.sanitize(item.division_name)}')">Req</button>` : (item.has_transit ? '<span style="font-size:0.6rem;color:#17a2b8;">🚚</span>' : '-')}</td>
+                </tr>
+            `).join('');
+        },
+        
+        setDate: () => { const el = Ui.dom.date; if (el) el.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); },
+        
+        toggleColMenu: () => {
+            const m = Ui.dom.colMenu, i = Ui.dom.colIcon;
+            if (m && i) { const o = m.style.display === 'block'; m.style.display = o ? 'none' : 'block'; i.className = o ? 'bi bi-chevron-down' : 'bi bi-chevron-up'; }
+        },
+        
+        closeColMenu: () => { const m = Ui.dom.colMenu; if (m) m.style.display = 'none'; if (Ui.dom.colIcon) Ui.dom.colIcon.className = 'bi bi-chevron-down'; },
+        
+        updateColVisibility: () => {
+            const prefs = {};
+            document.querySelectorAll('.col-toggle').forEach(cb => {
+                const col = cb.dataset.col, checked = cb.checked;
+                prefs[col] = checked;
+                document.querySelectorAll(`.col-${col}`).forEach(el => { el.style.display = checked ? '' : 'none'; el.style.visibility = checked ? '' : 'collapse'; });
+            });
+            localStorage.setItem('stock_col_prefs', JSON.stringify(prefs));
+        },
+        
+        loadColPrefs: () => {
+            const saved = localStorage.getItem('stock_col_prefs');
+            if (saved) {
+                try {
+                    const prefs = JSON.parse(saved);
+                    document.querySelectorAll('.col-toggle').forEach(cb => { if (cb.dataset.col in prefs) cb.checked = prefs[cb.dataset.col]; });
+                    Ui.updateColVisibility();
+                } catch(e) {}
+            }
+        },
+        
+        resetColVisibility: () => { document.querySelectorAll('.col-toggle').forEach(cb => cb.checked = true); Ui.updateColVisibility(); localStorage.removeItem('stock_col_prefs'); }
+    };
+
+    // ================================================================
+    // 6. STOCK MANAGER - Core Logic
+    // ================================================================
+    const Manager = {
+        async init() {
+            Ui.init();
+            Ui.setDate();
+            Ui.loadColPrefs();
+            
+            // Load dropdowns first (fast)
+            await this.loadGroups();
+            await this.loadMaterials();
+            
+            // Initialize regions and divisions
+            this.populateRegions(CONFIG.ALL_REGIONS);
+            this.populateDivisions(CONFIG.ALL_DIVISIONS);
+            this.setStatusFilter('all');
+            
+            // Load stock data (main data)
+            await this.loadStockData();
+            
+            // Auto-refresh every 5 min
+            setInterval(() => this.loadStockData(), 300000);
+            
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.multi-select-wrapper')) {
+                    document.querySelectorAll('.multi-select-dropdown').forEach(d => d.style.display = 'none');
+                }
+                if (!e.target.closest('.column-toggle-wrapper')) Ui.closeColMenu();
+            });
+        },
+        
+        // Load material groups
+        async loadGroups() {
             try {
-                const prefs = JSON.parse(saved);
-                const checkboxes = document.querySelectorAll('.col-toggle');
-                checkboxes.forEach(cb => {
-                    const colName = cb.dataset.col;
-                    if (colName in prefs) {
-                        cb.checked = prefs[colName];
-                    }
-                });
-                updateColumnVisibility();
-            } catch(e) {
-                // Use defaults
-            }
-        }
-    }
-    
-    function resetColumnVisibility() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => {
-            cb.checked = true;
-        });
-        updateColumnVisibility();
-        localStorage.removeItem('stock_column_prefs');
-    }
-    
-    function showAllColumns() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => { cb.checked = true; });
-        updateColumnVisibility();
-    }
-    
-    function hideAllColumns() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => { cb.checked = false; });
-        updateColumnVisibility();
-    }
-    
-    // ================================================================
-    // END COLUMN VISIBILITY CONTROL
-    // ================================================================
-    
-    const EXCLUDED_MATERIAL_GROUPS = [
-        'monthly=', 'monthly=27', 'monthly= (27 month)', 'qterly=', 'qterly=3', 
-        'quarterly=3', 'quarterly=', 'yearly', 'yearly='
-    ];
-    
-    function isMaterialGroupExcluded(materialGroup) {
-        if (!materialGroup) return false;
-        const groupLower = materialGroup.toString().toLowerCase().trim();
-        for (let excluded of EXCLUDED_MATERIAL_GROUPS) {
-            if (groupLower === excluded.toLowerCase() || groupLower.includes(excluded.toLowerCase())) {
-                return true;
-            }
-        }
-        if (groupLower.includes('monthly') && groupLower.includes('=')) return true;
-        if (groupLower.includes('quarterly') && groupLower.includes('=')) return true;
-        if (groupLower.includes('qterly') && groupLower.includes('=')) return true;
-        if (groupLower === 'yearly') return true;
-        return false;
-    }
-    
-    const divisionToPlantMap = {
-        'Siliguri Town Division': '3412', 'Kurseong Division': '3413',
-        'Darjeeling Division': '3414', 'Sub-Urban Division': '3415',
-        'Kalimpong Division': '3471', 'Jalpaiguri Division': '3422',
-        'Mal Division': '3427', 'Coochbehar Division': '3444',
-        'Mathabhanga Division': '3445', 'Dinhata Division': '3446',
-        'Alipurduar Division': '3453', 'Central Store/Cord Road Store': '3600',
-        'Siliguri Zonal Store': '3400'
-    };
-    
-    const plantToDivisionMap = {
-        '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division', '3413': 'Kurseong Division',
-        '3414': 'Darjeeling Division', '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
-        '3427': 'Mal Division', '3444': 'Coochbehar Division', '3445': 'Mathabhanga Division',
-        '3446': 'Dinhata Division', '3453': 'Alipurduar Division', '3471': 'Kalimpong Division', '3600': 'Central Store'
-    };
-    
-    const regionDivisions = {
-        'darjeeling': ['Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division'],
-        'kalimpong': ['Kalimpong Division'],
-        'jalpaiguri': ['Jalpaiguri Division', 'Mal Division'],
-        'coochbehar': ['Coochbehar Division', 'Mathabhanga Division', 'Dinhata Division'],
-        'alipurduar': ['Alipurduar Division'],
-        'others': ['Central Store/Cord Road Store'],
-        'siliguri_zone': ['Siliguri Zonal Store']
-    };
-    
-    const allDivisionsList = [
-        'Siliguri Town Division', 'Kurseong Division', 'Darjeeling Division', 'Sub-Urban Division',
-        'Kalimpong Division', 'Jalpaiguri Division', 'Mal Division', 'Coochbehar Division',
-        'Mathabhanga Division', 'Dinhata Division', 'Alipurduar Division', 'Central Store/Cord Road Store',
-        'Siliguri Zonal Store'
-    ];
-    
-    const allRegions = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'others', 'siliguri_zone'];
-    const regionDisplayNames = {
-        'darjeeling': 'Darjeeling', 'kalimpong': 'Kalimpong', 'jalpaiguri': 'Jalpaiguri',
-        'coochbehar': 'Coochbehar', 'alipurduar': 'Alipurduar', 'others': 'Others', 'siliguri_zone': 'Siliguri Zone'
-    };
-    
-    const divisionValueMap = {
-        'siliguri-town-division': 'Siliguri Town Division', 'kurseong-division': 'Kurseong Division',
-        'darjeeling-division': 'Darjeeling Division', 'sub-urban-division': 'Sub-Urban Division',
-        'kalimpong-division': 'Kalimpong Division', 'jalpaiguri-division': 'Jalpaiguri Division',
-        'mal-division': 'Mal Division', 'coochbehar-division': 'Coochbehar Division',
-        'mathabhanga-division': 'Mathabhanga Division', 'dinhata-division': 'Dinhata Division',
-        'alipurduar-division': 'Alipurduar Division', 'central-store-cord-road-store': 'Central Store/Cord Road Store',
-        'siliguri-zonal-store': 'Siliguri Zonal Store'
-    };
-
-    function showLoading() { document.getElementById('loading').style.display = 'flex'; }
-    function hideLoading() { document.getElementById('loading').style.display = 'none'; }
-    
-    function showGuidance(message) {
-        const guidanceDiv = document.getElementById('guidanceMessage');
-        document.getElementById('guidanceText').textContent = message;
-        guidanceDiv.style.display = 'block';
-        setTimeout(() => { guidanceDiv.style.display = 'none'; }, 8000);
-    }
-    
-    function showError(message) {
-        const errorDiv = document.getElementById('errorMessage');
-        document.getElementById('errorText').textContent = message;
-        errorDiv.style.display = 'block';
-        setTimeout(() => errorDiv.style.display = 'none', 5000);
-    }
-    
-    function customRound(value) {
-        if (value === 0 || isNaN(value) || value === null) return 0;
-        return Math.ceil(value);
-    }
-
-    // ================================================================
-    // FILTER FUNCTIONS
-    // ================================================================
-    function onZoneChange() {
-        const zone = document.getElementById('zoneFilter').value;
-        const regionSelect = document.getElementById('regionFilter');
-        regionSelect.innerHTML = '<option value="all">All Regions</option>';
-        
-        let regionsToShow = allRegions;
-        if (zone === 'siliguri') {
-            regionsToShow = allRegions.filter(r => r !== 'others');
-        }
-        
-        regionsToShow.forEach(region => {
-            regionSelect.innerHTML += `<option value="${region}">${regionDisplayNames[region]}</option>`;
-        });
-        onRegionChange();
-    }
-    
-    function onRegionChange() {
-        const region = document.getElementById('regionFilter').value;
-        const divisionSelect = document.getElementById('divisionFilter');
-        divisionSelect.innerHTML = '<option value="all">All Divisions</option>';
-        
-        if (region !== 'all' && regionDivisions[region]) {
-            regionDivisions[region].forEach(division => {
-                const option = document.createElement('option');
-                option.value = division.toLowerCase().replace(/\s+/g, '-');
-                option.textContent = division;
-                divisionSelect.appendChild(option);
-            });
-        } else if (region === 'all') {
-            allDivisionsList.forEach(division => {
-                const option = document.createElement('option');
-                option.value = division.toLowerCase().replace(/\s+/g, '-');
-                option.textContent = division;
-                divisionSelect.appendChild(option);
-            });
-        }
-        loadStockData();
-    }
-    
-    function onDivisionChange() {
-        const divisionValue = document.getElementById('divisionFilter').value;
-        const divisionName = divisionValue !== 'all' ? (divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ')) : 'All Divisions';
-        
-        if (divisionValue !== 'all') {
-            showGuidance(`Showing stock data for ${divisionName}.`);
-        } else {
-            showGuidance(`Showing stock data for ALL Divisions.`);
-        }
-        loadStockData();
-    }
-    
-    async function loadMaterialGroups() {
-        try {
-            const response = await fetch('/api/consumption/material-groups');
-            let groups = await response.json();
-            groups = groups.filter(group => !isMaterialGroupExcluded(group));
-            
-            const groupSelect = document.getElementById('groupFilter');
-            groupSelect.innerHTML = '<option value="all">All Material Groups</option>';
-            if (groups && groups.length > 0) {
-                groups.sort().forEach(group => {
-                    const option = document.createElement('option');
-                    option.value = group;
-                    option.textContent = group;
-                    groupSelect.appendChild(option);
-                });
-            }
-        } catch (error) { console.error('Error loading groups:', error); }
-    }
-    
-    async function loadMaterialsByGroup() {
-        try {
-            const materialGroup = document.getElementById('groupFilter').value;
-            let url = '/api/consumption/materials';
-            if (materialGroup && materialGroup !== 'all') {
-                url += `?group=${encodeURIComponent(materialGroup)}`;
-            }
-            const response = await fetch(url);
-            let materials = await response.json();
-            materials = materials.filter(material => !isMaterialGroupExcluded(material.material_group));
-            
-            const materialSelect = document.getElementById('materialFilter');
-            materialSelect.innerHTML = '<option value="all">All Materials</option>';
-            if (materials && materials.length > 0) {
-                materials.forEach(material => {
-                    const option = document.createElement('option');
-                    option.value = material.material_code;
-                    const displayName = material.material_name || material.material_code;
-                    option.textContent = displayName.length > 60 ? displayName.substring(0,60)+'...' : displayName;
-                    option.title = displayName;
-                    materialSelect.appendChild(option);
-                });
-            }
-        } catch (error) { console.error('Error loading materials:', error); }
-    }
-    
-    async function onMaterialGroupChange() {
-        await loadMaterialsByGroup();
-        loadStockData();
-    }
-    
-    // ================================================================
-    // LOAD DATA
-    // ================================================================
-    async function loadMonthlyAveragesFromAPI(plants, materialGroup, materialCode) {
-        try {
-            let url = `/api/consumption/monthly-average-by-plant?`;
-            if (plants && plants !== 'all' && plants.length > 0) {
-                const plantParam = Array.isArray(plants) ? plants.join(',') : plants;
-                url += `plants=${plantParam}&`;
-            }
-            if (materialGroup && materialGroup !== 'all') {
-                url += `material_group=${encodeURIComponent(materialGroup)}&`;
-            }
-            if (materialCode && materialCode !== 'all') {
-                url += `material_code=${materialCode}&`;
-            }
-            const response = await fetch(url);
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error fetching monthly averages:', error);
-            return {};
-        }
-    }
-    
-    async function loadTransitData() {
-        try {
-            const response = await fetch('/api/inventory/material-in-transit');
-            const data = await response.json();
-            transitData = data.filter(item => {
-                const balanceQty = item.balance_qty || item.quantity || 0;
-                return balanceQty > 0 && item.status !== 'Completed';
-            });
-            console.log(`🚚 Loaded ${transitData.length} in-transit items`);
-            return transitData;
-        } catch (error) {
-            console.error('Error loading transit data:', error);
-            transitData = [];
-            return [];
-        }
-    }
-    
-    function calculateReorderLevel(plant, monthlyAvg) {
-        if (plant === '3400') {
-            return customRound(monthlyAvg * 3);
-        } else {
-            return customRound(monthlyAvg * 1);
-        }
-    }
-    
-    async function loadStockData() {
-        showLoading();
-        
-        const zoneValue = document.getElementById('zoneFilter').value;
-        const regionValue = document.getElementById('regionFilter').value;
-        const divisionValue = document.getElementById('divisionFilter').value;
-        const materialGroup = document.getElementById('groupFilter').value;
-        const materialCode = document.getElementById('materialFilter').value;
-        
-        let plantsToFetch = [];
-        
-        if (divisionValue !== 'all') {
-            const divisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
-            const plantCode = divisionToPlantMap[divisionName];
-            if (plantCode) {
-                plantsToFetch = [plantCode];
-            }
-        } else if (regionValue !== 'all' && regionDivisions[regionValue]) {
-            const divisions = regionDivisions[regionValue];
-            plantsToFetch = divisions.map(div => divisionToPlantMap[div]).filter(p => p);
-        } else if (zoneValue === 'siliguri') {
-            const siliguriRegions = allRegions.filter(r => r !== 'others');
-            const allDivisionsInZone = [];
-            siliguriRegions.forEach(reg => {
-                if (regionDivisions[reg]) {
-                    allDivisionsInZone.push(...regionDivisions[reg]);
+                const groups = await Api.getGroups();
+                const filtered = groups.filter(g => !Utils.isExcluded(g));
+                const sel = Ui.dom.group;
+                if (sel) {
+                    sel.innerHTML = '<option value="all">All Material Groups</option>';
+                    filtered.sort().forEach(g => { sel.innerHTML += `<option value="${Utils.sanitize(g)}">${Utils.sanitize(g)}</option>`; });
                 }
-            });
-            plantsToFetch = [...new Set(allDivisionsInZone.map(div => divisionToPlantMap[div]).filter(p => p))];
-        } else {
-            plantsToFetch = Object.values(divisionToPlantMap);
-        }
+            } catch (e) { console.error('Groups error:', e); Ui.showError('Failed to load material groups'); }
+        },
         
-        try {
-            const [monthlyAvgData, transitDataLoaded] = await Promise.all([
-                loadMonthlyAveragesFromAPI(plantsToFetch, materialGroup, materialCode),
-                loadTransitData()
-            ]);
-            
-            monthlyAvgApiData = monthlyAvgData;
-            transitData = transitDataLoaded;
-            
-            const stockResponse = await fetch('/api/inventory/current-stock');
-            let stockData = await stockResponse.json();
-            currentStockRaw = stockData;
-            
-            const transitLookup = {};
-            transitData.forEach(item => {
-                const toPlant = String(item.to_plant || '');
-                const materialCodeKey = String(item.material_code || '');
-                const key = `${toPlant}_${materialCodeKey}`;
-                const transitQty = parseFloat(item.balance_qty || item.quantity || 0);
-                
-                if (transitLookup[key]) {
-                    transitLookup[key] += transitQty;
-                } else {
-                    transitLookup[key] = transitQty;
+        // Load materials
+        async loadMaterials() {
+            try {
+                const group = Ui.dom.group?.value;
+                const materials = await Api.getMaterials(group);
+                const filtered = materials.filter(m => !Utils.isExcluded(m.material_group));
+                const sel = Ui.dom.material;
+                if (sel) {
+                    sel.innerHTML = '<option value="all">All Materials</option>';
+                    filtered.forEach(m => {
+                        const name = m.material_name || m.material_code;
+                        sel.innerHTML += `<option value="${Utils.sanitize(m.material_code)}" title="${Utils.sanitize(name)}">${Utils.sanitize(name.substring(0, 55))}${name.length > 55 ? '...' : ''}</option>`;
+                    });
                 }
+            } catch (e) { console.error('Materials error:', e); Ui.showError('Failed to load materials'); }
+        },
+        
+        // Populate region dropdown
+        populateRegions(regions) {
+            State.allRegions = regions;
+            const container = Ui.dom.regionOpts;
+            if (!container) return;
+            container.innerHTML = '';
+            regions.forEach(r => {
+                const label = document.createElement('label');
+                label.className = 'multi-select-option';
+                label.innerHTML = `<input type="checkbox" value="${r}" onchange="Manager.onRegionChange()"><span>${CONFIG.REGION_NAMES[r] || r}</span>`;
+                container.appendChild(label);
             });
-            
-            let filteredStock = stockData.map(item => {
-                const divisionName = plantToDivisionMap[String(item.plant)] || item.plant || 'Unknown';
-                const plantStr = String(item.plant || '');
-                const materialCodeKey = String(item.material_code || '');
-                const lookupKey = `${plantStr}_${materialCodeKey}`;
-                const transitQty = transitLookup[lookupKey] || 0;
-                
-                return { 
-                    ...item, 
-                    division_name: divisionName,
-                    transit_qty: transitQty,
-                    virtual_stock: (parseFloat(item.current_stock || 0) + transitQty)
-                };
-            }).filter(item => !isMaterialGroupExcluded(item.material_group));
-            
-            // Apply filters
-            if (zoneValue === 'siliguri') {
-                const siliguriRegions = allRegions.filter(r => r !== 'others');
-                const siliguriDivisions = [];
-                siliguriRegions.forEach(reg => {
-                    if (regionDivisions[reg]) {
-                        siliguriDivisions.push(...regionDivisions[reg]);
-                    }
+            State.selectedRegions = [...regions];
+            this.updateRegionDisplay();
+        },
+        
+        // Populate division dropdown
+        populateDivisions(divisions) {
+            State.allDivisions = divisions;
+            const container = Ui.dom.divOpts;
+            if (!container) return;
+            container.innerHTML = '';
+            divisions.forEach(d => {
+                const label = document.createElement('label');
+                label.className = 'multi-select-option';
+                label.innerHTML = `<input type="checkbox" value="${d}" onchange="Manager.onDivisionChange()"><span>${d}</span>`;
+                container.appendChild(label);
+            });
+            State.selectedDivisions = [...divisions];
+            this.updateDivisionDisplay();
+        },
+        
+        // Update region display
+        updateRegionDisplay() {
+            const el = Ui.dom.regionDisplay;
+            if (!el) return;
+            const c = State.selectedRegions.length, t = State.allRegions.length;
+            if (c === 0 || c === t) el.textContent = 'All Regions';
+            else if (c === 1) el.textContent = CONFIG.REGION_NAMES[State.selectedRegions[0]] || State.selectedRegions[0];
+            else el.textContent = `${c} Regions Selected`;
+            document.querySelectorAll('#regionOptions input[type="checkbox"]').forEach(cb => cb.checked = State.selectedRegions.includes(cb.value));
+        },
+        
+        // Update division display
+        updateDivisionDisplay() {
+            const el = Ui.dom.divDisplay;
+            if (!el) return;
+            const c = State.selectedDivisions.length, t = State.allDivisions.length;
+            if (c === 0 || c === t) el.textContent = 'All Divisions';
+            else if (c === 1) el.textContent = State.selectedDivisions[0];
+            else el.textContent = `${c} Divisions Selected`;
+            document.querySelectorAll('#divisionOptions input[type="checkbox"]').forEach(cb => cb.checked = State.selectedDivisions.includes(cb.value));
+        },
+        
+        // Region checkbox change
+        onRegionChange() {
+            const checked = document.querySelectorAll('#regionOptions input[type="checkbox"]:checked');
+            State.selectedRegions = Array.from(checked).map(cb => cb.value);
+            this.updateRegionDisplay();
+            this.updateDivisionsFromRegions();
+        },
+        
+        // Division checkbox change
+        onDivisionChange() {
+            const checked = document.querySelectorAll('#divisionOptions input[type="checkbox"]:checked');
+            State.selectedDivisions = Array.from(checked).map(cb => cb.value);
+            this.updateDivisionDisplay();
+            this.loadStockData();
+        },
+        
+        // Update divisions from selected regions
+        updateDivisionsFromRegions() {
+            let divisions = [];
+            if (State.selectedRegions.length === 0 || State.selectedRegions.length === State.allRegions.length) {
+                divisions = CONFIG.ALL_DIVISIONS;
+            } else {
+                const unique = new Set();
+                State.selectedRegions.forEach(r => {
+                    if (CONFIG.REGION_DIVISIONS[r]) CONFIG.REGION_DIVISIONS[r].forEach(d => unique.add(d));
                 });
-                filteredStock = filteredStock.filter(item => siliguriDivisions.includes(item.division_name));
+                divisions = Array.from(unique);
             }
+            this.populateDivisions(divisions);
+        },
+        
+        // Select/deselect all regions
+        selectAllRegions() { State.selectedRegions = [...State.allRegions]; this.updateRegionDisplay(); this.updateDivisionsFromRegions(); },
+        deselectAllRegions() { State.selectedRegions = []; this.updateRegionDisplay(); this.updateDivisionsFromRegions(); },
+        
+        // Select/deselect all divisions
+        selectAllDivisions() { State.selectedDivisions = [...State.allDivisions]; this.updateDivisionDisplay(); this.loadStockData(); },
+        deselectAllDivisions() { State.selectedDivisions = []; this.updateDivisionDisplay(); this.loadStockData(); },
+        
+        // Set status filter
+        setStatusFilter(status) {
+            State.statusFilter = status;
+            document.querySelectorAll('.status-card').forEach(c => c.classList.toggle('active', c.dataset.status === status));
+            const names = { all: 'All Items', critical: 'Critical Stock Only', normal: 'Normal Stock Only', in_transit: 'With In-Transit Only' };
+            Ui.showGuidance(`📊 Showing: ${names[status] || 'All Items'}`);
+            this.filterTable();
+        },
+        
+        // Calculate reorder level
+        calcReorder(plant, avg) {
+            const a = Utils.roundUp(avg);
+            return plant === '3400' ? a * 3 : a;
+        },
+        
+        // ================================================================
+        // LOAD STOCK DATA - OPTIMIZED: Stock loads first
+        // ================================================================
+        async loadStockData() {
+            Ui.setLoading(true);
             
-            if (regionValue !== 'all' && regionDivisions[regionValue]) {
-                const divisionsInRegion = regionDivisions[regionValue];
-                filteredStock = filteredStock.filter(item => divisionsInRegion.includes(item.division_name));
-            }
-            
-            if (divisionValue !== 'all') {
-                const divisionName = divisionValueMap[divisionValue] || divisionValue.replace(/-/g, ' ');
-                filteredStock = filteredStock.filter(item => item.division_name === divisionName);
-            }
-            
-            if (materialGroup !== 'all') {
-                filteredStock = filteredStock.filter(item => item.material_group === materialGroup);
-            }
-            
-            if (materialCode !== 'all') {
-                filteredStock = filteredStock.filter(item => String(item.material_code) === String(materialCode));
-            }
-            
-            const stockWithMetrics = filteredStock.map((item, index) => {
-                let monthlyAvg = 0;
-                const materialCodeKey = item.material_code;
-                const plantCode = String(item.plant);
-                const divisionName = item.division_name;
+            try {
+                const zone = Ui.dom.zone?.value || 'all';
+                const group = Ui.dom.group?.value || 'all';
+                const material = Ui.dom.material?.value || 'all';
                 
-                const materialAvgData = monthlyAvgApiData[materialCodeKey];
-                if (materialAvgData) {
-                    if (materialAvgData[plantCode]) {
-                        monthlyAvg = materialAvgData[plantCode].monthly_avg;
-                    } else if (materialAvgData[divisionName]) {
-                        monthlyAvg = materialAvgData[divisionName].monthly_avg;
-                    } else {
-                        const plantKeys = Object.keys(materialAvgData).filter(key => key !== 'material_code' && key !== 'material_name');
-                        if (plantKeys.length > 0) {
-                            monthlyAvg = materialAvgData[plantKeys[0]].monthly_avg;
+                // Get selected divisions
+                let divisions = State.selectedDivisions;
+                if (divisions.length === 0 || divisions.length === State.allDivisions.length) {
+                    divisions = CONFIG.ALL_DIVISIONS;
+                }
+                
+                const plants = divisions.map(d => CONFIG.PLANT_MAP[d]).filter(Boolean);
+                if (plants.length === 0) {
+                    Ui.showError('No plants found for selected divisions');
+                    Ui.setLoading(false);
+                    return;
+                }
+                
+                // ============================================================
+                // STEP 1: Load Stock Data FIRST (for fast initial render)
+                // ============================================================
+                const [stockData, transitData, monthlyAvgData] = await Promise.all([
+                    Api.getStock(),
+                    Api.getTransit(),
+                    Api.getMonthlyAvg(plants, group, material)
+                ]);
+                
+                State.monthlyAvg = monthlyAvgData || {};
+                State.transit = transitData || [];
+                
+                // Build transit lookup
+                const transitLookup = {};
+                State.transit.forEach(item => {
+                    const key = `${String(item.to_plant || '')}_${String(item.material_code || '')}`;
+                    const qty = parseFloat(item.balance_qty || item.quantity || 0);
+                    transitLookup[key] = (transitLookup[key] || 0) + qty;
+                });
+                
+                // Process stock data
+                let processed = stockData
+                    .map(item => {
+                        const plant = String(item.plant || '');
+                        const code = String(item.material_code || '');
+                        const divName = CONFIG.PLANT_TO_DIV[plant] || plant || 'Unknown';
+                        const key = `${plant}_${code}`;
+                        const transit = transitLookup[key] || 0;
+                        const stock = parseFloat(item.current_stock || 0);
+                        return {
+                            ...item,
+                            division_name: divName,
+                            transit_qty: transit,
+                            virtual_stock: stock + transit,
+                            current_stock: stock,
+                            material_name: item.material_name || item.material_description || code
+                        };
+                    })
+                    .filter(item => !Utils.isExcluded(item.material_group));
+                
+                // Apply zone filter
+                if (zone === 'siliguri') {
+                    const zoneDivs = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'siliguri_zone']
+                        .flatMap(r => CONFIG.REGION_DIVISIONS[r] || []);
+                    processed = processed.filter(item => zoneDivs.includes(item.division_name));
+                }
+                
+                // Apply division filter
+                if (divisions.length < CONFIG.ALL_DIVISIONS.length) {
+                    processed = processed.filter(item => divisions.includes(item.division_name));
+                }
+                
+                // Apply group and material filters
+                if (group !== 'all') processed = processed.filter(item => item.material_group === group);
+                if (material !== 'all') processed = processed.filter(item => String(item.material_code) === String(material));
+                
+                // Calculate metrics
+                const enriched = processed.map((item, index) => {
+                    const plant = String(item.plant || '');
+                    const code = String(item.material_code || '');
+                    const divName = item.division_name;
+                    
+                    let monthlyAvg = 0;
+                    const avgData = State.monthlyAvg[code];
+                    if (avgData) {
+                        if (avgData[plant]) monthlyAvg = avgData[plant].monthly_avg;
+                        else if (avgData[divName]) monthlyAvg = avgData[divName].monthly_avg;
+                        else {
+                            const keys = Object.keys(avgData).filter(k => k !== 'material_code' && k !== 'material_name');
+                            if (keys.length) monthlyAvg = avgData[keys[0]].monthly_avg;
                         }
                     }
-                }
+                    monthlyAvg = Utils.roundUp(monthlyAvg);
+                    const reorderLevel = this.calcReorder(plant, monthlyAvg);
+                    const virtualStock = item.virtual_stock || 0;
+                    const isCritical = virtualStock <= reorderLevel && reorderLevel > 0;
+                    const stockMonths = monthlyAvg > 0 ? (virtualStock / monthlyAvg).toFixed(1) : 0;
+                    
+                    return {
+                        ...item,
+                        sl: index + 1,
+                        monthly_avg: monthlyAvg,
+                        reorder_level: reorderLevel,
+                        stock_months: stockMonths,
+                        status: isCritical ? 'Critical' : 'Normal',
+                        status_class: isCritical ? 'status-critical' : 'status-normal',
+                        has_transit: item.transit_qty > 0
+                    };
+                });
                 
-                monthlyAvg = customRound(monthlyAvg);
-                const reorderLevel = calculateReorderLevel(plantCode, monthlyAvg);
-                const currentStock = item.current_stock || 0;
-                const transitQty = item.transit_qty || 0;
-                const virtualStock = item.virtual_stock || 0;
-                const stockMonths = monthlyAvg > 0 ? (virtualStock / monthlyAvg).toFixed(1) : 0;
+                State.stockData = enriched;
+                this.filterTable();
                 
-                const isCritical = (virtualStock <= monthlyAvg && monthlyAvg > 0);
-                const status = isCritical ? 'Critical' : 'Normal';
-                const statusClass = status === 'Critical' ? 'status-critical' : 'status-normal';
-                const shortage = isCritical ? (monthlyAvg - virtualStock).toFixed(2) : 0;
+                const total = enriched.length;
+                const critical = enriched.filter(m => m.status === 'Critical').length;
+                const withTransit = enriched.filter(m => m.has_transit).length;
+                const transitTotal = enriched.reduce((sum, m) => sum + m.transit_qty, 0);
                 
-                return { 
-                    ...item, 
-                    sl: index + 1, 
-                    division_name: divisionName,
-                    monthly_avg: monthlyAvg,
-                    reorder_level: reorderLevel, 
-                    stock_months: stockMonths, 
-                    status: status, 
-                    status_class: statusClass, 
-                    shortage: shortage,
-                    virtual_stock: virtualStock,
-                    transit_qty: transitQty,
-                    has_transit: transitQty > 0
-                };
-            });
-            
-            currentStockData = stockWithMetrics;
-            filterTable();
-            
-            const totalMaterials = stockWithMetrics.length;
-            const criticalCount = stockWithMetrics.filter(m => m.status === 'Critical').length;
-            const withTransit = stockWithMetrics.filter(m => m.has_transit).length;
-            const transitTotal = stockWithMetrics.reduce((sum, m) => sum + m.transit_qty, 0);
-            
-            document.getElementById('inTransitCount').textContent = transitTotal.toFixed(0);
-            document.getElementById('virtualStockCount').textContent = withTransit;
-            
-            showGuidance(`✅ Loaded ${totalMaterials} materials. ${criticalCount} critical. ${withTransit} have in-transit (${transitTotal.toFixed(0)} units on the way).`);
-            
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="14" class="text-center">Error loading data</td></tr>';
-            showError('Failed to load stock data: ' + error.message);
-        } finally {
-            hideLoading();
-        }
-    }
-    
-    // ================================================================
-    // FILTER TABLE
-    // ================================================================
-    function filterTable() {
-        const statusFilter = document.getElementById('statusFilter').value;
-        const sortBy = document.getElementById('sortFilter').value;
+                Ui.showGuidance(`✅ Loaded ${total} materials. ${critical} critical. ${withTransit} have in-transit (${transitTotal.toFixed(0)} units on the way).`);
+                
+            } catch (error) {
+                console.error('Error loading stock:', error);
+                Ui.showError('Failed to load stock data: ' + error.message);
+                if (Ui.dom.table) Ui.dom.table.innerHTML = '<tr><td colspan="14" class="text-center">Error loading data</td></tr>';
+            } finally {
+                Ui.setLoading(false);
+            }
+        },
         
-        let filteredData = [...currentStockData];
-        
-        if (statusFilter === 'critical') {
-            filteredData = filteredData.filter(item => item.status === 'Critical');
-        } else if (statusFilter === 'normal') {
-            filteredData = filteredData.filter(item => item.status === 'Normal');
-        } else if (statusFilter === 'in_transit') {
-            filteredData = filteredData.filter(item => item.has_transit);
-        }
-        
-        switch(sortBy) {
-            case 'material_code':
-                filteredData.sort((a, b) => String(a.material_code).localeCompare(String(b.material_code)));
-                break;
-            case 'material_code_desc':
-                filteredData.sort((a, b) => String(b.material_code).localeCompare(String(a.material_code)));
-                break;
-            case 'current_stock_asc':
-                filteredData.sort((a, b) => (a.current_stock || 0) - (b.current_stock || 0));
-                break;
-            case 'current_stock_desc':
-                filteredData.sort((a, b) => (b.current_stock || 0) - (a.current_stock || 0));
-                break;
-            case 'virtual_stock_asc':
-                filteredData.sort((a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0));
-                break;
-            case 'virtual_stock_desc':
-                filteredData.sort((a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0));
-                break;
-            case 'stock_months_asc':
-                filteredData.sort((a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months));
-                break;
-            case 'stock_months_desc':
-                filteredData.sort((a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months));
-                break;
-            case 'monthly_avg_asc':
-                filteredData.sort((a, b) => a.monthly_avg - b.monthly_avg);
-                break;
-            case 'monthly_avg_desc':
-                filteredData.sort((a, b) => b.monthly_avg - a.monthly_avg);
-                break;
-            case 'status':
-                filteredData.sort((a, b) => {
+        // Filter and sort table
+        filterTable() {
+            let data = [...State.stockData];
+            
+            // Apply status filter
+            if (State.statusFilter === 'critical') data = data.filter(item => item.status === 'Critical');
+            else if (State.statusFilter === 'normal') data = data.filter(item => item.status === 'Normal');
+            else if (State.statusFilter === 'in_transit') data = data.filter(item => item.has_transit);
+            
+            // Apply sorting
+            const sortBy = Ui.dom.sort?.value || 'material_code';
+            const sortMap = {
+                'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
+                'material_code_desc': (a, b) => String(b.material_code).localeCompare(String(a.material_code)),
+                'current_stock_asc': (a, b) => (a.current_stock || 0) - (b.current_stock || 0),
+                'current_stock_desc': (a, b) => (b.current_stock || 0) - (a.current_stock || 0),
+                'virtual_stock_asc': (a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0),
+                'virtual_stock_desc': (a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0),
+                'stock_months_asc': (a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months),
+                'stock_months_desc': (a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months),
+                'monthly_avg_asc': (a, b) => a.monthly_avg - b.monthly_avg,
+                'monthly_avg_desc': (a, b) => b.monthly_avg - a.monthly_avg,
+                'status': (a, b) => {
                     if (a.status === 'Critical' && b.status !== 'Critical') return -1;
                     if (a.status !== 'Critical' && b.status === 'Critical') return 1;
                     return 0;
-                });
-                break;
+                }
+            };
+            if (sortMap[sortBy]) data.sort(sortMap[sortBy]);
+            
+            Ui.renderTable(data);
+        },
+        
+        // Zone change
+        onZoneChange() {
+            const zone = Ui.dom.zone?.value || 'all';
+            const regions = zone === 'siliguri' ? CONFIG.ALL_REGIONS.filter(r => r !== 'cord_road') : CONFIG.ALL_REGIONS;
+            this.populateRegions(regions);
+            this.updateDivisionsFromRegions();
+        },
+        
+        // Material group change
+        async onMaterialGroupChange() {
+            await this.loadMaterials();
+            await this.loadStockData();
+        },
+        
+        // Reset all filters
+        resetFilters() {
+            if (Ui.dom.zone) Ui.dom.zone.value = 'all';
+            if (Ui.dom.group) Ui.dom.group.value = 'all';
+            if (Ui.dom.material) Ui.dom.material.value = 'all';
+            if (Ui.dom.sort) Ui.dom.sort.value = 'material_code';
+            this.selectAllRegions();
+            this.selectAllDivisions();
+            this.setStatusFilter('all');
+            this.loadMaterials();
+            this.loadStockData();
+            Ui.showGuidance('🔄 All filters have been reset.');
+        },
+        
+        // Request allotment
+        requestAllotment(code, div) {
+            alert(`Allotment request initiated for material: ${code}\nDivision: ${div}\n\nThe store manager will be notified for approval.`);
+        },
+        
+        // Refresh data
+        refreshData() { this.loadStockData(); },
+        
+        // Export to Excel
+        exportToExcel() {
+            const data = State.stockData;
+            if (!data?.length) { alert('No data to export'); return; }
+            try {
+                const wb = XLSX.utils.book_new();
+                const headers = ['#', 'Material Code', 'Material Name', 'Group', 'Division', 'Current Stock', 'Unit', 'In-Transit', 'Virtual Stock', 'Monthly Avg', 'Reorder Level', 'Status', 'Stock Months'];
+                const rows = data.map(item => [
+                    item.sl, item.material_code, item.material_name || item.material_code,
+                    item.material_group, item.division_name,
+                    parseFloat(item.current_stock).toLocaleString(), item.unit || 'Units',
+                    item.has_transit ? parseFloat(item.transit_qty).toLocaleString() : 0,
+                    parseFloat(item.virtual_stock).toLocaleString(),
+                    item.monthly_avg, item.reorder_level, item.status, item.stock_months
+                ]);
+                const sheetData = [['CURRENT STOCK POSITION'], ['Generated:', new Date().toLocaleString()], [], headers, ...rows];
+                const sheet = XLSX.utils.aoa_to_sheet(sheetData);
+                XLSX.utils.book_append_sheet(wb, sheet, 'Current Stock');
+                XLSX.writeFile(wb, `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
+                Ui.showGuidance('✅ Stock report exported successfully!');
+            } catch (e) { console.error(e); Ui.showError('Export failed: ' + e.message); }
+        },
+        
+        // Export to PDF
+        exportToPDF() {
+            const el = document.querySelector('.content-card');
+            if (el && typeof html2pdf !== 'undefined') {
+                try {
+                    html2pdf().set({ margin: 0.5, filename: `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, image: { quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' } }).from(el).save();
+                    Ui.showGuidance('📄 Generating PDF report...');
+                } catch (e) { console.error(e); Ui.showError('PDF generation failed'); }
+            } else { Ui.showError('PDF library not loaded'); }
         }
-        
-        // Update KPIs
-        document.getElementById('totalItems').textContent = filteredData.length;
-        document.getElementById('criticalCount').textContent = filteredData.filter(i => i.status === 'Critical').length;
-        
-        const transitCount = filteredData.filter(i => i.has_transit).length;
-        const transitTotal = filteredData.reduce((sum, i) => sum + i.transit_qty, 0);
-        document.getElementById('inTransitCount').textContent = transitTotal.toFixed(0);
-        document.getElementById('virtualStockCount').textContent = transitCount;
-        
-        // Update table
-        const tableBody = document.getElementById('stockTableBody');
-        if (filteredData.length > 0) {
-            tableBody.innerHTML = filteredData.map(item => `
-                <tr>
-                    <td class="col-sno" data-col="sno">${item.sl}</td>
-                    <td class="col-mat-code" data-col="mat-code"><code>${item.material_code}</code></td>
-                    <td class="col-mat-name" data-col="mat-name" style="text-align: left;" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 28)}${(item.material_description || '').length > 28 ? '...' : ''}</td>
-                    <td class="col-group" data-col="group"><span class="badge-group">${item.material_group || '-'}</span></td>
-                    <td class="col-division" data-col="division" style="text-align: left;">${item.division_name}</td>
-                    <td class="col-current-stock ${item.status_class}" data-col="current-stock"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
-                    <td class="col-unit" data-col="unit">${item.unit || 'Units'}</td>
-                    <td class="col-transit ${item.has_transit ? 'has-transit' : ''}" data-col="transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
-                    <td class="col-virtual-stock ${item.status_class}" data-col="virtual-stock"><strong>${parseFloat(item.virtual_stock).toLocaleString()}</strong></td>
-                    <td class="col-monthly-avg ${item.status_class}" data-col="monthly-avg"><strong>${item.monthly_avg}</strong></td>
-                    <td class="col-reorder" data-col="reorder">${item.reorder_level}</td>
-                    <td class="col-status ${item.status_class}" data-col="status">${item.status}${item.has_transit ? ' 🚚' : ''}</td>
-                    <td class="col-stock-months" data-col="stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
-                    <td class="col-action" data-col="action">${item.status === 'Critical' ? `<button class="btn-action" onclick="requestAllotment('${item.material_code}', '${item.division_name}')">Req</button>` : (item.has_transit ? `<span style="font-size:0.6rem;color:#17a2b8;">🚚</span>` : '-')}</td>
-                </tr>
-            `).join('');
-        } else {
-            tableBody.innerHTML = '<tr><td colspan="14" class="text-center">No stock data available for selected filters</td></tr>';
-        }
-        
-        // Critical alert section
-        const criticalItems = currentStockData.filter(item => item.status === 'Critical');
-        const criticalAlertBody = document.getElementById('criticalAlertBody');
-        const criticalAlertSection = document.getElementById('criticalAlertSection');
-        
-        if (criticalItems.length > 0) {
-            criticalAlertSection.style.display = 'block';
-            criticalAlertBody.innerHTML = criticalItems.map((item, idx) => `
-                <tr>
-                    <td class="crit-sno">${idx + 1}</td>
-                    <td class="crit-code"><code>${item.material_code}</code></td>
-                    <td class="crit-name" style="text-align: left;" title="${item.material_description || item.material_name || 'Unknown'}">${(item.material_description || item.material_name || 'Unknown').substring(0, 25)}${(item.material_description || '').length > 25 ? '...' : ''}</td>
-                    <td class="crit-division" style="text-align: left;">${item.division_name}</td>
-                    <td class="crit-stock status-critical"><strong>${parseFloat(item.current_stock).toLocaleString()}</strong></td>
-                    <td class="crit-transit">${item.has_transit ? '🚚 ' + parseFloat(item.transit_qty).toLocaleString() : '-'}</td>
-                    <td class="crit-virtual status-critical"><strong>${parseFloat(item.virtual_stock).toLocaleString()}</strong></td>
-                    <td class="crit-avg"><strong>${item.monthly_avg}</strong></td>
-                    <td class="crit-shortage">${item.shortage}</td>
-                    <td class="crit-action"><button class="btn-action" onclick="requestAllotment('${item.material_code}', '${item.division_name}')">Request</button></td>
-                </tr>
-            `).join('');
-        } else {
-            criticalAlertSection.style.display = 'none';
-        }
-    }
-    
-    function requestAllotment(materialCode, divisionName) {
-        alert(`Allotment request initiated for material: ${materialCode}\nDivision: ${divisionName}\n\nThe store manager will be notified for approval.`);
-    }
-    
-    function refreshData() {
-        loadStockData();
-    }
-    
-    function exportToExcel() {
-        if (!currentStockData || currentStockData.length === 0) { alert('No data to export'); return; }
-        const wb = XLSX.utils.book_new();
-        const sheetData = [['CURRENT STOCK POSITION WITH IN-TRANSIT'], ['Generated on:', new Date().toLocaleString()], []];
-        sheetData.push(['#', 'Material Code', 'Material Name', 'Group', 'Division', 'Current Stock', 'Unit', 'In-Transit', 'Virtual Stock', 'Monthly Avg', 'Reorder Level', 'Status', 'Stock Months']);
-        currentStockData.forEach(item => {
-            sheetData.push([
-                item.sl, 
-                item.material_code, 
-                item.material_description || item.material_name, 
-                item.material_group, 
-                item.division_name, 
-                parseFloat(item.current_stock).toLocaleString(), 
-                item.unit || 'Units',
-                item.has_transit ? parseFloat(item.transit_qty).toLocaleString() : 0,
-                parseFloat(item.virtual_stock).toLocaleString(),
-                item.monthly_avg, 
-                item.reorder_level, 
-                item.status, 
-                item.stock_months
-            ]);
-        });
-        const sheet = XLSX.utils.aoa_to_sheet(sheetData);
-        XLSX.utils.book_append_sheet(wb, sheet, 'Current Stock');
-        XLSX.writeFile(wb, `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
-        showGuidance('✅ Stock report exported successfully!');
-    }
-    
-    function exportToPDF() {
-        const element = document.querySelector('.content-card');
-        if (element) {
-            html2pdf().set({ 
-                margin: 0.5, 
-                filename: `Stock_Report_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, 
-                image: { type: 'png', quality: 0.98 }, 
-                html2canvas: { scale: 2 }, 
-                jsPDF: { unit: 'in', format: 'a2', orientation: 'landscape' } 
-            }).from(element).save();
-            showGuidance('📄 Generating PDF report...');
-        }
-    }
-    
-    function resetFilters() {
-        document.getElementById('zoneFilter').value = 'all';
-        document.getElementById('regionFilter').value = 'all';
-        document.getElementById('divisionFilter').value = 'all';
-        document.getElementById('groupFilter').value = 'all';
-        document.getElementById('materialFilter').value = 'all';
-        document.getElementById('statusFilter').value = 'all';
-        document.getElementById('sortFilter').value = 'material_code';
-        onZoneChange();
-        loadMaterialsByGroup();
-        loadStockData();
-        showGuidance('🔄 All filters have been reset.');
-    }
-    
-    function displayCurrentDate() {
-        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    }
-    
-    document.addEventListener('DOMContentLoaded', () => {
-        displayCurrentDate();
-        onZoneChange();
-        loadMaterialGroups();
-        loadMaterialsByGroup();
-        loadStockData();
-        loadColumnPreferences();
-        
-        setInterval(() => {
-            loadStockData();
-        }, 300000);
-    });
+    };
+
+    // ================================================================
+    // 7. GLOBAL EXPOSURE
+    // ================================================================
+    window.Manager = Manager;
+    window.toggleMultiSelect = (id) => {
+        const d = document.getElementById(id);
+        if (d) { document.querySelectorAll('.multi-select-dropdown').forEach(el => el.style.display = 'none'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; }
+    };
+    window.toggleColumnMenu = () => Ui.toggleColMenu();
+    window.updateColumnVisibility = () => Ui.updateColVisibility();
+    window.resetColumnVisibility = () => Ui.resetColVisibility();
+    window.showAllColumns = () => { document.querySelectorAll('.col-toggle').forEach(cb => cb.checked = true); Ui.updateColVisibility(); };
+    window.hideAllColumns = () => { document.querySelectorAll('.col-toggle').forEach(cb => cb.checked = false); Ui.updateColVisibility(); };
+    window.setStatusFilter = (s) => Manager.setStatusFilter(s);
+    window.selectAllRegions = () => Manager.selectAllRegions();
+    window.deselectAllRegions = () => Manager.deselectAllRegions();
+    window.selectAllDivisions = () => Manager.selectAllDivisions();
+    window.deselectAllDivisions = () => Manager.deselectAllDivisions();
+    window.onZoneChange = () => Manager.onZoneChange();
+    window.onMaterialGroupChange = () => Manager.onMaterialGroupChange();
+    window.resetFilters = () => Manager.resetFilters();
+    window.refreshData = () => Manager.refreshData();
+    window.exportToExcel = () => Manager.exportToExcel();
+    window.exportToPDF = () => Manager.exportToPDF();
+    window.requestAllotment = (c, d) => Manager.requestAllotment(c, d);
+
+    // ================================================================
+    // 8. INITIALIZE
+    // ================================================================
+    document.addEventListener('DOMContentLoaded', () => Manager.init());
 </script>
 
+<!-- ================================================================
+     CSS STYLES - Matching Material Group Style
+     ================================================================ -->
 <style>
     /* ================================================================
-       BASE STYLES
+       BASE
        ================================================================ */
-    .filter-section { background: white; border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-    .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 20px; }
-    .filter-group label { display: block; margin-bottom: 8px; font-size: 0.7rem; font-weight: 700; color: #1e2b3a; text-transform: uppercase; }
+    * { box-sizing: border-box; }
+    
+    .nav-bar {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        text-decoration: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+    }
+    .btn-back:hover {
+        transform: translateX(-5px);
+        box-shadow: 0 6px 20px rgba(102,126,234,0.5);
+        color: white;
+    }
+    .nav-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-excel, .btn-pdf, .btn-refresh, .btn-columns {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .btn-excel { background: linear-gradient(135deg, #28a745, #20c997); }
+    .btn-excel:hover { transform: scale(1.05); }
+    .btn-pdf { background: linear-gradient(135deg, #dc3545, #c82333); }
+    .btn-pdf:hover { transform: scale(1.05); }
+    .btn-refresh { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .btn-refresh:hover { transform: scale(1.05); }
+    .btn-columns { background: linear-gradient(135deg, #6c757d, #495057); }
+    .btn-columns:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(108,117,125,0.5); }
+
+    .column-toggle-wrapper { position: relative; display: inline-block; }
+    .column-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 10px);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        padding: 15px 20px;
+        min-width: 200px;
+        z-index: 1000;
+        border: 1px solid #eef2f6;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .column-menu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f2f5;
+    }
+    .column-menu-header span { font-weight: 700; font-size: 0.85rem; color: #1e2b3a; }
+    .column-menu-header span i { color: #667eea; }
+    .column-menu-header button {
+        background: none;
+        border: none;
+        color: #667eea;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+    .column-menu-items {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .column-menu-items label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.8rem;
+    }
+    .column-menu-items label:hover { background: #f8fafd; }
+    .column-menu-items label input[type="checkbox"] { accent-color: #667eea; }
+    .column-menu-footer {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 2px solid #f0f2f5;
+        display: flex;
+        gap: 8px;
+    }
+    .column-menu-footer button {
+        flex: 1;
+        padding: 6px 12px;
+        background: #e9ecef;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .column-menu-footer button:hover { background: #dee2e6; }
+
+    /* ================================================================
+       WELCOME BANNER
+       ================================================================ */
+    .welcome-banner {
+        background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+        border-radius: 15px;
+        padding: 25px 30px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .welcome-text h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .welcome-text h1 i { color: #667eea; }
+    .welcome-text p { color: #666; font-size: 0.95rem; }
+    .date-badge {
+        background: white;
+        padding: 8px 18px;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    /* ================================================================
+       FILTER SECTION - UNIFIED STYLING
+       ================================================================ */
+    .filter-section {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 20px;
+        margin-bottom: 10px;
+    }
+    .filter-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #1e2b3a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
     .filter-group label i { color: #667eea; margin-right: 6px; }
-    .filter-select { width: 100%; padding: 12px 15px; border: 2px solid #eef2f6; border-radius: 12px; background: white; cursor: pointer; }
+
+    /* ================================================================
+       FILTER SELECT - MATCHING MATERIAL GROUP STYLE
+       ================================================================ */
+    .filter-select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #eef2f6;
+        border-radius: 12px;
+        background: white;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 12px;
+        color: #1e2b3a;
+        font-family: inherit;
+    }
     .filter-select:hover { border-color: #667eea; }
-    .filter-actions { display: flex; justify-content: flex-end; }
-    .btn-reset { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; padding: 10px 24px; border-radius: 10px; cursor: pointer; }
+    .filter-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+    .filter-select option {
+        padding: 8px 12px;
+        background: white;
+        color: #1e2b3a;
+        font-family: inherit;
+    }
+    .filter-select option:hover,
+    .filter-select option:checked { background: #f0f4ff; }
     
-    .kpi-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-    .kpi-title i { font-size: 1.5rem; color: #667eea; }
-    .kpi-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+    .filter-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .btn-reset {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+    .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,117,125,0.3); }
+
+    /* ================================================================
+       MULTI-SELECT DROPDOWN - MATCHING FILTER SELECT STYLE
+       ================================================================ */
+    .multi-select-wrapper { position: relative; width: 100%; }
+    .multi-select-trigger {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border: 2px solid #eef2f6;
+        border-radius: 12px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 48px;
+        font-size: 0.9rem;
+        color: #1e2b3a;
+        font-family: inherit;
+    }
+    .multi-select-trigger:hover { border-color: #667eea; }
+    .multi-select-trigger i { color: #6c757d; transition: all 0.3s ease; font-size: 0.8rem; }
+    .multi-select-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background: white;
+        border: 2px solid #eef2f6;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-height: 320px;
+        overflow: hidden;
+        min-width: 220px;
+    }
+    .multi-select-actions {
+        display: flex;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid #eef2f6;
+        background: #f8fafd;
+        flex-wrap: wrap;
+    }
+    .multi-select-actions button {
+        background: white;
+        border: 1px solid #eef2f6;
+        color: #667eea;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 12px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+    .multi-select-actions button:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    .multi-select-options {
+        padding: 8px 12px;
+        max-height: 230px;
+        overflow-y: auto;
+    }
+    .multi-select-options::-webkit-scrollbar { width: 6px; }
+    .multi-select-options::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+    .multi-select-options::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    .multi-select-options::-webkit-scrollbar-thumb:hover { background: #aaa; }
     
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
-    .kpi-card { background: white; border-radius: 16px; padding: 18px; display: flex; align-items: center; gap: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: all 0.3s ease; }
-    .kpi-card:hover { transform: translateY(-3px); }
-    .kpi-icon { width: 55px; height: 55px; border-radius: 15px; display: flex; align-items: center; justify-content: center; }
-    .kpi-icon i { font-size: 1.5rem; color: white; }
-    .kpi-info { flex: 1; }
-    .kpi-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; margin-bottom: 5px; }
-    .kpi-value { font-size: 1.6rem; font-weight: 800; color: #1e2b3a; }
-    .kpi-unit { font-size: 0.7rem; color: #6c757d; margin-left: 5px; }
-    
-    .content-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-    .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; }
+    .multi-select-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.85rem;
+        margin: 2px 0;
+        border: 1px solid transparent;
+        font-family: inherit;
+        color: #1e2b3a;
+    }
+    .multi-select-option:hover {
+        background: #f0f4ff;
+        border-color: #e0e8f5;
+    }
+    .multi-select-option input[type="checkbox"] {
+        accent-color: #667eea;
+        cursor: pointer;
+        width: 17px;
+        height: 17px;
+        flex-shrink: 0;
+    }
+    .multi-select-option input[type="checkbox"]:checked + span {
+        color: #667eea;
+        font-weight: 600;
+    }
+    .multi-select-option span {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #1e2b3a;
+    }
+
+    /* ================================================================
+       STATUS FILTER CARDS
+       ================================================================ */
+    .status-filter-section {
+        background: white;
+        border-radius: 16px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid #f0f2f5;
+    }
+    .status-filter-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #1e2b3a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .status-filter-title i { color: #667eea; font-size: 1rem; }
+    .status-filter-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .status-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: #f8fafd;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        background: #f0f4ff;
+    }
+    .status-card.active {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f0f4ff, #e8edf9);
+        box-shadow: 0 2px 12px rgba(102,126,234,0.15);
+    }
+    .status-card.active .status-card-arrow i {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    .status-card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .status-card-icon i { color: white; font-size: 1.1rem; }
+    .status-card-info { flex: 1; }
+    .status-card-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1e2b3a;
+        letter-spacing: 0.2px;
+    }
+    .status-card.active .status-card-label { color: #667eea; }
+    .status-card-arrow { flex-shrink: 0; }
+    .status-card-arrow i {
+        color: #667eea;
+        font-size: 0.9rem;
+        opacity: 0.3;
+        transform: translateX(-4px);
+        transition: all 0.3s ease;
+    }
+    .status-card:hover .status-card-arrow i {
+        opacity: 0.7;
+        transform: translateX(0);
+    }
+    .status-card.active .status-card-arrow i { opacity: 1; }
+
+    /* ================================================================
+       GUIDANCE & ERROR
+       ================================================================ */
+    .guidance-message {
+        background: #e3f0ff;
+        color: #1e2b3a;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border-left: 4px solid #667eea;
+    }
+    .guidance-message i { margin-right: 10px; }
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    .error-message i { margin-right: 10px; }
+
+    /* ================================================================
+       LOADING
+       ================================================================ */
+    .loading {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25rem solid #f3f3f3;
+        border-top: 0.25rem solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .loading p { margin-top: 15px; color: white; }
+
+    /* ================================================================
+       LEGEND
+       ================================================================ */
+    .legend-container {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        padding: 12px 15px;
+        background: #f8fafd;
+        border-radius: 12px;
+    }
+    .legend-badge {
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .legend-badge.critical { background: #fee; color: #dc3545; border: 1px solid #fcc; }
+    .legend-badge.normal { background: #d4edda; color: #28a745; border: 1px solid #b8e6c4; }
+    .legend-badge.transit { background: #d1ecf1; color: #17a2b8; border: 1px solid #b8e0e8; }
+    .legend-badge.virtual { background: #cce5ff; color: #0062cc; border: 1px solid #b3d4f0; }
+
+    /* ================================================================
+       TABLE
+       ================================================================ */
+    .content-card {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #eef2f6;
+        flex-wrap: wrap;
+    }
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-    
-    /* ================================================================
-       TABLE STYLES
-       ================================================================ */
-    .data-table { 
-        width: 100%; 
-        border-collapse: collapse; 
+    .section-title .desktop-only {
+        margin-left: auto;
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
         font-size: 0.75rem;
         table-layout: fixed;
     }
-    
-    .data-table th { 
-        padding: 8px 5px; 
-        text-align: center; 
-        background: #f8fafd; 
-        font-weight: 700; 
-        border-bottom: 2px solid #eef2f6; 
-        position: sticky; 
-        top: 0; 
+    .data-table th {
+        padding: 8px 5px;
+        text-align: center;
+        background: #f8fafd;
+        font-weight: 700;
+        border-bottom: 2px solid #eef2f6;
+        position: sticky;
+        top: 0;
         white-space: nowrap;
         z-index: 10;
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.3px;
+        color: #1e2b3a;
     }
-    
-    .data-table td { 
-        padding: 6px 5px; 
+    .data-table td {
+        padding: 6px 5px;
         border-bottom: 1px solid #eef2f6;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         text-align: center;
+        color: #1e2b3a;
     }
-    
     .data-table tr:hover { background: #f8fafd; }
     .table-responsive { overflow-x: auto; max-height: 70vh; }
-    
-    /* ================================================================
-       LEFT ALIGN FOR MATERIAL AND DIVISION
-       ================================================================ */
-    .col-mat-name, .col-division,
-    .crit-name, .crit-division {
-        text-align: left !important;
-    }
-    
-    .col-mat-name, .col-division,
-    .crit-name, .crit-division {
-        text-align: left !important;
-    }
-    
-    /* ================================================================
-       OPTIMIZED COLUMN WIDTHS
-       ================================================================ */
+
+    .col-mat-name, .col-division { text-align: left !important; }
     .col-sno { width: 30px; min-width: 30px; max-width: 30px; }
     .col-mat-code { width: 80px; min-width: 75px; max-width: 90px; }
     .col-mat-name { width: 140px; min-width: 120px; max-width: 170px; }
@@ -1208,76 +1545,74 @@
     .col-status { width: 70px; min-width: 65px; max-width: 85px; }
     .col-stock-months { width: 60px; min-width: 55px; max-width: 70px; }
     .col-action { width: 50px; min-width: 45px; max-width: 60px; }
-    
-    /* Critical Table */
-    .crit-sno { width: 30px; min-width: 30px; max-width: 30px; }
-    .crit-code { width: 80px; min-width: 75px; max-width: 90px; }
-    .crit-name { width: 130px; min-width: 110px; max-width: 160px; }
-    .crit-division { width: 100px; min-width: 85px; max-width: 130px; }
-    .crit-stock { width: 55px; min-width: 50px; max-width: 65px; }
-    .crit-transit { width: 60px; min-width: 55px; max-width: 70px; }
-    .crit-virtual { width: 60px; min-width: 55px; max-width: 70px; }
-    .crit-avg { width: 50px; min-width: 45px; max-width: 60px; }
-    .crit-shortage { width: 55px; min-width: 50px; max-width: 65px; }
-    .crit-action { width: 60px; min-width: 55px; max-width: 70px; }
-    
-    /* ================================================================
-       STATUS & BADGE
-       ================================================================ */
+
     .status-critical { background: #fee; color: #dc3545; font-weight: bold; }
     .status-normal { color: #28a745; }
     .has-transit { color: #17a2b8; font-weight: bold; }
-    
-    .badge-group { background: #e9ecef; padding: 2px 6px; border-radius: 10px; font-size: 0.6rem; display: inline-block; white-space: nowrap; }
-    code { background: #f0f2f5; padding: 1px 4px; border-radius: 3px; font-size: 0.65rem; font-family: 'Courier New', monospace; }
-    
-    .btn-action { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 3px 10px; border-radius: 12px; cursor: pointer; font-size: 0.6rem; font-weight: 600; }
-    .btn-action:hover { transform: scale(1.05); }
-    
-    /* ================================================================
-       LEGEND
-       ================================================================ */
-    .legend-container { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-    .legend-badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
-    .legend-badge.critical { background: #fee; color: #dc3545; }
-    .legend-badge.normal { background: #d4edda; color: #28a745; }
-    .legend-badge.transit { background: #d1ecf1; color: #17a2b8; }
-    .legend-badge.virtual { background: #cce5ff; color: #0062cc; }
-    
-    .welcome-banner { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; padding: 25px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-    .welcome-text h1 { font-size: 1.6rem; font-weight: 700; color: #333; margin-bottom: 5px; }
-    .welcome-text p { color: #666; font-size: 0.95rem; }
-    .date-badge { background: white; padding: 8px 18px; border-radius: 50px; font-size: 0.9rem; white-space: nowrap; }
-    
-    .loading { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+
+    .badge-group {
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.6rem;
+        display: inline-block;
+        white-space: nowrap;
+        color: #1e2b3a;
+    }
+    code {
+        background: #f0f2f5;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        font-family: 'Courier New', monospace;
+    }
+    .btn-action {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        border: none;
+        padding: 3px 10px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 0.6rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .btn-action:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(220,53,69,0.3); }
     .text-center { text-align: center; }
-    
+
     /* ================================================================
-       MOBILE RESPONSIVE
+       RESPONSIVE
        ================================================================ */
-    
     .mobile-only { display: none !important; }
     .desktop-only { display: inline !important; }
-    
+
     @media (max-width: 992px) {
         .data-table { font-size: 0.7rem; }
         .col-mat-name { width: 110px; min-width: 100px; max-width: 140px; }
         .col-division { width: 85px; min-width: 70px; max-width: 110px; }
         .col-mat-code { width: 70px; min-width: 65px; max-width: 80px; }
     }
-    
+
     @media (max-width: 768px) {
         .mobile-only { display: inline !important; }
         .desktop-only { display: none !important; }
         
+        .nav-bar { flex-direction: column; align-items: stretch; }
+        .nav-actions { justify-content: center; }
+        .btn-back, .btn-excel, .btn-pdf, .btn-refresh, .btn-columns {
+            font-size: 0.85rem;
+            padding: 10px 16px;
+        }
+        
         .filter-grid { grid-template-columns: 1fr 1fr; }
-        .kpi-grid { grid-template-columns: 1fr 1fr; }
+        .status-filter-cards { grid-template-columns: 1fr 1fr; }
+        
         .welcome-banner { flex-direction: column; text-align: center; gap: 10px; padding: 20px; }
         .welcome-text h1 { font-size: 1.3rem; }
         .welcome-text p { font-size: 0.8rem; }
         .date-badge { font-size: 0.8rem; }
-        .legend-container { gap: 8px; }
-        .legend-badge { font-size: 0.6rem; padding: 2px 8px; }
+        .legend-container { gap: 8px; padding: 10px; }
+        .legend-badge { font-size: 0.65rem; padding: 3px 10px; }
         
         .data-table { font-size: 0.6rem; }
         .data-table th { font-size: 0.55rem; padding: 5px 3px; }
@@ -1294,7 +1629,6 @@
         .col-status { width: 55px; min-width: 50px; max-width: 65px; }
         .col-action { width: 40px; min-width: 35px; max-width: 50px; }
         
-        /* Mobile: Hide Group, Monthly Avg, Reorder, Stock Months by default */
         .col-group, .col-monthly-avg, .col-reorder, .col-stock-months {
             display: none !important;
         }
@@ -1303,15 +1637,20 @@
         code { font-size: 0.55rem; padding: 1px 3px; }
         .btn-action { font-size: 0.5rem; padding: 2px 6px; }
         
-        /* Critical table mobile */
-        .crit-name { width: 60px; min-width: 50px; max-width: 80px; }
-        .crit-division { width: 50px; min-width: 40px; max-width: 65px; }
-        .crit-stock, .crit-transit, .crit-virtual, .crit-avg, .crit-shortage { width: 40px; min-width: 35px; max-width: 50px; }
+        .multi-select-trigger { font-size: 0.8rem; padding: 10px 12px; min-height: 40px; }
+        .multi-select-option { font-size: 0.75rem; padding: 6px 10px; }
+        .multi-select-actions button { font-size: 0.6rem; padding: 3px 8px; }
+        
+        .status-card { padding: 12px 14px; gap: 10px; }
+        .status-card-icon { width: 34px; height: 34px; }
+        .status-card-icon i { font-size: 0.9rem; }
+        .status-card-label { font-size: 0.7rem; }
+        .status-card-arrow i { font-size: 0.8rem; }
     }
-    
+
     @media (max-width: 576px) {
         .filter-grid { grid-template-columns: 1fr; }
-        .kpi-grid { grid-template-columns: 1fr; }
+        .status-filter-cards { grid-template-columns: 1fr 1fr; }
         .welcome-text h1 { font-size: 1.1rem; }
         .welcome-text p { font-size: 0.7rem; }
         
@@ -1331,20 +1670,31 @@
         .btn-action { font-size: 0.4rem; padding: 1px 4px; }
         code { font-size: 0.45rem; }
         
-        .crit-name { width: 50px; min-width: 40px; max-width: 65px; }
-        .crit-division { width: 40px; min-width: 30px; max-width: 55px; }
-        .crit-stock, .crit-transit, .crit-virtual, .crit-avg, .crit-shortage { width: 35px; min-width: 30px; max-width: 45px; }
+        .multi-select-trigger { font-size: 0.7rem; padding: 8px 10px; min-height: 36px; }
+        .multi-select-option { font-size: 0.7rem; padding: 4px 8px; }
+        .multi-select-actions button { font-size: 0.55rem; padding: 2px 6px; }
+        .multi-select-dropdown { max-height: 260px; }
+        .multi-select-options { max-height: 180px; }
+        
+        .status-card { padding: 10px 12px; gap: 8px; }
+        .status-card-icon { width: 30px; height: 30px; }
+        .status-card-icon i { font-size: 0.8rem; }
+        .status-card-label { font-size: 0.65rem; }
+        .status-card-arrow i { font-size: 0.7rem; }
+        .status-filter-title { font-size: 0.7rem; }
     }
-    
+
     @media print {
         .filter-section, .filter-actions, .btn-reset, .column-toggle-wrapper,
-        #guidanceMessage, #errorMessage, .back-button, .export-buttons {
+        #guidanceMessage, #errorMessage, .btn-back, .btn-excel, .btn-pdf,
+        .btn-refresh, .multi-select-wrapper, .status-filter-section {
             display: none !important;
         }
         .content-card { box-shadow: none; padding: 0; }
         .data-table th { background: #f0f0f0; }
         .mobile-only { display: none !important; }
         .desktop-only { display: inline !important; }
+        .welcome-banner { break-inside: avoid; }
     }
 </style>
 {% endblock %}
