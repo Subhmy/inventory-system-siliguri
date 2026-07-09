@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - Fixed Material Name Display -->
+<!-- allotment_tracker.html - Division-wise Suggested Allotment -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -38,6 +38,7 @@
             ZONAL_STORE_PLANT: '3400',
             STO_PATTERN: /^[0-9]{10}$/,
             ALLOTMENT_NO_PATTERN: /^\d{1,4}$/,
+            MATERIAL_CODE_PATTERN: /^\d{9}$/,
             API_ENDPOINTS: {
                 divisions: '/api/divisions/with-regions',
                 materials: '/api/consumption/materials',
@@ -76,7 +77,9 @@
             selectedSuggestedRows: [],
             currentAllotmentId: null,
             isLoading: false,
-            isMaterialDataLoaded: false
+            isMaterialDataLoaded: false,
+            // Store materials per division for Suggested table
+            divisionMaterials: {}
         };
 
         // ============================================================
@@ -117,7 +120,9 @@
                 loading: '#loading',
                 selectAllSuggested: '#selectAllSuggested',
                 columnMenu: '#columnMenu',
-                columnToggleIcon: '#columnToggleIcon'
+                columnToggleIcon: '#columnToggleIcon',
+                bulkPasteInput: '#bulkPasteInput',
+                selectedDivisionDisplay: '#selectedDivisionDisplay'
             };
 
             for (const [key, selector] of Object.entries(selectors)) {
@@ -165,6 +170,8 @@
 
             validateAllotmentNo: (num) => CONFIG.ALLOTMENT_NO_PATTERN.test(num),
 
+            validateMaterialCode: (code) => CONFIG.MATERIAL_CODE_PATTERN.test(code),
+
             sanitizeInput: (value) => {
                 if (!value) return '';
                 const div = document.createElement('div');
@@ -206,18 +213,13 @@
                 return virtualStock <= monthlyAvg && monthlyAvg > 0;
             },
 
-            // ============================================================
-            // MATERIAL NAME LOOKUP - FIXED: Proper fallback chain
-            // ============================================================
             getMaterialName: (code) => {
                 if (!code) return '';
                 
-                // 1. Check cache first (fastest)
                 if (state.materialNameCache[code]) {
                     return state.materialNameCache[code];
                 }
                 
-                // 2. Search in allMaterials
                 if (state.allMaterials && state.allMaterials.length > 0) {
                     const material = state.allMaterials.find(m => String(m.material_code) === String(code));
                     if (material && material.material_name) {
@@ -226,10 +228,6 @@
                     }
                 }
                 
-                // 3. Try to fetch just this material via API
-                // (This is handled asynchronously in fetchMaterialName)
-                
-                // 4. Return the code as fallback
                 return code;
             },
 
@@ -251,7 +249,6 @@
                 return 'NOS';
             },
 
-            // Async fetch for a single material if not in cache
             fetchMaterialName: async (code) => {
                 try {
                     const response = await fetch('/api/consumption/materials');
@@ -268,6 +265,35 @@
                     console.error('Error fetching material name:', error);
                 }
                 return code;
+            },
+
+            extractMaterialCodes: (text) => {
+                if (!text) return [];
+                const parts = text.split(/[\n\r\t,;\s]+/);
+                const codes = [];
+                for (const part of parts) {
+                    const trimmed = part.trim();
+                    if (trimmed && CONFIG.MATERIAL_CODE_PATTERN.test(trimmed)) {
+                        codes.push(trimmed);
+                    }
+                }
+                return codes;
+            },
+
+            extractFromExcel: (text) => {
+                if (!text) return [];
+                const lines = text.split(/\n/);
+                const codes = [];
+                for (const line of lines) {
+                    const cells = line.split(/\t/);
+                    for (const cell of cells) {
+                        const trimmed = cell.trim();
+                        if (trimmed && CONFIG.MATERIAL_CODE_PATTERN.test(trimmed)) {
+                            codes.push(trimmed);
+                        }
+                    }
+                }
+                return codes;
             }
         };
 
@@ -507,6 +533,22 @@
             hideAllColumns: () => {
                 document.querySelectorAll('.col-toggle').forEach(cb => { cb.checked = false; });
                 UiService.updateColumnVisibility();
+            },
+
+            updateDivisionDisplay: () => {
+                const el = dom.selectedDivisionDisplay;
+                if (!el) return;
+                const divisions = state.selectedDivisions;
+                if (divisions.length === 0) {
+                    el.textContent = 'No division selected';
+                    el.style.color = '#dc3545';
+                } else if (divisions.length === 1) {
+                    el.textContent = `Current Division: ${divisions[0]}`;
+                    el.style.color = '#28a745';
+                } else {
+                    el.textContent = `${divisions.length} divisions selected`;
+                    el.style.color = '#17a2b8';
+                }
             }
         };
 
@@ -533,88 +575,280 @@
                 if (dom.allotmentNo) dom.allotmentNo.value = '';
                 await this.loadHistory();
                 UiService.updateFinalBadge();
+
+                this.setupBulkPaste();
+                UiService.updateDivisionDisplay();
             },
 
             // ------------------------------------------------------------
-            // DATA LOADING - FIXED: Better material loading
+            // BULK PASTE
             // ------------------------------------------------------------
-            async loadMaterials() {
-                try {
-                    // Try to fetch from API
-                    const data = await ApiService.getMaterials();
-                    if (data && data.length > 0) {
-                        state.allMaterials = data;
-                    } else {
-                        state.allMaterials = this.getFallbackMaterials();
-                    }
-                } catch (error) {
-                    console.error('Error loading materials from API:', error);
-                    state.allMaterials = this.getFallbackMaterials();
-                }
+            setupBulkPaste() {
+                const input = dom.bulkPasteInput;
+                if (!input) return;
 
-                // Build caches
-                state.materialNameCache = {};
-                state.materialUnitCache = {};
-                for (const m of state.allMaterials) {
-                    if (m.material_code) {
-                        if (m.material_name) {
-                            state.materialNameCache[m.material_code] = m.material_name;
-                        }
-                        if (m.unit) {
-                            state.materialUnitCache[m.material_code] = m.unit;
-                        }
-                    }
-                }
+                input.addEventListener('paste', (e) => {
+                    setTimeout(() => {
+                        this.processBulkPaste();
+                    }, 100);
+                });
 
-                state.isMaterialDataLoaded = true;
-                console.log('✅ Materials loaded:', state.allMaterials.length, 'items');
-                console.log('📦 Material name cache:', Object.keys(state.materialNameCache).length, 'entries');
-                return state.allMaterials;
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.processBulkPaste();
+                    }
+                });
             },
 
-            getFallbackMaterials() {
-                return [
-                    { material_code: '110010341', material_name: 'STEEL TUB. POLE 9M (WITH...', unit: 'NOS' },
-                    { material_code: '101011311', material_name: 'M.S ANGLE 65 X 65 X 6MM', unit: 'MT' },
-                    { material_code: '301018341', material_name: 'DTR 100KVA 11/0.433KV', unit: 'NOS' },
-                    { material_code: '908010252', material_name: 'TRF OIL EHV GRADE', unit: 'Ltrs' },
-                    { material_code: '504130432', material_name: 'INSULATOR PIN TYPE 11KV', unit: 'SET' },
-                    { material_code: '101011009', material_name: 'M.S CHANNEL 75 X 40 X 4.8MM', unit: 'MT' },
-                    { material_code: '101011204', material_name: 'M.S FLAT 40 X 6MM', unit: 'MT' }
-                ];
-            },
+            processBulkPaste() {
+                const input = dom.bulkPasteInput;
+                if (!input) return;
 
-            async loadDivisionMapping() {
-                try {
-                    const data = await ApiService.getDivisionsWithRegions();
-                    state.divisionRegionMap = {};
-                    if (data && data.length > 0) {
-                        for (const item of data) {
-                            state.divisionRegionMap[item.division] = item.region || 'Unknown Region';
-                        }
-                        return state.divisionRegionMap;
-                    }
-                } catch (error) {
-                    console.error('Error loading division mapping:', error);
+                const text = input.value.trim();
+                if (!text) {
+                    UiService.showToast('Please paste material codes first!', true);
+                    return;
                 }
-                this.setFallbackMapping();
-                return state.divisionRegionMap;
+
+                // Check if division is selected
+                if (state.selectedDivisions.length === 0) {
+                    UiService.showToast('Please select at least one division first!', true);
+                    return;
+                }
+
+                let codes = Utils.extractFromExcel(text);
+                if (codes.length === 0) {
+                    codes = Utils.extractMaterialCodes(text);
+                }
+
+                if (codes.length === 0) {
+                    UiService.showToast('No valid 9-digit material codes found. Please check your input.', true);
+                    return;
+                }
+
+                let addedCount = 0;
+                // For each division selected, add the materials
+                for (const division of state.selectedDivisions) {
+                    if (!state.divisionMaterials[division]) {
+                        state.divisionMaterials[division] = [];
+                    }
+                    for (const code of codes) {
+                        const exists = state.divisionMaterials[division].some(m => m.material_code === code);
+                        if (!exists) {
+                            const materialName = Utils.getMaterialName(code);
+                            const unit = Utils.getMaterialUnit(code);
+                            state.divisionMaterials[division].push({
+                                material_code: code,
+                                material_name: materialName,
+                                unit: unit,
+                                zonal_stock: 0,
+                                suggested_qty: 0
+                            });
+                            addedCount++;
+                        }
+                    }
+                }
+
+                input.value = '';
+
+                if (addedCount > 0) {
+                    UiService.showToast(`✅ Added ${addedCount} material codes for selected division(s)!`);
+                    // Update materials table and suggested table
+                    this.updateMaterialsTable();
+                    this.updateSuggestedTable();
+                } else {
+                    UiService.showToast('ℹ️ No new material codes to add (all already exist for these divisions).');
+                }
             },
 
-            setFallbackMapping() {
-                state.divisionRegionMap = {
-                    'Siliguri Town Division': 'Darjeeling Region',
-                    'Kurseong Division': 'Darjeeling Region',
-                    'Darjeeling Division': 'Darjeeling Region',
-                    'Sub-Urban Division': 'Darjeeling Region',
-                    'Kalimpong Division': 'Kalimpong Region',
-                    'Jalpaiguri Division': 'Jalpaiguri Region',
-                    'Mal Division': 'Jalpaiguri Region',
-                    'Coochbehar Division': 'Coochbehar Region',
-                    'Mathabhanga Division': 'Coochbehar Region',
-                    'Dinhata Division': 'Coochbehar Region',
-                    'Alipurduar Division': 'Alipurduar Region'
-                };
+            // ------------------------------------------------------------
+            // UPDATE MATERIALS TABLE - Show materials for selected division
+            // ------------------------------------------------------------
+            updateMaterialsTable() {
+                const tbody = dom.materialBody;
+                if (!tbody) return;
+
+                // Get materials for the first selected division (or all if multiple)
+                let allMaterials = [];
+                if (state.selectedDivisions.length === 1) {
+                    allMaterials = state.divisionMaterials[state.selectedDivisions[0]] || [];
+                } else {
+                    // Show all materials from all selected divisions
+                    const unique = new Map();
+                    for (const div of state.selectedDivisions) {
+                        const mats = state.divisionMaterials[div] || [];
+                        for (const m of mats) {
+                            if (!unique.has(m.material_code)) {
+                                unique.set(m.material_code, m);
+                            }
+                        }
+                    }
+                    allMaterials = Array.from(unique.values());
+                }
+
+                if (allMaterials.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
+                                <i class="bi bi-plus-circle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                                Select divisions, then paste or add material codes
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Update state.materialRows for compatibility with existing code
+                state.materialRows = allMaterials.map((m, index) => ({
+                    ...m,
+                    rowId: `mat-row-${index + 1}`,
+                    rowIndex: index + 1,
+                    critical_count: 0
+                }));
+
+                // Update row counter
+                state.rowCounter = allMaterials.length;
+
+                tbody.innerHTML = allMaterials.map((m, index) => {
+                    const rowId = `mat-row-${index + 1}`;
+                    return `
+                        <tr>
+                            <td style="text-align: center;">${index + 1}</td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm mat-code-input" 
+                                       value="${m.material_code}" readonly>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm mat-name-input" 
+                                       value="${m.material_name}" readonly>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm mat-unit-input" 
+                                       value="${m.unit || 'NOS'}" readonly>
+                            </td>
+                            <td class="stock-cell" id="${rowId}-virtual">
+                                <span class="stock-badge">Loading...</span>
+                            </td>
+                            <td class="stock-cell" id="${rowId}-avg">
+                                <span class="stock-badge">Loading...</span>
+                            </td>
+                            <td class="stock-cell" id="${rowId}-zonal">
+                                <span class="stock-badge">Loading...</span>
+                            </td>
+                            <td class="stock-cell" id="${rowId}-suggested">
+                                <span class="stock-badge">Loading...</span>
+                            </td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn-remove-row" onclick="AllotmentManager.removeMaterialRowFromDivision('${m.material_code}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Calculate stock data for each material
+                for (const [index, m] of allMaterials.entries()) {
+                    const rowId = `mat-row-${index + 1}`;
+                    this.calculateSuggestedQuantity(rowId, m.material_code);
+                }
+
+                if (dom.totalMaterials) {
+                    dom.totalMaterials.textContent = allMaterials.length;
+                }
+            },
+
+            // ------------------------------------------------------------
+            // REMOVE MATERIAL FROM DIVISION
+            // ------------------------------------------------------------
+            removeMaterialRowFromDivision(materialCode) {
+                if (state.selectedDivisions.length === 0) return;
+                
+                // Remove from all selected divisions
+                for (const division of state.selectedDivisions) {
+                    if (state.divisionMaterials[division]) {
+                        state.divisionMaterials[division] = state.divisionMaterials[division].filter(
+                            m => m.material_code !== materialCode
+                        );
+                    }
+                }
+                
+                // Also remove from finalData if exists
+                state.finalData = state.finalData.filter(f => f.material_code !== materialCode);
+                
+                this.updateMaterialsTable();
+                this.updateSuggestedTable();
+                this.renderFinalTable();
+                UiService.updateFinalBadge();
+            },
+
+            // ------------------------------------------------------------
+            // ADD MATERIAL ROW (Manual entry)
+            // ------------------------------------------------------------
+            addMaterialRow() {
+                if (state.selectedDivisions.length === 0) {
+                    UiService.showToast('Please select at least one division first!', true);
+                    return;
+                }
+
+                // Just show a prompt for manual code entry
+                const code = prompt('Enter 9-digit material code:');
+                if (!code) return;
+                if (!Utils.validateMaterialCode(code)) {
+                    UiService.showToast('⚠️ Material code must be exactly 9 digits!', true);
+                    return;
+                }
+
+                // Add to all selected divisions
+                let added = false;
+                for (const division of state.selectedDivisions) {
+                    if (!state.divisionMaterials[division]) {
+                        state.divisionMaterials[division] = [];
+                    }
+                    const exists = state.divisionMaterials[division].some(m => m.material_code === code);
+                    if (!exists) {
+                        const materialName = Utils.getMaterialName(code);
+                        const unit = Utils.getMaterialUnit(code);
+                        state.divisionMaterials[division].push({
+                            material_code: code,
+                            material_name: materialName,
+                            unit: unit,
+                            zonal_stock: 0,
+                            suggested_qty: 0
+                        });
+                        added = true;
+                    }
+                }
+
+                if (added) {
+                    this.updateMaterialsTable();
+                    this.updateSuggestedTable();
+                    UiService.showToast('✅ Material added successfully!');
+                } else {
+                    UiService.showToast('ℹ️ Material already exists for selected divisions.');
+                }
+            },
+
+            addMultipleRows() {
+                for (let i = 0; i < 5; i++) {
+                    this.addMaterialRow();
+                }
+            },
+
+            // ------------------------------------------------------------
+            // REMOVE MATERIAL ROW (Legacy compatibility)
+            // ------------------------------------------------------------
+            removeMaterialRow(rowId) {
+                // This is handled by removeMaterialRowFromDivision
+                // Find the material code from the row
+                const tr = document.getElementById(rowId);
+                if (tr) {
+                    const codeInput = tr.querySelector('.mat-code-input');
+                    if (codeInput) {
+                        this.removeMaterialRowFromDivision(codeInput.value);
+                    }
+                }
             },
 
             // ------------------------------------------------------------
@@ -633,12 +867,17 @@
                     dom.divisionGrid.appendChild(label);
                 });
                 UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
             },
 
             onDivisionSelect() {
                 const checkboxes = dom.divisionGrid.querySelectorAll('input[type="checkbox"]:checked');
                 state.selectedDivisions = Array.from(checkboxes).map(cb => cb.value);
                 UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
+                
+                // Update materials table and suggested table for new division
+                this.updateMaterialsTable();
                 this.updateSuggestedTable();
             },
 
@@ -653,125 +892,16 @@
             },
 
             // ------------------------------------------------------------
-            // MATERIAL ROWS - FIXED: Proper name lookup on code entry
+            // CALCULATE SUGGESTED QUANTITY
             // ------------------------------------------------------------
-            addMaterialRow() {
-                if (state.selectedDivisions.length === 0) {
-                    UiService.showToast('Please select at least one division first!', true);
-                    return;
-                }
-
-                state.rowCounter++;
-                const rowId = `mat-row-${state.rowCounter}`;
-                const tbody = dom.materialBody;
-
-                if (tbody.querySelector('.text-center')) {
-                    tbody.innerHTML = '';
-                }
-
-                const tr = document.createElement('tr');
-                tr.id = rowId;
-                tr.innerHTML = `
-                    <td style="text-align: center;">${state.rowCounter}</td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm mat-code-input" 
-                               placeholder="Enter Code" 
-                               onchange="AllotmentManager.onMaterialCodeChange('${rowId}')"
-                               onkeyup="this.value=this.value.toUpperCase()">
-                    </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm mat-name-input" 
-                               placeholder="Auto-filled from master" readonly>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm mat-unit-input" 
-                               placeholder="NOS" readonly>
-                    </td>
-                    <td class="stock-cell" id="${rowId}-virtual">
-                        <span class="stock-badge">-</span>
-                    </td>
-                    <td class="stock-cell" id="${rowId}-avg">
-                        <span class="stock-badge">-</span>
-                    </td>
-                    <td class="stock-cell" id="${rowId}-zonal">
-                        <span class="stock-badge">-</span>
-                    </td>
-                    <td class="stock-cell" id="${rowId}-suggested">
-                        <span class="stock-badge">-</span>
-                    </td>
-                    <td style="text-align: center;">
-                        <button type="button" class="btn-remove-row" onclick="AllotmentManager.removeMaterialRow('${rowId}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-                tr.querySelector('.mat-code-input').focus();
-            },
-
-            addMultipleRows() {
-                for (let i = 0; i < 5; i++) {
-                    this.addMaterialRow();
-                }
-            },
-
-            removeMaterialRow(rowId) {
-                const tr = document.getElementById(rowId);
-                if (tr) {
-                    tr.remove();
-                    state.materialRows = state.materialRows.filter(item => item.rowId !== rowId);
-                    document.querySelectorAll('#materialTableBody tr').forEach((row, index) => {
-                        const td = row.querySelector('td:first-child');
-                        if (td) td.textContent = index + 1;
-                    });
-                    this.updateSuggestedTable();
-                }
-            },
-
-            // ------------------------------------------------------------
-            // MATERIAL CODE HANDLING - FIXED: Proper name lookup
-            // ------------------------------------------------------------
-            async onMaterialCodeChange(rowId) {
-                const tr = document.getElementById(rowId);
-                if (!tr) return;
-
-                const codeInput = tr.querySelector('.mat-code-input');
-                const materialCode = codeInput.value.trim();
-
-                if (!materialCode) {
-                    tr.querySelector('.mat-name-input').value = '';
-                    tr.querySelector('.mat-unit-input').value = '';
-                    document.getElementById(`${rowId}-virtual`).innerHTML = '<span class="stock-badge">-</span>';
-                    document.getElementById(`${rowId}-avg`).innerHTML = '<span class="stock-badge">-</span>';
-                    document.getElementById(`${rowId}-zonal`).innerHTML = '<span class="stock-badge">-</span>';
-                    document.getElementById(`${rowId}-suggested`).innerHTML = '<span class="stock-badge">-</span>';
-                    return;
-                }
-
-                // Get material name - this now properly checks cache and allMaterials
-                let materialName = Utils.getMaterialName(materialCode);
-                const unit = Utils.getMaterialUnit(materialCode);
-
-                // If name is still the code, try to fetch it
-                if (materialName === materialCode) {
-                    await Utils.fetchMaterialName(materialCode);
-                    materialName = Utils.getMaterialName(materialCode);
-                }
-
-                tr.querySelector('.mat-name-input').value = materialName;
-                tr.querySelector('.mat-unit-input').value = unit;
-
-                await this.calculateSuggestedQuantity(rowId, materialCode);
-            },
-
             async calculateSuggestedQuantity(rowId, materialCode) {
                 const tr = document.getElementById(rowId);
                 if (!tr) return;
 
-                UiService.showLoading();
-
                 try {
                     const stockData = await ApiService.getCurrentStock();
+                    
+                    // Get zonal stock
                     const zonalStock = stockData
                         .filter(item =>
                             String(item.plant) === CONFIG.ZONAL_STORE_PLANT &&
@@ -782,18 +912,19 @@
                     document.getElementById(`${rowId}-zonal`).innerHTML =
                         `<span class="stock-badge">${Math.round(zonalStock).toLocaleString()}</span>`;
 
+                    // For each selected division, calculate stock
+                    let totalSuggested = 0;
+                    let criticalCount = 0;
+                    let firstDivData = null;
+
+                    // Get plants for selected divisions
                     const plants = state.selectedDivisions
                         .map(div => CONFIG.DIVISION_PLANT_MAP[div])
                         .filter(Boolean);
 
-                    if (plants.length === 0) {
-                        UiService.hideLoading();
-                        return;
-                    }
-
-                    const avgData = await ApiService.getMonthlyAvg(plants);
-                    const transitData = await ApiService.getTransit(plants.join(','));
-
+                    const avgData = plants.length > 0 ? await ApiService.getMonthlyAvg(plants) : {};
+                    const transitData = plants.length > 0 ? await ApiService.getTransit(plants.join(',')) : [];
+                    
                     const transitMap = {};
                     if (transitData) {
                         transitData.forEach(item => {
@@ -801,10 +932,6 @@
                             transitMap[key] = (transitMap[key] || 0) + (parseFloat(item.balance_qty) || 0);
                         });
                     }
-
-                    let totalSuggested = 0;
-                    let criticalCount = 0;
-                    let firstDivData = null;
 
                     for (const division of state.selectedDivisions) {
                         const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
@@ -841,29 +968,12 @@
                             ${suggestedQty.toLocaleString()}
                         </span>`;
 
-                    // Get proper material name
-                    let materialName = Utils.getMaterialName(materialCode);
-                    if (materialName === materialCode) {
-                        await Utils.fetchMaterialName(materialCode);
-                        materialName = Utils.getMaterialName(materialCode);
-                    }
-                    const unit = Utils.getMaterialUnit(materialCode);
-
-                    const existing = state.materialRows.find(item => item.rowId === rowId);
-                    const matData = {
-                        rowId: rowId,
-                        material_code: materialCode,
-                        material_name: materialName,
-                        unit: unit,
-                        suggested_qty: suggestedQty,
-                        zonal_stock: Math.round(zonalStock),
-                        critical_count: criticalCount
-                    };
-
-                    if (existing) {
-                        Object.assign(existing, matData);
-                    } else {
-                        state.materialRows.push(matData);
+                    // Update materialRows with suggested quantity
+                    const material = state.materialRows.find(m => m.material_code === materialCode);
+                    if (material) {
+                        material.suggested_qty = suggestedQty;
+                        material.zonal_stock = Math.round(zonalStock);
+                        material.critical_count = criticalCount;
                     }
 
                     if (dom.criticalItems) dom.criticalItems.textContent = criticalCount;
@@ -872,12 +982,10 @@
                 } catch (error) {
                     console.error('Error calculating suggested quantity:', error);
                 }
-
-                UiService.hideLoading();
             },
 
             // ------------------------------------------------------------
-            // AUTO-SUGGEST CRITICAL - FIXED: Proper material names
+            // AUTO-SUGGEST CRITICAL
             // ------------------------------------------------------------
             async autoSuggestFromCritical() {
                 if (state.selectedDivisions.length === 0) {
@@ -888,10 +996,6 @@
                 UiService.showLoading();
 
                 try {
-                    if (dom.materialBody) dom.materialBody.innerHTML = '';
-                    state.materialRows = [];
-                    state.rowCounter = 0;
-
                     const stockData = await ApiService.getCurrentStock();
                     const plants = state.selectedDivisions
                         .map(div => CONFIG.DIVISION_PLANT_MAP[div])
@@ -931,7 +1035,6 @@
                             const monthlyAvg = avgData[code]?.[plantCode]?.monthly_avg || 0;
 
                             if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
-                                // Get proper material name
                                 let materialName = Utils.getMaterialName(code);
                                 if (materialName === code) {
                                     await Utils.fetchMaterialName(code);
@@ -948,50 +1051,29 @@
                         }
                     }
 
+                    let addedCount = 0;
                     for (const [code, mat] of criticalMaterials) {
-                        state.rowCounter++;
-                        const rowId = `mat-row-${state.rowCounter}`;
-                        const tbody = dom.materialBody;
-
-                        const tr = document.createElement('tr');
-                        tr.id = rowId;
-                        tr.innerHTML = `
-                            <td style="text-align: center;">${state.rowCounter}</td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm mat-code-input" 
-                                       value="${code}" readonly>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm mat-name-input" 
-                                       value="${mat.material_name}" readonly>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control form-control-sm mat-unit-input" 
-                                       value="${mat.unit || 'NOS'}" readonly>
-                            </td>
-                            <td class="stock-cell" id="${rowId}-virtual">
-                                <span class="stock-badge">Loading...</span>
-                            </td>
-                            <td class="stock-cell" id="${rowId}-avg">
-                                <span class="stock-badge">Loading...</span>
-                            </td>
-                            <td class="stock-cell" id="${rowId}-zonal">
-                                <span class="stock-badge">Loading...</span>
-                            </td>
-                            <td class="stock-cell" id="${rowId}-suggested">
-                                <span class="stock-badge">Loading...</span>
-                            </td>
-                            <td style="text-align: center;">
-                                <button type="button" class="btn-remove-row" onclick="AllotmentManager.removeMaterialRow('${rowId}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
-                        await this.calculateSuggestedQuantity(rowId, code);
+                        for (const division of state.selectedDivisions) {
+                            if (!state.divisionMaterials[division]) {
+                                state.divisionMaterials[division] = [];
+                            }
+                            const exists = state.divisionMaterials[division].some(m => m.material_code === code);
+                            if (!exists) {
+                                state.divisionMaterials[division].push({
+                                    material_code: code,
+                                    material_name: mat.material_name,
+                                    unit: mat.unit || 'NOS',
+                                    zonal_stock: 0,
+                                    suggested_qty: 0
+                                });
+                                addedCount++;
+                            }
+                        }
                     }
 
-                    UiService.showToast(`✅ Added ${criticalMaterials.size} critical materials from ${state.selectedDivisions.length} divisions`);
+                    this.updateMaterialsTable();
+                    this.updateSuggestedTable();
+                    UiService.showToast(`✅ Added ${addedCount} critical materials for selected divisions`);
 
                 } catch (error) {
                     console.error('Error auto-suggesting:', error);
@@ -1002,7 +1084,7 @@
             },
 
             // ------------------------------------------------------------
-            // SUGGESTED TABLE - FIXED: Proper material names
+            // SUGGESTED TABLE - Show materials for selected division(s)
             // ------------------------------------------------------------
             async updateSuggestedTable() {
                 if (state.selectedDivisions.length === 0 || state.materialRows.length === 0) {
@@ -1017,12 +1099,25 @@
                 let rowIndex = 0;
 
                 const stockData = await ApiService.getCurrentStock();
-                const plants = state.selectedDivisions
-                    .map(div => CONFIG.DIVISION_PLANT_MAP[div])
-                    .filter(Boolean);
 
+                // Get materials for the FIRST selected division (the one currently active)
+                const activeDivision = state.selectedDivisions[0] || '';
+                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+
+                // Get materials for active division
+                const divisionMaterials = state.divisionMaterials[activeDivision] || [];
+                
+                if (divisionMaterials.length === 0) {
+                    tbody.innerHTML = `
+                        <tr><td colspan="11" class="text-center">No materials added for ${activeDivision || 'selected division'}</td></tr>
+                    `;
+                    return;
+                }
+
+                const plants = [activePlantCode].filter(Boolean);
                 const avgData = plants.length > 0 ? await ApiService.getMonthlyAvg(plants) : {};
                 const transitData = plants.length > 0 ? await ApiService.getTransit(plants.join(',')) : [];
+                
                 const transitMap = {};
                 if (transitData) {
                     transitData.forEach(item => {
@@ -1031,61 +1126,56 @@
                     });
                 }
 
-                for (const material of state.materialRows) {
-                    for (const division of state.selectedDivisions) {
-                        rowIndex++;
-                        const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
+                for (const material of divisionMaterials) {
+                    rowIndex++;
 
-                        let virtualStock = 0;
-                        let monthlyAvg = 0;
-                        let isCritical = false;
+                    let virtualStock = 0;
+                    let monthlyAvg = 0;
+                    let isCritical = false;
+                    let zonalStock = material.zonal_stock || 0;
 
-                        if (plantCode) {
-                            const stock = stockData
-                                .filter(item => String(item.plant) === plantCode && String(item.material_code) === String(material.material_code))
-                                .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
+                    if (activePlantCode) {
+                        const stock = stockData
+                            .filter(item => String(item.plant) === activePlantCode && String(item.material_code) === String(material.material_code))
+                            .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
 
-                            const inTransit = transitMap[material.material_code] || 0;
-                            virtualStock = stock + inTransit;
-                            monthlyAvg = avgData[material.material_code]?.[plantCode]?.monthly_avg || 0;
-                            isCritical = virtualStock <= monthlyAvg && monthlyAvg > 0;
-                        }
-
-                        const isInFinal = state.finalData.some(f =>
-                            f.material_code === material.material_code &&
-                            f.division === division
-                        );
-
-                        let existingAllotted = '';
-                        if (isInFinal) {
-                            const existing = state.finalData.find(f =>
-                                f.material_code === material.material_code &&
-                                f.division === division
-                            );
-                            if (existing) existingAllotted = existing.allotted_qty;
-                        }
-
-                        // Get proper material name - use cached value from materialRows
-                        const displayName = material.material_name || Utils.getMaterialName(material.material_code);
-
-                        state.suggestedData.push({
-                            sno: rowIndex,
-                            division: division,
-                            material_code: material.material_code,
-                            material_name: displayName,
-                            unit: material.unit || 'NOS',
-                            virtual_stock: Math.round(virtualStock),
-                            monthly_avg: Math.round(monthlyAvg),
-                            zonal_stock: material.zonal_stock || 0,
-                            suggested_qty: isCritical ? Utils.calculateSuggestedQty(virtualStock, monthlyAvg) : 0,
-                            status: isCritical ? 'Critical' : 'Normal',
-                            in_final: isInFinal,
-                            allotted_qty: existingAllotted
-                        });
+                        const inTransit = transitMap[material.material_code] || 0;
+                        virtualStock = stock + inTransit;
+                        monthlyAvg = avgData[material.material_code]?.[activePlantCode]?.monthly_avg || 0;
+                        isCritical = virtualStock <= monthlyAvg && monthlyAvg > 0;
                     }
-                }
 
-                if (dom.totalMaterials) dom.totalMaterials.textContent = state.materialRows.length;
+                    const isInFinal = state.finalData.some(f =>
+                        f.material_code === material.material_code &&
+                        f.division === activeDivision
+                    );
+
+                    let existingAllotted = '';
+                    if (isInFinal) {
+                        const existing = state.finalData.find(f =>
+                            f.material_code === material.material_code &&
+                            f.division === activeDivision
+                        );
+                        if (existing) existingAllotted = existing.allotted_qty;
+                    }
+
+                    const displayName = material.material_name || Utils.getMaterialName(material.material_code);
+
+                    state.suggestedData.push({
+                        sno: rowIndex,
+                        division: activeDivision,
+                        material_code: material.material_code,
+                        material_name: displayName,
+                        unit: material.unit || 'NOS',
+                        virtual_stock: Math.round(virtualStock),
+                        monthly_avg: Math.round(monthlyAvg),
+                        zonal_stock: zonalStock,
+                        suggested_qty: isCritical ? Utils.calculateSuggestedQty(virtualStock, monthlyAvg) : 0,
+                        status: isCritical ? 'Critical' : 'Normal',
+                        in_final: isInFinal,
+                        allotted_qty: existingAllotted
+                    });
+                }
 
                 tbody.innerHTML = state.suggestedData.map((row, idx) => {
                     const isChecked = row.in_final ? 'checked' : '';
@@ -1187,7 +1277,7 @@
             },
 
             // ------------------------------------------------------------
-            // ADD TO FINAL - FIXED: Proper material names
+            // ADD TO FINAL
             // ------------------------------------------------------------
             addSelectedToFinal() {
                 const checkboxes = dom.suggestedBody.querySelectorAll('.suggested-checkbox:checked');
@@ -1217,7 +1307,6 @@
                     );
 
                     if (!exists) {
-                        // Ensure material name is properly set
                         const materialName = row.material_name || Utils.getMaterialName(row.material_code);
                         
                         state.finalData.push({
@@ -1262,7 +1351,7 @@
             },
 
             // ------------------------------------------------------------
-            // FINAL TABLE - FIXED: Proper material names
+            // FINAL TABLE
             // ------------------------------------------------------------
             renderFinalTable() {
                 const tbody = dom.finalBody;
@@ -1343,7 +1432,7 @@
             },
 
             // ------------------------------------------------------------
-            // GENERATE LETTER - FIXED: Proper material names in letter
+            // GENERATE LETTER
             // ------------------------------------------------------------
             generateDraftLetter() {
                 if (state.finalData.length === 0) {
@@ -1384,13 +1473,9 @@
                 );
             },
 
-            // ------------------------------------------------------------
-            // GENERATE LETTER HTML - FIXED: Proper material names
-            // ------------------------------------------------------------
             generateLetterHTML(type) {
                 const isDraft = type === 'draft';
 
-                // Get and validate allotment number
                 const allotmentInput = dom.allotmentNo.value.trim();
                 let allotmentNoDisplay = '';
                 let allotmentNoFull = '';
@@ -1410,7 +1495,6 @@
                     allotmentNoFull = 'SZ/Allotment/E-2606/' + allotmentNoDisplay;
                 }
 
-                // Get memo number
                 const memoInput = dom.memoNo.value.trim();
                 let memoNo = '';
                 if (memoInput) {
@@ -1434,7 +1518,6 @@
                     day: '2-digit', month: '2-digit', year: 'numeric'
                 });
 
-                // Build data structures with proper material names
                 const divisions = {};
                 state.finalData.forEach(row => {
                     if (!divisions[row.division]) divisions[row.division] = [];
@@ -1444,7 +1527,6 @@
                 const materials = {};
                 state.finalData.forEach(row => {
                     if (!materials[row.material_code]) {
-                        // Get proper material name - use row.material_name or fetch from cache
                         const materialName = row.material_name || Utils.getMaterialName(row.material_code);
                         materials[row.material_code] = {
                             code: row.material_code,
@@ -1464,7 +1546,6 @@
                 const uniqueRegions = Utils.getUniqueRegions(divisionKeys, state.divisionRegionMap);
                 const regionsList = uniqueRegions.join(', ');
 
-                // Generate table rows with proper material names
                 let tableRowsHTML = '';
                 Object.keys(materials).forEach((code, idx) => {
                     const material = materials[code];
@@ -1488,7 +1569,6 @@
                     `;
                 });
 
-                // STO row
                 let stoRowHTML = '';
                 if (divisionKeys.length > 0) {
                     stoRowHTML = `
@@ -1503,7 +1583,6 @@
                     `;
                 }
 
-                // Copy forwarded
                 const copyForwardedHTML = `
                     <p style="font-size: 9px; margin: 2px 0 0 0; font-weight: 700;">Copy forwarded for information:</p>
                     <p style="font-size: 9px; margin: 1px 0 1px 20px;">1) The Regional Manager : ${regionsList}</p>
@@ -1511,7 +1590,6 @@
                     <p style="font-size: 9px; margin: 1px 0 0 20px;">3) Office Copy</p>
                 `;
 
-                // Build complete letter HTML
                 const letterHTML = `
                     <div class="allotment-letter" id="allotmentLetterContent" style="position: relative; padding: 10px 15px; max-width: 1000px; margin: 0 auto; background: white; font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 10px; line-height: 1.3;">
                         ${isDraft ? `
@@ -1520,7 +1598,6 @@
                         </div>
                         ` : ''}
                         <div style="position: relative; z-index: 1;">
-                            <!-- Header -->
                             <div style="text-align: center; border-bottom: 2px solid #1a3c6e; padding-bottom: 5px; margin-bottom: 6px;">
                                 <div style="font-size: 14px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px;">West Bengal State Electricity Distribution Company Limited</div>
                                 <div style="font-size: 9px; color: #333; font-weight: 500;">(A Government of West Bengal Enterprise)</div>
@@ -1535,32 +1612,27 @@
                             </div>
                             ` : ''}
 
-                            <!-- Allotment Title -->
                             <div style="text-align: center; margin-bottom: 4px;">
                                 <div style="font-size: 12px; font-weight: 700; color: #1a3c6e; letter-spacing: 1px; text-decoration: underline;">
                                     ALLOTMENT ORDER No: ${allotmentNoDisplay} &nbsp;&nbsp; Date: ${formattedDate}
                                 </div>
                             </div>
 
-                            <!-- Memo -->
                             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; margin: 3px 0; padding: 3px 8px; background: #f8fafd; border: 1px solid #ddd; border-radius: 3px;">
                                 <div style="font-size: 9px;"><strong>MEMO NO:-</strong> ${memoNo}</div>
                                 <div style="font-size: 9px;"><strong>Dated:</strong> ${formattedDate}</div>
                             </div>
 
-                            <!-- To -->
                             <div style="margin: 4px 0;">
                                 <p style="font-size: 9px; margin: 2px 0;"><strong>To,</strong></p>
                                 <p style="font-size: 9px; margin: 1px 0 1px 20px;">A.E &amp; Manager(Store)</p>
                                 <p style="font-size: 9px; margin: 1px 0 1px 20px;">Siliguri Zonal Store</p>
                             </div>
 
-                            <!-- Subject -->
                             <div style="margin: 3px 0;">
                                 <p style="font-size: 9px; margin: 2px 0;"><strong>Subject:</strong> Allotment of materials to various divisions based on their requisition and stock availability at Siliguri Zonal Store</p>
                             </div>
 
-                            <!-- Sir -->
                             <div style="margin: 3px 0;">
                                 <p style="font-size: 9px; margin: 2px 0;"><strong>Sir,</strong></p>
                                 <p style="font-size: 9px; margin: 2px 0; text-align: justify;">
@@ -1568,7 +1640,6 @@
                                 </p>
                             </div>
 
-                            <!-- Main Table -->
                             <table style="width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 8.5px;">
                                 <thead>
                                     <tr>
@@ -1591,7 +1662,6 @@
                                 </tfoot>
                             </table>
 
-                            <!-- Signature -->
                             <div style="margin-top: 6px; text-align: right;">
                                 <div style="display: inline-block; text-align: center;">
                                     <p style="margin: 1px 0; font-size: 9px;">Yours faithfully,</p>
@@ -1602,18 +1672,15 @@
                                 </div>
                             </div>
 
-                            <!-- Memo footer -->
                             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; margin: 4px 0 3px 0; padding: 3px 8px; background: #f8fafd; border: 1px solid #ddd; border-radius: 3px;">
                                 <div style="font-size: 9px;"><strong>MEMO NO:-</strong> ${memoNo}</div>
                                 <div style="font-size: 9px;"><strong>Dated:</strong> ${formattedDate}</div>
                             </div>
 
-                            <!-- Copy forwarded -->
                             <div style="margin: 3px 0;">
                                 ${copyForwardedHTML}
                             </div>
 
-                            <!-- Second signature -->
                             <div style="margin-top: 4px; text-align: right;">
                                 <div style="display: inline-block; text-align: center;">
                                     <p style="margin: 2px 0 1px 0; font-size: 10px; font-weight: 700;">(D. Mondal)</p>
@@ -1622,7 +1689,6 @@
                                 </div>
                             </div>
 
-                            <!-- Registered Office Footer -->
                             <div style="margin-top: 6px; border-top: 1px solid #ccc; padding-top: 4px; text-align: center; font-size: 7px; color: #555;">
                                 <p style="margin: 1px 0;">Registered Office: Vidyut Bhavan, Block – DJ, Sector – II, Salt Lake, Kolkata – 700091</p>
                                 <p style="margin: 1px 0;">Tel. – 033-2359-1917 Fax: 033-2337-3002, CIN: U40109WB2007SGC113473 Website: www.wbsedcl.in</p>
@@ -1757,7 +1823,6 @@
                         memoNo = 'SZ/Allotment/E-12/' + String(Math.floor(Math.random() * 9000) + 1000);
                     }
 
-                    // Ensure material names are properly set in the data
                     const materialsWithNames = state.materialRows.map(m => {
                         const name = m.material_name || Utils.getMaterialName(m.material_code);
                         return {
@@ -1858,7 +1923,6 @@
                     const allotmentNo = dom.allotmentNo.value || Utils.generateAllotmentNo();
                     const memoNo = dom.memoNo.value || `SZ/Allotment/E-12/${Math.floor(Math.random() * 9000 + 1000)}`;
 
-                    // Ensure material names are properly set
                     const materialsWithNames = state.materialRows.map(m => {
                         const name = m.material_name || Utils.getMaterialName(m.material_code);
                         return {
@@ -1998,11 +2062,13 @@
                     return;
                 }
 
+                // Select divisions in UI
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.checked = divisions.includes(cb.value);
                 });
                 this.onDivisionSelect();
 
+                // Load final data
                 state.finalData = allotment.allotments || [];
                 state.stoCache = allotment.sto_numbers || {};
 
@@ -2011,76 +2077,26 @@
                     return;
                 }
 
-                // Build material rows with proper names
-                const uniqueMaterials = {};
-                state.finalData.forEach(item => {
-                    if (!uniqueMaterials[item.material_code]) {
-                        const materialName = item.material_name || Utils.getMaterialName(item.material_code);
-                        uniqueMaterials[item.material_code] = {
-                            material_code: item.material_code,
-                            material_name: materialName,
-                            unit: item.unit || 'NOS',
-                            suggested_qty: item.suggested_qty || 0,
-                            zonal_stock: item.zonal_stock || 0
-                        };
+                // Rebuild division materials from final data
+                state.divisionMaterials = {};
+                for (const item of state.finalData) {
+                    const division = item.division;
+                    if (!state.divisionMaterials[division]) {
+                        state.divisionMaterials[division] = [];
                     }
-                });
-
-                const tbody = dom.materialBody;
-                if (tbody) tbody.innerHTML = '';
-                state.materialRows = [];
-                state.rowCounter = 0;
-
-                for (const [code, mat] of Object.entries(uniqueMaterials)) {
-                    state.rowCounter++;
-                    const rowId = `mat-row-${state.rowCounter}`;
-
-                    const tr = document.createElement('tr');
-                    tr.id = rowId;
-                    tr.innerHTML = `
-                        <td style="text-align: center;">${state.rowCounter}</td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm mat-code-input" 
-                                   value="${mat.material_code}" readonly>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm mat-name-input" 
-                                   value="${mat.material_name}" readonly>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control form-control-sm mat-unit-input" 
-                                   value="${mat.unit || 'NOS'}" readonly>
-                        </td>
-                        <td class="stock-cell" id="${rowId}-virtual">
-                            <span class="stock-badge">-</span>
-                        </td>
-                        <td class="stock-cell" id="${rowId}-avg">
-                            <span class="stock-badge">-</span>
-                        </td>
-                        <td class="stock-cell" id="${rowId}-zonal">
-                            <span class="stock-badge">${mat.zonal_stock || 0}</span>
-                        </td>
-                        <td class="stock-cell" id="${rowId}-suggested">
-                            <span class="stock-badge">${mat.suggested_qty || 0}</span>
-                        </td>
-                        <td style="text-align: center;">
-                            <button type="button" class="btn-remove-row" onclick="AllotmentManager.removeMaterialRow('${rowId}')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    if (tbody) tbody.appendChild(tr);
-
-                    state.materialRows.push({
-                        rowId: rowId,
-                        material_code: mat.material_code,
-                        material_name: mat.material_name,
-                        unit: mat.unit || 'NOS',
-                        suggested_qty: mat.suggested_qty || 0,
-                        zonal_stock: mat.zonal_stock || 0
-                    });
+                    const exists = state.divisionMaterials[division].some(m => m.material_code === item.material_code);
+                    if (!exists) {
+                        state.divisionMaterials[division].push({
+                            material_code: item.material_code,
+                            material_name: item.material_name || Utils.getMaterialName(item.material_code),
+                            unit: item.unit || 'NOS',
+                            zonal_stock: item.zonal_stock || 0,
+                            suggested_qty: item.suggested_qty || 0
+                        });
+                    }
                 }
 
+                this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
@@ -2104,6 +2120,7 @@
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 state.selectedDivisions = [];
                 UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
 
                 const tbody = dom.materialBody;
                 if (tbody) {
@@ -2111,11 +2128,13 @@
                         <tr>
                             <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
                                 <i class="bi bi-plus-circle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                                Select divisions first, then click "Add Material" or "Auto-Suggest Critical"
+                                Select divisions, then paste or add material codes
                             </td>
                         </tr>
                     `;
                 }
+
+                if (dom.bulkPasteInput) dom.bulkPasteInput.value = '';
 
                 state.materialRows = [];
                 state.rowCounter = 0;
@@ -2124,6 +2143,7 @@
                 state.stoCache = {};
                 state.selectedSuggestedRows = [];
                 state.currentAllotmentId = null;
+                state.divisionMaterials = {};
 
                 if (dom.suggestedContainer) dom.suggestedContainer.style.display = 'none';
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'block';
@@ -2292,6 +2312,85 @@
             refreshData() {
                 this.loadHistory();
                 UiService.showToast('🔄 Data refreshed!');
+            },
+
+            // ------------------------------------------------------------
+            // DATA LOADING (Legacy compatibility)
+            // ------------------------------------------------------------
+            async loadMaterials() {
+                try {
+                    const data = await ApiService.getMaterials();
+                    if (data && data.length > 0) {
+                        state.allMaterials = data;
+                    } else {
+                        state.allMaterials = this.getFallbackMaterials();
+                    }
+                } catch (error) {
+                    console.error('Error loading materials from API:', error);
+                    state.allMaterials = this.getFallbackMaterials();
+                }
+
+                state.materialNameCache = {};
+                state.materialUnitCache = {};
+                for (const m of state.allMaterials) {
+                    if (m.material_code) {
+                        if (m.material_name) {
+                            state.materialNameCache[m.material_code] = m.material_name;
+                        }
+                        if (m.unit) {
+                            state.materialUnitCache[m.material_code] = m.unit;
+                        }
+                    }
+                }
+
+                state.isMaterialDataLoaded = true;
+                console.log('✅ Materials loaded:', state.allMaterials.length, 'items');
+                return state.allMaterials;
+            },
+
+            getFallbackMaterials() {
+                return [
+                    { material_code: '110010341', material_name: 'STEEL TUB. POLE 9M (WITH...', unit: 'NOS' },
+                    { material_code: '101011311', material_name: 'M.S ANGLE 65 X 65 X 6MM', unit: 'MT' },
+                    { material_code: '301018341', material_name: 'DTR 100KVA 11/0.433KV', unit: 'NOS' },
+                    { material_code: '908010252', material_name: 'TRF OIL EHV GRADE', unit: 'Ltrs' },
+                    { material_code: '504130432', material_name: 'INSULATOR PIN TYPE 11KV', unit: 'SET' },
+                    { material_code: '101011009', material_name: 'M.S CHANNEL 75 X 40 X 4.8MM', unit: 'MT' },
+                    { material_code: '101011204', material_name: 'M.S FLAT 40 X 6MM', unit: 'MT' }
+                ];
+            },
+
+            async loadDivisionMapping() {
+                try {
+                    const data = await ApiService.getDivisionsWithRegions();
+                    state.divisionRegionMap = {};
+                    if (data && data.length > 0) {
+                        for (const item of data) {
+                            state.divisionRegionMap[item.division] = item.region || 'Unknown Region';
+                        }
+                        return state.divisionRegionMap;
+                    }
+                } catch (error) {
+                    console.error('Error loading division mapping:', error);
+                }
+                this.setFallbackMapping();
+                return state.divisionRegionMap;
+            },
+
+            setFallbackMapping() {
+                state.divisionRegionMap = {
+                    'Siliguri Town Division': 'Darjeeling Region',
+                    'Kurseong Division': 'Darjeeling Region',
+                    'Darjeeling Division': 'Darjeeling Region',
+                    'Sub-Urban Division': 'Darjeeling Region',
+                    'Kalimpong Division': 'Kalimpong Region',
+                    'Jalpaiguri Division': 'Jalpaiguri Region',
+                    'Mal Division': 'Jalpaiguri Region',
+                    'Coochbehar Division': 'Coochbehar Region',
+                    'Mathabhanga Division': 'Coochbehar Region',
+                    'Dinhata Division': 'Coochbehar Region',
+                    'Alipurduar Division': 'Alipurduar Region'
+                };
             }
         };
 
@@ -2324,7 +2423,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE - Same as before
+     HTML STRUCTURE
      ================================================================ -->
 
 <!-- Back Navigation -->
@@ -2481,7 +2580,18 @@
             <i class="bi bi-eye" style="color: #667eea;"></i>
             <h2>Step 1: Suggested Allotment</h2>
             <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Check items, enter Allotted Quantity, then click "Add to Final"
+                <i class="bi bi-info-circle"></i> Select division → Add/Paste materials → Enter quantities → Add to Final
+            </span>
+        </div>
+        
+        <!-- Current Division Display -->
+        <div style="background: #f8fafd; border-radius: 10px; padding: 12px 16px; margin-bottom: 15px; border: 1px solid #eef2f6;">
+            <span style="font-weight: 600; font-size: 0.9rem;">
+                <i class="bi bi-info-circle" style="color: #667eea;"></i> 
+                <span id="selectedDivisionDisplay">No division selected</span>
+            </span>
+            <span style="margin-left: 15px; font-size: 0.8rem; color: #6c757d;">
+                <i class="bi bi-arrow-right"></i> Materials shown for the first selected division
             </span>
         </div>
         
@@ -2540,6 +2650,22 @@
                 </div>
             </div>
             
+            <!-- Bulk Paste Input -->
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <input type="text" id="bulkPasteInput" class="form-control" 
+                           placeholder="Paste 9-digit material codes from Excel (e.g., 101011311 103011511)" 
+                           style="font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                </div>
+                <button type="button" class="btn-add-item" onclick="AllotmentManager.processBulkPaste()" 
+                        style="background: linear-gradient(135deg, #28a745, #20c997); white-space: nowrap;">
+                    <i class="bi bi-paste"></i> Add Pasted Codes
+                </button>
+                <span style="font-size: 0.7rem; color: #6c757d;">
+                    <i class="bi bi-info-circle"></i> Paste 9-digit codes (space, comma, or newline separated)
+                </span>
+            </div>
+            
             <div class="table-responsive">
                 <table class="requisition-table" id="materialTable">
                     <thead>
@@ -2559,7 +2685,7 @@
                         <tr>
                             <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
                                 <i class="bi bi-plus-circle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                                Select divisions first, then click "Add Material" or "Auto-Suggest Critical"
+                                Select divisions, then paste or add material codes
                             </td>
                         </tr>
                     </tbody>
@@ -2598,7 +2724,7 @@
                         </tr>
                     </thead>
                     <tbody id="suggestedTableBody">
-                        <tr><td colspan="11" class="text-center">Select divisions and materials to generate suggested allotment</td></tr>
+                        <tr><td colspan="11" class="text-center">Select divisions and add materials to generate suggested allotment</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -2834,7 +2960,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- ================================================================
-     CSS STYLES
+     CSS STYLES - WITH FROZEN HEADERS
      ================================================================ -->
 <style>
     /* ============================================================
@@ -3219,10 +3345,18 @@
         font-weight: 600;
     }
 
+    /* ============================================================
+       FROZEN HEADER - Materials Table
+       ============================================================ */
     .requisition-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.75rem;
+    }
+    .requisition-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
     .requisition-table th {
         padding: 8px 6px;
@@ -3231,20 +3365,36 @@
         font-weight: 700;
         border-bottom: 2px solid #eef2f6;
         font-size: 0.7rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .requisition-table td {
         padding: 6px 6px;
         border-bottom: 1px solid #eef2f6;
+        background: white;
+    }
+    .requisition-table tr:hover td {
+        background: #f8fafd;
     }
     .requisition-table input {
         width: 100%;
     }
 
+    /* ============================================================
+       FROZEN HEADER - Suggested Table
+       ============================================================ */
     .data-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.75rem;
         table-layout: fixed;
+    }
+    .data-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
     .data-table th {
         padding: 8px 6px;
@@ -3257,6 +3407,7 @@
         white-space: nowrap;
         z-index: 10;
         font-size: 0.7rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .data-table td {
         padding: 6px 6px;
@@ -3264,13 +3415,15 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        background: white;
     }
-    .data-table tr:hover {
+    .data-table tr:hover td {
         background: #f8fafd;
     }
     .table-responsive {
         overflow-x: auto;
         max-height: 70vh;
+        position: relative;
     }
 
     .stock-badge {
@@ -3438,6 +3591,13 @@
         .data-table td {
             padding: 4px 4px;
         }
+        .requisition-table {
+            font-size: 0.65rem;
+        }
+        .requisition-table th,
+        .requisition-table td {
+            padding: 4px 4px;
+        }
     }
 
     @media (max-width: 576px) {
@@ -3461,8 +3621,15 @@
         .requisition-table {
             font-size: 0.55rem;
         }
+        .requisition-table th,
+        .requisition-table td {
+            padding: 3px 3px;
+        }
         .modal-content {
             width: 98%;
+        }
+        .bulk-paste-input {
+            font-size: 0.7rem;
         }
     }
 
@@ -3501,6 +3668,18 @@
         body {
             margin: 0;
             padding: 0;
+        }
+        .requisition-table thead,
+        .data-table thead {
+            position: static;
+        }
+        .requisition-table th,
+        .data-table th {
+            position: static;
+        }
+        .table-responsive {
+            max-height: none;
+            overflow: visible;
         }
     }
 </style>
