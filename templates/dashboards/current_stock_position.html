@@ -53,7 +53,6 @@
                     <label><input type="checkbox" class="col-toggle" data-col="reorder" checked onchange="updateColumnVisibility()"> Reorder</label>
                     <label><input type="checkbox" class="col-toggle" data-col="status" checked onchange="updateColumnVisibility()"> Status</label>
                     <label><input type="checkbox" class="col-toggle" data-col="stock-months" checked onchange="updateColumnVisibility()"> Stock Mos</label>
-                    <label><input type="checkbox" class="col-toggle" data-col="action" checked onchange="updateColumnVisibility()"> Action</label>
                 </div>
                 <div class="column-menu-footer">
                     <button onclick="showAllColumns()">Show All</button>
@@ -248,13 +247,14 @@
 </div>
 
 <!-- ================================================================
-     STOCK TABLE
+     STOCK TABLE - WITH FROZEN HEADER
      ================================================================ -->
 <div class="content-card">
     <div class="section-title">
         <i class="bi bi-table"></i>
         <h2>Current Stock Position</h2>
         <span class="desktop-only"><i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit</span>
+        <span id="resultCount" style="margin-left: auto; font-size: 0.8rem; color: #667eea; font-weight: 600;"></span>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="stockTable">
@@ -273,11 +273,10 @@
                     <th class="col-reorder" data-col="reorder">Reorder</th>
                     <th class="col-status" data-col="status">Status</th>
                     <th class="col-stock-months" data-col="stock-months">Stock Mos</th>
-                    <th class="col-action" data-col="action">Action</th>
                 </tr>
             </thead>
             <tbody id="stockTableBody">
-                <tr><td colspan="14" class="text-center">Loading...</td></tr>
+                <tr><td colspan="13" class="text-center">Loading...</td></tr>
             </tbody>
         </table>
     </div>
@@ -292,11 +291,7 @@
 <script>
     /**
      * ================================================================
-     * CURRENT STOCK POSITION - Optimized for Performance
-     * ================================================================
-     * - Stock data loads first for faster initial render
-     * - Dropdown styles match Material Group style
-     * - "Cord Road" appears in region dropdown
+     * CURRENT STOCK POSITION - SIMPLIFIED FILTER APPROACH
      * ================================================================
      */
 
@@ -312,7 +307,6 @@
             TRANSIT: '/api/inventory/material-in-transit',
             STOCK: '/api/inventory/current-stock'
         },
-        // Plant mappings
         PLANT_MAP: {
             'Siliguri Town Division': '3412', 'Kurseong Division': '3413',
             'Darjeeling Division': '3414', 'Sub-Urban Division': '3415',
@@ -360,14 +354,13 @@
     // ================================================================
     const State = {
         stockData: [],
+        filteredData: [],
         monthlyAvg: {},
         transit: [],
         selectedRegions: [],
         selectedDivisions: [],
-        allRegions: [],
-        allDivisions: [],
         statusFilter: 'all',
-        isLoaded: false
+        allRawData: []
     };
 
     // ================================================================
@@ -401,7 +394,7 @@
     };
 
     // ================================================================
-    // 4. API SERVICE - With caching and retry
+    // 4. API SERVICE
     // ================================================================
     const Api = {
         _cache: {},
@@ -449,7 +442,8 @@
                 material: '#materialFilter', sort: '#sortFilter',
                 regionOpts: '#regionOptions', divOpts: '#divisionOptions',
                 regionDisplay: '#regionDisplayText', divDisplay: '#divisionDisplayText',
-                colMenu: '#columnMenu', colIcon: '#columnToggleIcon'
+                colMenu: '#columnMenu', colIcon: '#columnToggleIcon',
+                resultCount: '#resultCount'
             };
             for (const [k, v] of Object.entries(s)) Ui.dom[k] = document.querySelector(v);
         },
@@ -468,12 +462,16 @@
         
         renderTable: (data) => {
             const tb = Ui.dom.table;
+            const countEl = Ui.dom.resultCount;
             if (!tb) return;
+            
             if (!data?.length) {
                 const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
-                tb.innerHTML = `<tr><td colspan="14" class="text-center">No ${names[State.statusFilter] || 'items'} found</td></tr>`;
+                tb.innerHTML = `<tr><td colspan="13" class="text-center">No ${names[State.statusFilter] || 'items'} found matching your filters</td></tr>`;
+                if (countEl) countEl.textContent = '0 items';
                 return;
             }
+            
             tb.innerHTML = data.map(item => `
                 <tr>
                     <td class="col-sno">${item.sl}</td>
@@ -489,9 +487,10 @@
                     <td class="col-reorder"><strong>${item.reorder_level}</strong></td>
                     <td class="col-status ${item.status_class}">${item.status}${item.has_transit ? ' 🚚' : ''}</td>
                     <td class="col-stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
-                    <td class="col-action">${item.status === 'Critical' ? `<button class="btn-action" onclick="requestAllotment('${Utils.sanitize(item.material_code)}', '${Utils.sanitize(item.division_name)}')">Req</button>` : (item.has_transit ? '<span style="font-size:0.6rem;color:#17a2b8;">🚚</span>' : '-')}</td>
                 </tr>
             `).join('');
+            
+            if (countEl) countEl.textContent = `${data.length} items`;
         },
         
         setDate: () => { const el = Ui.dom.date; if (el) el.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); },
@@ -528,7 +527,7 @@
     };
 
     // ================================================================
-    // 6. STOCK MANAGER - Core Logic
+    // 6. STOCK MANAGER
     // ================================================================
     const Manager = {
         async init() {
@@ -536,22 +535,17 @@
             Ui.setDate();
             Ui.loadColPrefs();
             
-            // Load dropdowns first (fast)
             await this.loadGroups();
             await this.loadMaterials();
             
-            // Initialize regions and divisions
             this.populateRegions(CONFIG.ALL_REGIONS);
             this.populateDivisions(CONFIG.ALL_DIVISIONS);
             this.setStatusFilter('all');
             
-            // Load stock data (main data)
             await this.loadStockData();
             
-            // Auto-refresh every 5 min
             setInterval(() => this.loadStockData(), 300000);
             
-            // Close dropdowns on outside click
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.multi-select-wrapper')) {
                     document.querySelectorAll('.multi-select-dropdown').forEach(d => d.style.display = 'none');
@@ -560,7 +554,6 @@
             });
         },
         
-        // Load material groups
         async loadGroups() {
             try {
                 const groups = await Api.getGroups();
@@ -573,7 +566,6 @@
             } catch (e) { console.error('Groups error:', e); Ui.showError('Failed to load material groups'); }
         },
         
-        // Load materials
         async loadMaterials() {
             try {
                 const group = Ui.dom.group?.value;
@@ -590,9 +582,7 @@
             } catch (e) { console.error('Materials error:', e); Ui.showError('Failed to load materials'); }
         },
         
-        // Populate region dropdown
         populateRegions(regions) {
-            State.allRegions = regions;
             const container = Ui.dom.regionOpts;
             if (!container) return;
             container.innerHTML = '';
@@ -606,9 +596,7 @@
             this.updateRegionDisplay();
         },
         
-        // Populate division dropdown
         populateDivisions(divisions) {
-            State.allDivisions = divisions;
             const container = Ui.dom.divOpts;
             if (!container) return;
             container.innerHTML = '';
@@ -622,85 +610,193 @@
             this.updateDivisionDisplay();
         },
         
-        // Update region display
         updateRegionDisplay() {
             const el = Ui.dom.regionDisplay;
             if (!el) return;
-            const c = State.selectedRegions.length, t = State.allRegions.length;
+            const c = State.selectedRegions.length, t = CONFIG.ALL_REGIONS.length;
             if (c === 0 || c === t) el.textContent = 'All Regions';
             else if (c === 1) el.textContent = CONFIG.REGION_NAMES[State.selectedRegions[0]] || State.selectedRegions[0];
             else el.textContent = `${c} Regions Selected`;
             document.querySelectorAll('#regionOptions input[type="checkbox"]').forEach(cb => cb.checked = State.selectedRegions.includes(cb.value));
         },
         
-        // Update division display
         updateDivisionDisplay() {
             const el = Ui.dom.divDisplay;
             if (!el) return;
-            const c = State.selectedDivisions.length, t = State.allDivisions.length;
+            const c = State.selectedDivisions.length, t = CONFIG.ALL_DIVISIONS.length;
             if (c === 0 || c === t) el.textContent = 'All Divisions';
             else if (c === 1) el.textContent = State.selectedDivisions[0];
             else el.textContent = `${c} Divisions Selected`;
             document.querySelectorAll('#divisionOptions input[type="checkbox"]').forEach(cb => cb.checked = State.selectedDivisions.includes(cb.value));
         },
         
-        // Region checkbox change
         onRegionChange() {
             const checked = document.querySelectorAll('#regionOptions input[type="checkbox"]:checked');
             State.selectedRegions = Array.from(checked).map(cb => cb.value);
             this.updateRegionDisplay();
             this.updateDivisionsFromRegions();
+            this.applyFilters();
         },
         
-        // Division checkbox change
+        updateDivisionsFromRegions() {
+            let divisions = [];
+            
+            if (State.selectedRegions.length === 0 || State.selectedRegions.length === CONFIG.ALL_REGIONS.length) {
+                divisions = CONFIG.ALL_DIVISIONS;
+            } else {
+                const unique = new Set();
+                State.selectedRegions.forEach(region => {
+                    if (CONFIG.REGION_DIVISIONS[region]) {
+                        CONFIG.REGION_DIVISIONS[region].forEach(div => unique.add(div));
+                    }
+                });
+                divisions = Array.from(unique);
+            }
+            
+            this.populateDivisions(divisions);
+            State.selectedDivisions = [...divisions];
+            this.updateDivisionDisplay();
+        },
+        
         onDivisionChange() {
             const checked = document.querySelectorAll('#divisionOptions input[type="checkbox"]:checked');
             State.selectedDivisions = Array.from(checked).map(cb => cb.value);
             this.updateDivisionDisplay();
-            this.loadStockData();
+            this.applyFilters();
         },
         
-        // Update divisions from selected regions
-        updateDivisionsFromRegions() {
-            let divisions = [];
-            if (State.selectedRegions.length === 0 || State.selectedRegions.length === State.allRegions.length) {
-                divisions = CONFIG.ALL_DIVISIONS;
+        applyFilters() {
+            if (!State.allRawData || State.allRawData.length === 0) {
+                this.loadStockData();
+                return;
+            }
+            
+            let filtered = [...State.allRawData];
+            
+            // Region Filter
+            let allowedDivisions = [];
+            if (State.selectedRegions.length === 0 || State.selectedRegions.length === CONFIG.ALL_REGIONS.length) {
+                allowedDivisions = CONFIG.ALL_DIVISIONS;
             } else {
                 const unique = new Set();
-                State.selectedRegions.forEach(r => {
-                    if (CONFIG.REGION_DIVISIONS[r]) CONFIG.REGION_DIVISIONS[r].forEach(d => unique.add(d));
+                State.selectedRegions.forEach(region => {
+                    if (CONFIG.REGION_DIVISIONS[region]) {
+                        CONFIG.REGION_DIVISIONS[region].forEach(div => unique.add(div));
+                    }
                 });
-                divisions = Array.from(unique);
+                allowedDivisions = Array.from(unique);
             }
-            this.populateDivisions(divisions);
+            filtered = filtered.filter(item => allowedDivisions.includes(item.division_name));
+            
+            // Division Filter
+            if (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length) {
+                filtered = filtered.filter(item => State.selectedDivisions.includes(item.division_name));
+            }
+            
+            // Zone Filter
+            const zone = Ui.dom.zone?.value || 'all';
+            if (zone === 'siliguri') {
+                const zoneDivs = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'siliguri_zone']
+                    .flatMap(r => CONFIG.REGION_DIVISIONS[r] || []);
+                filtered = filtered.filter(item => zoneDivs.includes(item.division_name));
+            }
+            
+            // Material Group Filter
+            const group = Ui.dom.group?.value || 'all';
+            if (group !== 'all') {
+                filtered = filtered.filter(item => item.material_group === group);
+            }
+            
+            // Material Code Filter
+            const material = Ui.dom.material?.value || 'all';
+            if (material !== 'all') {
+                filtered = filtered.filter(item => String(item.material_code) === String(material));
+            }
+            
+            // Status Filter
+            if (State.statusFilter === 'critical') {
+                filtered = filtered.filter(item => item.status === 'Critical');
+            } else if (State.statusFilter === 'normal') {
+                filtered = filtered.filter(item => item.status === 'Normal');
+            } else if (State.statusFilter === 'in_transit') {
+                filtered = filtered.filter(item => item.has_transit);
+            }
+            
+            // Sort
+            const sortBy = Ui.dom.sort?.value || 'material_code';
+            const sortMap = {
+                'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
+                'material_code_desc': (a, b) => String(b.material_code).localeCompare(String(a.material_code)),
+                'current_stock_asc': (a, b) => (a.current_stock || 0) - (b.current_stock || 0),
+                'current_stock_desc': (a, b) => (b.current_stock || 0) - (a.current_stock || 0),
+                'virtual_stock_asc': (a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0),
+                'virtual_stock_desc': (a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0),
+                'stock_months_asc': (a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months),
+                'stock_months_desc': (a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months),
+                'monthly_avg_asc': (a, b) => a.monthly_avg - b.monthly_avg,
+                'monthly_avg_desc': (a, b) => b.monthly_avg - a.monthly_avg,
+                'status': (a, b) => {
+                    if (a.status === 'Critical' && b.status !== 'Critical') return -1;
+                    if (a.status !== 'Critical' && b.status === 'Critical') return 1;
+                    return 0;
+                }
+            };
+            if (sortMap[sortBy]) filtered.sort(sortMap[sortBy]);
+            
+            State.filteredData = filtered;
+            Ui.renderTable(filtered);
+            
+            const total = filtered.length;
+            const critical = filtered.filter(m => m.status === 'Critical').length;
+            const withTransit = filtered.filter(m => m.has_transit).length;
+            const transitTotal = filtered.reduce((sum, m) => sum + m.transit_qty, 0);
+            
+            let msg = `✅ Showing ${total} materials`;
+            if (critical > 0) msg += ` (${critical} critical)`;
+            if (withTransit > 0) msg += `, ${withTransit} with in-transit`;
+            if (total > 0 && transitTotal > 0) msg += ` (${transitTotal.toFixed(0)} units on the way)`;
+            Ui.showGuidance(msg);
         },
         
-        // Select/deselect all regions
-        selectAllRegions() { State.selectedRegions = [...State.allRegions]; this.updateRegionDisplay(); this.updateDivisionsFromRegions(); },
-        deselectAllRegions() { State.selectedRegions = []; this.updateRegionDisplay(); this.updateDivisionsFromRegions(); },
+        selectAllRegions() { 
+            State.selectedRegions = [...CONFIG.ALL_REGIONS]; 
+            this.updateRegionDisplay(); 
+            this.updateDivisionsFromRegions(); 
+            this.applyFilters(); 
+        },
         
-        // Select/deselect all divisions
-        selectAllDivisions() { State.selectedDivisions = [...State.allDivisions]; this.updateDivisionDisplay(); this.loadStockData(); },
-        deselectAllDivisions() { State.selectedDivisions = []; this.updateDivisionDisplay(); this.loadStockData(); },
+        deselectAllRegions() { 
+            State.selectedRegions = []; 
+            this.updateRegionDisplay(); 
+            this.updateDivisionsFromRegions(); 
+            this.applyFilters(); 
+        },
         
-        // Set status filter
+        selectAllDivisions() { 
+            State.selectedDivisions = [...CONFIG.ALL_DIVISIONS]; 
+            this.updateDivisionDisplay(); 
+            this.applyFilters(); 
+        },
+        
+        deselectAllDivisions() { 
+            State.selectedDivisions = []; 
+            this.updateDivisionDisplay(); 
+            this.applyFilters(); 
+        },
+        
         setStatusFilter(status) {
             State.statusFilter = status;
             document.querySelectorAll('.status-card').forEach(c => c.classList.toggle('active', c.dataset.status === status));
             const names = { all: 'All Items', critical: 'Critical Stock Only', normal: 'Normal Stock Only', in_transit: 'With In-Transit Only' };
             Ui.showGuidance(`📊 Showing: ${names[status] || 'All Items'}`);
-            this.filterTable();
+            this.applyFilters();
         },
         
-        // Calculate reorder level
         calcReorder(plant, avg) {
             const a = Utils.roundUp(avg);
             return plant === '3400' ? a * 3 : a;
         },
         
-        // ================================================================
-        // LOAD STOCK DATA - OPTIMIZED: Stock loads first
-        // ================================================================
         async loadStockData() {
             Ui.setLoading(true);
             
@@ -709,32 +805,17 @@
                 const group = Ui.dom.group?.value || 'all';
                 const material = Ui.dom.material?.value || 'all';
                 
-                // Get selected divisions
-                let divisions = State.selectedDivisions;
-                if (divisions.length === 0 || divisions.length === State.allDivisions.length) {
-                    divisions = CONFIG.ALL_DIVISIONS;
-                }
+                const allPlants = Object.values(CONFIG.PLANT_MAP).filter(Boolean);
                 
-                const plants = divisions.map(d => CONFIG.PLANT_MAP[d]).filter(Boolean);
-                if (plants.length === 0) {
-                    Ui.showError('No plants found for selected divisions');
-                    Ui.setLoading(false);
-                    return;
-                }
-                
-                // ============================================================
-                // STEP 1: Load Stock Data FIRST (for fast initial render)
-                // ============================================================
                 const [stockData, transitData, monthlyAvgData] = await Promise.all([
                     Api.getStock(),
                     Api.getTransit(),
-                    Api.getMonthlyAvg(plants, group, material)
+                    Api.getMonthlyAvg(allPlants, group, material)
                 ]);
                 
                 State.monthlyAvg = monthlyAvgData || {};
                 State.transit = transitData || [];
                 
-                // Build transit lookup
                 const transitLookup = {};
                 State.transit.forEach(item => {
                     const key = `${String(item.to_plant || '')}_${String(item.material_code || '')}`;
@@ -742,7 +823,6 @@
                     transitLookup[key] = (transitLookup[key] || 0) + qty;
                 });
                 
-                // Process stock data
                 let processed = stockData
                     .map(item => {
                         const plant = String(item.plant || '');
@@ -757,28 +837,13 @@
                             transit_qty: transit,
                             virtual_stock: stock + transit,
                             current_stock: stock,
-                            material_name: item.material_name || item.material_description || code
+                            material_name: item.material_name || item.material_description || code,
+                            material_code: code,
+                            plant: plant
                         };
                     })
                     .filter(item => !Utils.isExcluded(item.material_group));
                 
-                // Apply zone filter
-                if (zone === 'siliguri') {
-                    const zoneDivs = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'siliguri_zone']
-                        .flatMap(r => CONFIG.REGION_DIVISIONS[r] || []);
-                    processed = processed.filter(item => zoneDivs.includes(item.division_name));
-                }
-                
-                // Apply division filter
-                if (divisions.length < CONFIG.ALL_DIVISIONS.length) {
-                    processed = processed.filter(item => divisions.includes(item.division_name));
-                }
-                
-                // Apply group and material filters
-                if (group !== 'all') processed = processed.filter(item => item.material_group === group);
-                if (material !== 'all') processed = processed.filter(item => String(item.material_code) === String(material));
-                
-                // Calculate metrics
                 const enriched = processed.map((item, index) => {
                     const plant = String(item.plant || '');
                     const code = String(item.material_code || '');
@@ -812,73 +877,27 @@
                     };
                 });
                 
-                State.stockData = enriched;
-                this.filterTable();
-                
-                const total = enriched.length;
-                const critical = enriched.filter(m => m.status === 'Critical').length;
-                const withTransit = enriched.filter(m => m.has_transit).length;
-                const transitTotal = enriched.reduce((sum, m) => sum + m.transit_qty, 0);
-                
-                Ui.showGuidance(`✅ Loaded ${total} materials. ${critical} critical. ${withTransit} have in-transit (${transitTotal.toFixed(0)} units on the way).`);
+                State.allRawData = enriched;
+                this.applyFilters();
                 
             } catch (error) {
                 console.error('Error loading stock:', error);
                 Ui.showError('Failed to load stock data: ' + error.message);
-                if (Ui.dom.table) Ui.dom.table.innerHTML = '<tr><td colspan="14" class="text-center">Error loading data</td></tr>';
+                if (Ui.dom.table) Ui.dom.table.innerHTML = '<tr><td colspan="13" class="text-center">Error loading data</td></tr>';
             } finally {
                 Ui.setLoading(false);
             }
         },
         
-        // Filter and sort table
-        filterTable() {
-            let data = [...State.stockData];
-            
-            // Apply status filter
-            if (State.statusFilter === 'critical') data = data.filter(item => item.status === 'Critical');
-            else if (State.statusFilter === 'normal') data = data.filter(item => item.status === 'Normal');
-            else if (State.statusFilter === 'in_transit') data = data.filter(item => item.has_transit);
-            
-            // Apply sorting
-            const sortBy = Ui.dom.sort?.value || 'material_code';
-            const sortMap = {
-                'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
-                'material_code_desc': (a, b) => String(b.material_code).localeCompare(String(a.material_code)),
-                'current_stock_asc': (a, b) => (a.current_stock || 0) - (b.current_stock || 0),
-                'current_stock_desc': (a, b) => (b.current_stock || 0) - (a.current_stock || 0),
-                'virtual_stock_asc': (a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0),
-                'virtual_stock_desc': (a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0),
-                'stock_months_asc': (a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months),
-                'stock_months_desc': (a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months),
-                'monthly_avg_asc': (a, b) => a.monthly_avg - b.monthly_avg,
-                'monthly_avg_desc': (a, b) => b.monthly_avg - a.monthly_avg,
-                'status': (a, b) => {
-                    if (a.status === 'Critical' && b.status !== 'Critical') return -1;
-                    if (a.status !== 'Critical' && b.status === 'Critical') return 1;
-                    return 0;
-                }
-            };
-            if (sortMap[sortBy]) data.sort(sortMap[sortBy]);
-            
-            Ui.renderTable(data);
-        },
-        
-        // Zone change
         onZoneChange() {
-            const zone = Ui.dom.zone?.value || 'all';
-            const regions = zone === 'siliguri' ? CONFIG.ALL_REGIONS.filter(r => r !== 'cord_road') : CONFIG.ALL_REGIONS;
-            this.populateRegions(regions);
-            this.updateDivisionsFromRegions();
+            this.loadStockData();
         },
         
-        // Material group change
         async onMaterialGroupChange() {
             await this.loadMaterials();
-            await this.loadStockData();
+            this.loadStockData();
         },
         
-        // Reset all filters
         resetFilters() {
             if (Ui.dom.zone) Ui.dom.zone.value = 'all';
             if (Ui.dom.group) Ui.dom.group.value = 'all';
@@ -892,17 +911,14 @@
             Ui.showGuidance('🔄 All filters have been reset.');
         },
         
-        // Request allotment
         requestAllotment(code, div) {
             alert(`Allotment request initiated for material: ${code}\nDivision: ${div}\n\nThe store manager will be notified for approval.`);
         },
         
-        // Refresh data
         refreshData() { this.loadStockData(); },
         
-        // Export to Excel
         exportToExcel() {
-            const data = State.stockData;
+            const data = State.filteredData || State.allRawData;
             if (!data?.length) { alert('No data to export'); return; }
             try {
                 const wb = XLSX.utils.book_new();
@@ -923,7 +939,6 @@
             } catch (e) { console.error(e); Ui.showError('Export failed: ' + e.message); }
         },
         
-        // Export to PDF
         exportToPDF() {
             const el = document.querySelector('.content-card');
             if (el && typeof html2pdf !== 'undefined') {
@@ -968,12 +983,9 @@
 </script>
 
 <!-- ================================================================
-     CSS STYLES - Matching Material Group Style
+     CSS STYLES - WITH FROZEN HEADER
      ================================================================ -->
 <style>
-    /* ================================================================
-       BASE
-       ================================================================ */
     * { box-sizing: border-box; }
     
     .nav-bar {
@@ -1096,9 +1108,6 @@
     }
     .column-menu-footer button:hover { background: #dee2e6; }
 
-    /* ================================================================
-       WELCOME BANNER
-       ================================================================ */
     .welcome-banner {
         background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
         border-radius: 15px;
@@ -1127,9 +1136,6 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
-    /* ================================================================
-       FILTER SECTION - UNIFIED STYLING
-       ================================================================ */
     .filter-section {
         background: white;
         border-radius: 20px;
@@ -1154,9 +1160,6 @@
     }
     .filter-group label i { color: #667eea; margin-right: 6px; }
 
-    /* ================================================================
-       FILTER SELECT - MATCHING MATERIAL GROUP STYLE
-       ================================================================ */
     .filter-select {
         width: 100%;
         padding: 12px 15px;
@@ -1203,9 +1206,6 @@
     }
     .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(108,117,125,0.3); }
 
-    /* ================================================================
-       MULTI-SELECT DROPDOWN - MATCHING FILTER SELECT STYLE
-       ================================================================ */
     .multi-select-wrapper { position: relative; width: 100%; }
     .multi-select-trigger {
         display: flex;
@@ -1311,9 +1311,6 @@
         color: #1e2b3a;
     }
 
-    /* ================================================================
-       STATUS FILTER CARDS
-       ================================================================ */
     .status-filter-section {
         background: white;
         border-radius: 16px;
@@ -1396,9 +1393,6 @@
     }
     .status-card.active .status-card-arrow i { opacity: 1; }
 
-    /* ================================================================
-       GUIDANCE & ERROR
-       ================================================================ */
     .guidance-message {
         background: #e3f0ff;
         color: #1e2b3a;
@@ -1417,9 +1411,6 @@
     }
     .error-message i { margin-right: 10px; }
 
-    /* ================================================================
-       LOADING
-       ================================================================ */
     .loading {
         display: none;
         position: fixed;
@@ -1447,9 +1438,6 @@
     }
     .loading p { margin-top: 15px; color: white; }
 
-    /* ================================================================
-       LEGEND
-       ================================================================ */
     .legend-container {
         display: flex;
         gap: 15px;
@@ -1470,9 +1458,6 @@
     .legend-badge.transit { background: #d1ecf1; color: #17a2b8; border: 1px solid #b8e0e8; }
     .legend-badge.virtual { background: #cce5ff; color: #0062cc; border: 1px solid #b3d4f0; }
 
-    /* ================================================================
-       TABLE
-       ================================================================ */
     .content-card {
         background: white;
         border-radius: 20px;
@@ -1497,27 +1482,50 @@
         color: #6c757d;
     }
 
+    /* ================================================================
+       FROZEN HEADER - TABLE WITH STICKY HEADER
+       ================================================================ */
+    .table-responsive {
+        overflow: auto;
+        max-height: 70vh;
+        position: relative;
+    }
+    
     .data-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.75rem;
         table-layout: fixed;
     }
+    
+    .data-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    
     .data-table th {
         padding: 8px 5px;
         text-align: center;
         background: #f8fafd;
         font-weight: 700;
         border-bottom: 2px solid #eef2f6;
-        position: sticky;
-        top: 0;
         white-space: nowrap;
-        z-index: 10;
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.3px;
         color: #1e2b3a;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
+    
+    /* Fix for thead background to prevent content showing through */
+    .data-table thead th {
+        background: #f8fafd;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
     .data-table td {
         padding: 6px 5px;
         border-bottom: 1px solid #eef2f6;
@@ -1526,11 +1534,14 @@
         white-space: nowrap;
         text-align: center;
         color: #1e2b3a;
+        background: white;
     }
-    .data-table tr:hover { background: #f8fafd; }
-    .table-responsive { overflow-x: auto; max-height: 70vh; }
-
-    .col-mat-name, .col-division { text-align: left !important; }
+    
+    .data-table tr:hover td {
+        background: #f8fafd;
+    }
+    
+    /* Column widths */
     .col-sno { width: 30px; min-width: 30px; max-width: 30px; }
     .col-mat-code { width: 80px; min-width: 75px; max-width: 90px; }
     .col-mat-name { width: 140px; min-width: 120px; max-width: 170px; }
@@ -1544,7 +1555,8 @@
     .col-reorder { width: 60px; min-width: 55px; max-width: 70px; }
     .col-status { width: 70px; min-width: 65px; max-width: 85px; }
     .col-stock-months { width: 60px; min-width: 55px; max-width: 70px; }
-    .col-action { width: 50px; min-width: 45px; max-width: 60px; }
+
+    .col-mat-name, .col-division { text-align: left !important; }
 
     .status-critical { background: #fee; color: #dc3545; font-weight: bold; }
     .status-normal { color: #28a745; }
@@ -1566,23 +1578,8 @@
         font-size: 0.65rem;
         font-family: 'Courier New', monospace;
     }
-    .btn-action {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-        border: none;
-        padding: 3px 10px;
-        border-radius: 12px;
-        cursor: pointer;
-        font-size: 0.6rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
-    }
-    .btn-action:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(220,53,69,0.3); }
     .text-center { text-align: center; }
 
-    /* ================================================================
-       RESPONSIVE
-       ================================================================ */
     .mobile-only { display: none !important; }
     .desktop-only { display: inline !important; }
 
@@ -1627,7 +1624,6 @@
         .col-transit { width: 50px; min-width: 45px; max-width: 60px; }
         .col-virtual-stock { width: 50px; min-width: 45px; max-width: 60px; }
         .col-status { width: 55px; min-width: 50px; max-width: 65px; }
-        .col-action { width: 40px; min-width: 35px; max-width: 50px; }
         
         .col-group, .col-monthly-avg, .col-reorder, .col-stock-months {
             display: none !important;
@@ -1635,7 +1631,6 @@
         
         .badge-group { font-size: 0.5rem; padding: 1px 4px; }
         code { font-size: 0.55rem; padding: 1px 3px; }
-        .btn-action { font-size: 0.5rem; padding: 2px 6px; }
         
         .multi-select-trigger { font-size: 0.8rem; padding: 10px 12px; min-height: 40px; }
         .multi-select-option { font-size: 0.75rem; padding: 6px 10px; }
@@ -1662,12 +1657,10 @@
         .col-transit { width: 40px; min-width: 35px; max-width: 50px; }
         .col-virtual-stock { width: 40px; min-width: 35px; max-width: 50px; }
         .col-status { width: 45px; min-width: 40px; max-width: 55px; }
-        .col-action { width: 35px; min-width: 30px; max-width: 45px; }
         
         .data-table { font-size: 0.5rem; }
         .data-table th { font-size: 0.45rem; padding: 3px 2px; }
         .data-table td { padding: 3px 2px; }
-        .btn-action { font-size: 0.4rem; padding: 1px 4px; }
         code { font-size: 0.45rem; }
         
         .multi-select-trigger { font-size: 0.7rem; padding: 8px 10px; min-height: 36px; }
@@ -1695,6 +1688,9 @@
         .mobile-only { display: none !important; }
         .desktop-only { display: inline !important; }
         .welcome-banner { break-inside: avoid; }
+        .table-responsive { max-height: none; overflow: visible; }
+        .data-table thead { position: static; }
+        .data-table th { position: static; }
     }
 </style>
 {% endblock %}
