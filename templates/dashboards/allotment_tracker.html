@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - Division-wise Suggested Allotment -->
+<!-- allotment_tracker.html - Fixed: Both tables show same data -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -78,8 +78,10 @@
             currentAllotmentId: null,
             isLoading: false,
             isMaterialDataLoaded: false,
-            // Store materials per division for Suggested table
-            divisionMaterials: {}
+            divisionMaterials: {},
+            stockDataCache: null,
+            avgDataCache: {},
+            transitMapCache: {}
         };
 
         // ============================================================
@@ -567,6 +569,7 @@
                 try {
                     await this.loadMaterials();
                     await this.loadDivisionMapping();
+                    await this.loadStockData();
                 } catch (error) {
                     console.warn('Failed to load initial data:', error);
                     this.setFallbackMapping();
@@ -578,6 +581,57 @@
 
                 this.setupBulkPaste();
                 UiService.updateDivisionDisplay();
+            },
+
+            // ------------------------------------------------------------
+            // LOAD STOCK DATA - Cached for performance
+            // ------------------------------------------------------------
+            async loadStockData() {
+                try {
+                    const [stockData, transitData] = await Promise.all([
+                        ApiService.getCurrentStock(),
+                        ApiService.getTransit()
+                    ]);
+                    state.stockDataCache = stockData;
+                    state.transitDataCache = transitData;
+                    
+                    const transitMap = {};
+                    if (transitData) {
+                        transitData.forEach(item => {
+                            const key = item.material_code;
+                            transitMap[key] = (transitMap[key] || 0) + (parseFloat(item.balance_qty) || 0);
+                        });
+                    }
+                    state.transitMapCache = transitMap;
+                    
+                    console.log('✅ Stock data cached:', stockData.length, 'items');
+                    return true;
+                } catch (error) {
+                    console.error('Error loading stock data:', error);
+                    return false;
+                }
+            },
+
+            // ------------------------------------------------------------
+            // GET STOCK FOR MATERIAL
+            // ------------------------------------------------------------
+            getStockForMaterial(materialCode, plantCode) {
+                if (!state.stockDataCache) return 0;
+                return state.stockDataCache
+                    .filter(item => String(item.plant) === plantCode && String(item.material_code) === String(materialCode))
+                    .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
+            },
+
+            getZonalStock(materialCode) {
+                if (!state.stockDataCache) return 0;
+                return state.stockDataCache
+                    .filter(item => String(item.plant) === CONFIG.ZONAL_STORE_PLANT && String(item.material_code) === String(materialCode))
+                    .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
+            },
+
+            getTransitForMaterial(materialCode) {
+                if (!state.transitMapCache) return 0;
+                return state.transitMapCache[materialCode] || 0;
             },
 
             // ------------------------------------------------------------
@@ -611,7 +665,6 @@
                     return;
                 }
 
-                // Check if division is selected
                 if (state.selectedDivisions.length === 0) {
                     UiService.showToast('Please select at least one division first!', true);
                     return;
@@ -628,66 +681,97 @@
                 }
 
                 let addedCount = 0;
-                // For each division selected, add the materials
-                for (const division of state.selectedDivisions) {
-                    if (!state.divisionMaterials[division]) {
-                        state.divisionMaterials[division] = [];
-                    }
-                    for (const code of codes) {
-                        const exists = state.divisionMaterials[division].some(m => m.material_code === code);
-                        if (!exists) {
-                            const materialName = Utils.getMaterialName(code);
-                            const unit = Utils.getMaterialUnit(code);
-                            state.divisionMaterials[division].push({
-                                material_code: code,
-                                material_name: materialName,
-                                unit: unit,
-                                zonal_stock: 0,
-                                suggested_qty: 0
-                            });
-                            addedCount++;
-                        }
+                const activeDivision = state.selectedDivisions[0];
+                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+
+                if (!state.divisionMaterials[activeDivision]) {
+                    state.divisionMaterials[activeDivision] = [];
+                }
+
+                for (const code of codes) {
+                    const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === code);
+                    if (!exists) {
+                        const materialName = Utils.getMaterialName(code);
+                        const unit = Utils.getMaterialUnit(code);
+                        
+                        // Calculate stock data immediately
+                        const stock = this.getStockForMaterial(code, activePlantCode);
+                        const inTransit = this.getTransitForMaterial(code);
+                        const virtualStock = stock + inTransit;
+                        const zonalStock = this.getZonalStock(code);
+                        
+                        // Get monthly average (will be updated async)
+                        state.divisionMaterials[activeDivision].push({
+                            material_code: code,
+                            material_name: materialName,
+                            unit: unit,
+                            zonal_stock: zonalStock,
+                            virtual_stock: virtualStock,
+                            monthly_avg: 0,
+                            suggested_qty: 0,
+                            is_critical: false,
+                            stock: stock,
+                            in_transit: inTransit
+                        });
+                        addedCount++;
                     }
                 }
 
                 input.value = '';
 
                 if (addedCount > 0) {
-                    UiService.showToast(`✅ Added ${addedCount} material codes for selected division(s)!`);
-                    // Update materials table and suggested table
+                    UiService.showToast(`✅ Added ${addedCount} material codes for ${activeDivision}`);
+                    // Update both tables
                     this.updateMaterialsTable();
                     this.updateSuggestedTable();
+                    // Fetch monthly averages and update
+                    this.fetchAndUpdateAverages(activePlantCode);
                 } else {
-                    UiService.showToast('ℹ️ No new material codes to add (all already exist for these divisions).');
+                    UiService.showToast('ℹ️ No new material codes to add (all already exist).');
                 }
             },
 
             // ------------------------------------------------------------
-            // UPDATE MATERIALS TABLE - Show materials for selected division
+            // FETCH AND UPDATE AVERAGES
+            // ------------------------------------------------------------
+            async fetchAndUpdateAverages(plantCode) {
+                try {
+                    const avgData = await ApiService.getMonthlyAvg([plantCode]);
+                    state.avgDataCache[plantCode] = avgData;
+                    
+                    // Update all materials with averages
+                    const activeDivision = state.selectedDivisions[0];
+                    if (activeDivision && state.divisionMaterials[activeDivision]) {
+                        const materials = state.divisionMaterials[activeDivision];
+                        for (const material of materials) {
+                            const monthlyAvg = avgData[material.material_code]?.[plantCode]?.monthly_avg || 0;
+                            material.monthly_avg = monthlyAvg;
+                            const isCritical = material.virtual_stock <= monthlyAvg && monthlyAvg > 0;
+                            material.is_critical = isCritical;
+                            material.suggested_qty = isCritical ? Utils.calculateSuggestedQty(material.virtual_stock, monthlyAvg) : 0;
+                        }
+                    }
+                    
+                    // Refresh both tables
+                    this.updateMaterialsTable();
+                    this.updateSuggestedTable();
+                    
+                } catch (error) {
+                    console.error('Error fetching averages:', error);
+                }
+            },
+
+            // ------------------------------------------------------------
+            // UPDATE MATERIALS TABLE - Shows data for active division
             // ------------------------------------------------------------
             updateMaterialsTable() {
                 const tbody = dom.materialBody;
                 if (!tbody) return;
 
-                // Get materials for the first selected division (or all if multiple)
-                let allMaterials = [];
-                if (state.selectedDivisions.length === 1) {
-                    allMaterials = state.divisionMaterials[state.selectedDivisions[0]] || [];
-                } else {
-                    // Show all materials from all selected divisions
-                    const unique = new Map();
-                    for (const div of state.selectedDivisions) {
-                        const mats = state.divisionMaterials[div] || [];
-                        for (const m of mats) {
-                            if (!unique.has(m.material_code)) {
-                                unique.set(m.material_code, m);
-                            }
-                        }
-                    }
-                    allMaterials = Array.from(unique.values());
-                }
+                const activeDivision = state.selectedDivisions[0] || '';
+                const materials = state.divisionMaterials[activeDivision] || [];
 
-                if (allMaterials.length === 0) {
+                if (materials.length === 0) {
                     tbody.innerHTML = `
                         <tr>
                             <td colspan="9" class="text-center" style="padding: 30px; color: #6c757d;">
@@ -696,22 +780,22 @@
                             </td>
                         </tr>
                     `;
+                    state.materialRows = [];
                     return;
                 }
 
-                // Update state.materialRows for compatibility with existing code
-                state.materialRows = allMaterials.map((m, index) => ({
+                state.materialRows = materials.map((m, index) => ({
                     ...m,
                     rowId: `mat-row-${index + 1}`,
-                    rowIndex: index + 1,
-                    critical_count: 0
+                    rowIndex: index + 1
                 }));
 
-                // Update row counter
-                state.rowCounter = allMaterials.length;
+                state.rowCounter = materials.length;
 
-                tbody.innerHTML = allMaterials.map((m, index) => {
-                    const rowId = `mat-row-${index + 1}`;
+                tbody.innerHTML = materials.map((m, index) => {
+                    const isCritical = m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0);
+                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(m.virtual_stock, m.monthly_avg) : 0);
+                    
                     return `
                         <tr>
                             <td style="text-align: center;">${index + 1}</td>
@@ -727,17 +811,17 @@
                                 <input type="text" class="form-control form-control-sm mat-unit-input" 
                                        value="${m.unit || 'NOS'}" readonly>
                             </td>
-                            <td class="stock-cell" id="${rowId}-virtual">
-                                <span class="stock-badge">Loading...</span>
+                            <td class="stock-cell" id="mat-virtual-${index}">
+                                <span class="stock-badge ${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(m.virtual_stock || 0).toLocaleString()}</span>
                             </td>
-                            <td class="stock-cell" id="${rowId}-avg">
-                                <span class="stock-badge">Loading...</span>
+                            <td class="stock-cell" id="mat-avg-${index}">
+                                <span class="stock-badge">${Math.round(m.monthly_avg || 0).toLocaleString()}</span>
                             </td>
-                            <td class="stock-cell" id="${rowId}-zonal">
-                                <span class="stock-badge">Loading...</span>
+                            <td class="stock-cell" id="mat-zonal-${index}">
+                                <span class="stock-badge">${Math.round(m.zonal_stock || 0).toLocaleString()}</span>
                             </td>
-                            <td class="stock-cell" id="${rowId}-suggested">
-                                <span class="stock-badge">Loading...</span>
+                            <td class="stock-cell" id="mat-suggested-${index}">
+                                <span class="stock-badge ${suggestedQty > 0 ? 'stock-available' : 'stock-critical'}">${Math.round(suggestedQty || 0).toLocaleString()}</span>
                             </td>
                             <td style="text-align: center;">
                                 <button type="button" class="btn-remove-row" onclick="AllotmentManager.removeMaterialRowFromDivision('${m.material_code}')">
@@ -748,15 +832,13 @@
                     `;
                 }).join('');
 
-                // Calculate stock data for each material
-                for (const [index, m] of allMaterials.entries()) {
-                    const rowId = `mat-row-${index + 1}`;
-                    this.calculateSuggestedQuantity(rowId, m.material_code);
-                }
-
                 if (dom.totalMaterials) {
-                    dom.totalMaterials.textContent = allMaterials.length;
+                    dom.totalMaterials.textContent = materials.length;
                 }
+                
+                // Update critical items count
+                const criticalCount = materials.filter(m => m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0)).length;
+                if (dom.criticalItems) dom.criticalItems.textContent = criticalCount;
             },
 
             // ------------------------------------------------------------
@@ -765,16 +847,13 @@
             removeMaterialRowFromDivision(materialCode) {
                 if (state.selectedDivisions.length === 0) return;
                 
-                // Remove from all selected divisions
-                for (const division of state.selectedDivisions) {
-                    if (state.divisionMaterials[division]) {
-                        state.divisionMaterials[division] = state.divisionMaterials[division].filter(
-                            m => m.material_code !== materialCode
-                        );
-                    }
+                const activeDivision = state.selectedDivisions[0];
+                if (state.divisionMaterials[activeDivision]) {
+                    state.divisionMaterials[activeDivision] = state.divisionMaterials[activeDivision].filter(
+                        m => m.material_code !== materialCode
+                    );
                 }
                 
-                // Also remove from finalData if exists
                 state.finalData = state.finalData.filter(f => f.material_code !== materialCode);
                 
                 this.updateMaterialsTable();
@@ -792,7 +871,6 @@
                     return;
                 }
 
-                // Just show a prompt for manual code entry
                 const code = prompt('Enter 9-digit material code:');
                 if (!code) return;
                 if (!Utils.validateMaterialCode(code)) {
@@ -800,54 +878,46 @@
                     return;
                 }
 
-                // Add to all selected divisions
-                let added = false;
-                for (const division of state.selectedDivisions) {
-                    if (!state.divisionMaterials[division]) {
-                        state.divisionMaterials[division] = [];
-                    }
-                    const exists = state.divisionMaterials[division].some(m => m.material_code === code);
-                    if (!exists) {
-                        const materialName = Utils.getMaterialName(code);
-                        const unit = Utils.getMaterialUnit(code);
-                        state.divisionMaterials[division].push({
-                            material_code: code,
-                            material_name: materialName,
-                            unit: unit,
-                            zonal_stock: 0,
-                            suggested_qty: 0
-                        });
-                        added = true;
-                    }
+                const activeDivision = state.selectedDivisions[0];
+                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+
+                if (!state.divisionMaterials[activeDivision]) {
+                    state.divisionMaterials[activeDivision] = [];
                 }
 
-                if (added) {
+                const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === code);
+                if (!exists) {
+                    const materialName = Utils.getMaterialName(code);
+                    const unit = Utils.getMaterialUnit(code);
+                    const stock = this.getStockForMaterial(code, activePlantCode);
+                    const inTransit = this.getTransitForMaterial(code);
+                    const virtualStock = stock + inTransit;
+                    const zonalStock = this.getZonalStock(code);
+                    
+                    state.divisionMaterials[activeDivision].push({
+                        material_code: code,
+                        material_name: materialName,
+                        unit: unit,
+                        zonal_stock: zonalStock,
+                        virtual_stock: virtualStock,
+                        monthly_avg: 0,
+                        suggested_qty: 0,
+                        is_critical: false,
+                        stock: stock,
+                        in_transit: inTransit
+                    });
+                    
                     this.updateMaterialsTable();
-                    this.updateSuggestedTable();
+                    this.fetchAndUpdateAverages(activePlantCode);
                     UiService.showToast('✅ Material added successfully!');
                 } else {
-                    UiService.showToast('ℹ️ Material already exists for selected divisions.');
+                    UiService.showToast('ℹ️ Material already exists for this division.');
                 }
             },
 
             addMultipleRows() {
                 for (let i = 0; i < 5; i++) {
                     this.addMaterialRow();
-                }
-            },
-
-            // ------------------------------------------------------------
-            // REMOVE MATERIAL ROW (Legacy compatibility)
-            // ------------------------------------------------------------
-            removeMaterialRow(rowId) {
-                // This is handled by removeMaterialRowFromDivision
-                // Find the material code from the row
-                const tr = document.getElementById(rowId);
-                if (tr) {
-                    const codeInput = tr.querySelector('.mat-code-input');
-                    if (codeInput) {
-                        this.removeMaterialRowFromDivision(codeInput.value);
-                    }
                 }
             },
 
@@ -876,7 +946,19 @@
                 UiService.updateSelectedCount();
                 UiService.updateDivisionDisplay();
                 
-                // Update materials table and suggested table for new division
+                // If a division is selected, show its materials
+                if (state.selectedDivisions.length > 0) {
+                    const activeDivision = state.selectedDivisions[0];
+                    if (!state.divisionMaterials[activeDivision]) {
+                        state.divisionMaterials[activeDivision] = [];
+                    }
+                    // Fetch averages for this division if not already cached
+                    const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+                    if (activePlantCode && !state.avgDataCache[activePlantCode]) {
+                        this.fetchAndUpdateAverages(activePlantCode);
+                    }
+                }
+                
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
             },
@@ -892,99 +974,6 @@
             },
 
             // ------------------------------------------------------------
-            // CALCULATE SUGGESTED QUANTITY
-            // ------------------------------------------------------------
-            async calculateSuggestedQuantity(rowId, materialCode) {
-                const tr = document.getElementById(rowId);
-                if (!tr) return;
-
-                try {
-                    const stockData = await ApiService.getCurrentStock();
-                    
-                    // Get zonal stock
-                    const zonalStock = stockData
-                        .filter(item =>
-                            String(item.plant) === CONFIG.ZONAL_STORE_PLANT &&
-                            String(item.material_code) === String(materialCode)
-                        )
-                        .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
-
-                    document.getElementById(`${rowId}-zonal`).innerHTML =
-                        `<span class="stock-badge">${Math.round(zonalStock).toLocaleString()}</span>`;
-
-                    // For each selected division, calculate stock
-                    let totalSuggested = 0;
-                    let criticalCount = 0;
-                    let firstDivData = null;
-
-                    // Get plants for selected divisions
-                    const plants = state.selectedDivisions
-                        .map(div => CONFIG.DIVISION_PLANT_MAP[div])
-                        .filter(Boolean);
-
-                    const avgData = plants.length > 0 ? await ApiService.getMonthlyAvg(plants) : {};
-                    const transitData = plants.length > 0 ? await ApiService.getTransit(plants.join(',')) : [];
-                    
-                    const transitMap = {};
-                    if (transitData) {
-                        transitData.forEach(item => {
-                            const key = item.material_code;
-                            transitMap[key] = (transitMap[key] || 0) + (parseFloat(item.balance_qty) || 0);
-                        });
-                    }
-
-                    for (const division of state.selectedDivisions) {
-                        const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
-                        if (!plantCode) continue;
-
-                        const stock = stockData
-                            .filter(item => String(item.plant) === plantCode && String(item.material_code) === String(materialCode))
-                            .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
-
-                        const inTransit = transitMap[materialCode] || 0;
-                        const virtualStock = stock + inTransit;
-                        const monthlyAvg = avgData[materialCode]?.[plantCode]?.monthly_avg || 0;
-
-                        if (!firstDivData) {
-                            firstDivData = { virtualStock, monthlyAvg };
-                            document.getElementById(`${rowId}-virtual`).innerHTML =
-                                `<span class="stock-badge ${virtualStock <= monthlyAvg ? 'stock-critical' : 'stock-available'}">
-                                    ${Math.round(virtualStock).toLocaleString()}
-                                </span>`;
-                            document.getElementById(`${rowId}-avg`).innerHTML =
-                                `<span class="stock-badge">${Math.round(monthlyAvg).toLocaleString()}</span>`;
-                        }
-
-                        if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
-                            criticalCount++;
-                            const suggested = Utils.calculateSuggestedQty(virtualStock, monthlyAvg);
-                            totalSuggested += suggested;
-                        }
-                    }
-
-                    const suggestedQty = Math.ceil(totalSuggested / Math.max(1, state.selectedDivisions.length)) || 0;
-                    document.getElementById(`${rowId}-suggested`).innerHTML =
-                        `<span class="stock-badge ${suggestedQty > 0 ? 'stock-available' : 'stock-critical'}">
-                            ${suggestedQty.toLocaleString()}
-                        </span>`;
-
-                    // Update materialRows with suggested quantity
-                    const material = state.materialRows.find(m => m.material_code === materialCode);
-                    if (material) {
-                        material.suggested_qty = suggestedQty;
-                        material.zonal_stock = Math.round(zonalStock);
-                        material.critical_count = criticalCount;
-                    }
-
-                    if (dom.criticalItems) dom.criticalItems.textContent = criticalCount;
-                    await this.updateSuggestedTable();
-
-                } catch (error) {
-                    console.error('Error calculating suggested quantity:', error);
-                }
-            },
-
-            // ------------------------------------------------------------
             // AUTO-SUGGEST CRITICAL
             // ------------------------------------------------------------
             async autoSuggestFromCritical() {
@@ -996,18 +985,17 @@
                 UiService.showLoading();
 
                 try {
-                    const stockData = await ApiService.getCurrentStock();
-                    const plants = state.selectedDivisions
-                        .map(div => CONFIG.DIVISION_PLANT_MAP[div])
-                        .filter(Boolean);
-
-                    if (plants.length === 0) {
+                    const activeDivision = state.selectedDivisions[0] || '';
+                    const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+                    
+                    if (!activePlantCode) {
                         UiService.hideLoading();
                         return;
                     }
 
-                    const avgData = await ApiService.getMonthlyAvg(plants);
-                    const transitData = await ApiService.getTransit(plants.join(','));
+                    const stockData = await ApiService.getCurrentStock();
+                    const avgData = await ApiService.getMonthlyAvg([activePlantCode]);
+                    const transitData = await ApiService.getTransit(activePlantCode);
 
                     const transitMap = {};
                     if (transitData) {
@@ -1017,63 +1005,54 @@
                         });
                     }
 
-                    const criticalMaterials = new Map();
+                    const divisionStock = stockData.filter(item => String(item.plant) === activePlantCode);
+                    
+                    if (!state.divisionMaterials[activeDivision]) {
+                        state.divisionMaterials[activeDivision] = [];
+                    }
 
-                    for (const division of state.selectedDivisions) {
-                        const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
-                        if (!plantCode) continue;
+                    let addedCount = 0;
+                    for (const item of divisionStock) {
+                        const code = item.material_code;
+                        if (!code) continue;
 
-                        const divisionStock = stockData.filter(item => String(item.plant) === plantCode);
+                        const stock = parseFloat(item.current_stock) || 0;
+                        const inTransit = transitMap[code] || 0;
+                        const virtualStock = stock + inTransit;
+                        const monthlyAvg = avgData[code]?.[activePlantCode]?.monthly_avg || 0;
 
-                        for (const item of divisionStock) {
-                            const code = item.material_code;
-                            if (!code) continue;
-
-                            const stock = parseFloat(item.current_stock) || 0;
-                            const inTransit = transitMap[code] || 0;
-                            const virtualStock = stock + inTransit;
-                            const monthlyAvg = avgData[code]?.[plantCode]?.monthly_avg || 0;
-
-                            if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
+                        if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
+                            const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === code);
+                            if (!exists) {
                                 let materialName = Utils.getMaterialName(code);
                                 if (materialName === code) {
                                     await Utils.fetchMaterialName(code);
                                     materialName = Utils.getMaterialName(code);
                                 }
                                 const unit = Utils.getMaterialUnit(code);
+                                const zonalStock = this.getZonalStock(code);
                                 
-                                criticalMaterials.set(code, {
+                                state.divisionMaterials[activeDivision].push({
                                     material_code: code,
                                     material_name: materialName,
-                                    unit: unit
-                                });
-                            }
-                        }
-                    }
-
-                    let addedCount = 0;
-                    for (const [code, mat] of criticalMaterials) {
-                        for (const division of state.selectedDivisions) {
-                            if (!state.divisionMaterials[division]) {
-                                state.divisionMaterials[division] = [];
-                            }
-                            const exists = state.divisionMaterials[division].some(m => m.material_code === code);
-                            if (!exists) {
-                                state.divisionMaterials[division].push({
-                                    material_code: code,
-                                    material_name: mat.material_name,
-                                    unit: mat.unit || 'NOS',
-                                    zonal_stock: 0,
-                                    suggested_qty: 0
+                                    unit: unit,
+                                    zonal_stock: zonalStock,
+                                    virtual_stock: virtualStock,
+                                    monthly_avg: monthlyAvg,
+                                    suggested_qty: Utils.calculateSuggestedQty(virtualStock, monthlyAvg),
+                                    is_critical: true,
+                                    stock: stock,
+                                    in_transit: inTransit
                                 });
                                 addedCount++;
                             }
                         }
                     }
 
+                    state.avgDataCache[activePlantCode] = avgData;
                     this.updateMaterialsTable();
                     this.updateSuggestedTable();
-                    UiService.showToast(`✅ Added ${addedCount} critical materials for selected divisions`);
+                    UiService.showToast(`✅ Added ${addedCount} critical materials for ${activeDivision}`);
 
                 } catch (error) {
                     console.error('Error auto-suggesting:', error);
@@ -1084,10 +1063,13 @@
             },
 
             // ------------------------------------------------------------
-            // SUGGESTED TABLE - Show materials for selected division(s)
+            // SUGGESTED TABLE - Shows same data as Materials Table
             // ------------------------------------------------------------
-            async updateSuggestedTable() {
-                if (state.selectedDivisions.length === 0 || state.materialRows.length === 0) {
+            updateSuggestedTable() {
+                const activeDivision = state.selectedDivisions[0] || '';
+                const materials = state.divisionMaterials[activeDivision] || [];
+
+                if (state.selectedDivisions.length === 0 || materials.length === 0) {
                     if (dom.suggestedContainer) dom.suggestedContainer.style.display = 'none';
                     return;
                 }
@@ -1096,92 +1078,44 @@
                 const tbody = dom.suggestedBody;
 
                 state.suggestedData = [];
-                let rowIndex = 0;
 
-                const stockData = await ApiService.getCurrentStock();
-
-                // Get materials for the FIRST selected division (the one currently active)
-                const activeDivision = state.selectedDivisions[0] || '';
-                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
-
-                // Get materials for active division
-                const divisionMaterials = state.divisionMaterials[activeDivision] || [];
-                
-                if (divisionMaterials.length === 0) {
-                    tbody.innerHTML = `
-                        <tr><td colspan="11" class="text-center">No materials added for ${activeDivision || 'selected division'}</td></tr>
-                    `;
-                    return;
-                }
-
-                const plants = [activePlantCode].filter(Boolean);
-                const avgData = plants.length > 0 ? await ApiService.getMonthlyAvg(plants) : {};
-                const transitData = plants.length > 0 ? await ApiService.getTransit(plants.join(',')) : [];
-                
-                const transitMap = {};
-                if (transitData) {
-                    transitData.forEach(item => {
-                        const key = item.material_code;
-                        transitMap[key] = (transitMap[key] || 0) + (parseFloat(item.balance_qty) || 0);
-                    });
-                }
-
-                for (const material of divisionMaterials) {
-                    rowIndex++;
-
-                    let virtualStock = 0;
-                    let monthlyAvg = 0;
-                    let isCritical = false;
-                    let zonalStock = material.zonal_stock || 0;
-
-                    if (activePlantCode) {
-                        const stock = stockData
-                            .filter(item => String(item.plant) === activePlantCode && String(item.material_code) === String(material.material_code))
-                            .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
-
-                        const inTransit = transitMap[material.material_code] || 0;
-                        virtualStock = stock + inTransit;
-                        monthlyAvg = avgData[material.material_code]?.[activePlantCode]?.monthly_avg || 0;
-                        isCritical = virtualStock <= monthlyAvg && monthlyAvg > 0;
-                    }
-
+                tbody.innerHTML = materials.map((m, idx) => {
+                    const isCritical = m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0);
+                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(m.virtual_stock, m.monthly_avg) : 0);
+                    
                     const isInFinal = state.finalData.some(f =>
-                        f.material_code === material.material_code &&
+                        f.material_code === m.material_code &&
                         f.division === activeDivision
                     );
 
                     let existingAllotted = '';
                     if (isInFinal) {
                         const existing = state.finalData.find(f =>
-                            f.material_code === material.material_code &&
+                            f.material_code === m.material_code &&
                             f.division === activeDivision
                         );
                         if (existing) existingAllotted = existing.allotted_qty;
                     }
 
-                    const displayName = material.material_name || Utils.getMaterialName(material.material_code);
+                    const isChecked = isInFinal ? 'checked' : '';
+                    const isDisabled = isInFinal ? 'disabled' : '';
+                    const showAllotted = isChecked ? '' : 'style="display:none;"';
+                    const displayName = m.material_name || m.material_code;
 
                     state.suggestedData.push({
-                        sno: rowIndex,
+                        sno: idx + 1,
                         division: activeDivision,
-                        material_code: material.material_code,
+                        material_code: m.material_code,
                         material_name: displayName,
-                        unit: material.unit || 'NOS',
-                        virtual_stock: Math.round(virtualStock),
-                        monthly_avg: Math.round(monthlyAvg),
-                        zonal_stock: zonalStock,
-                        suggested_qty: isCritical ? Utils.calculateSuggestedQty(virtualStock, monthlyAvg) : 0,
+                        unit: m.unit || 'NOS',
+                        virtual_stock: Math.round(m.virtual_stock || 0),
+                        monthly_avg: Math.round(m.monthly_avg || 0),
+                        zonal_stock: Math.round(m.zonal_stock || 0),
+                        suggested_qty: Math.round(suggestedQty || 0),
                         status: isCritical ? 'Critical' : 'Normal',
                         in_final: isInFinal,
                         allotted_qty: existingAllotted
                     });
-                }
-
-                tbody.innerHTML = state.suggestedData.map((row, idx) => {
-                    const isChecked = row.in_final ? 'checked' : '';
-                    const isDisabled = row.in_final ? 'disabled' : '';
-                    const showAllotted = isChecked ? '' : 'style="display:none;"';
-                    const displayName = row.material_name || row.material_code;
 
                     return `
                         <tr>
@@ -1190,18 +1124,18 @@
                                        data-idx="${idx}" ${isChecked} ${isDisabled}
                                        onchange="AllotmentManager.onSuggestedSelect(${idx}, this.checked)">
                             </td>
-                            <td style="text-align: center;">${row.sno}</td>
-                            <td><code>${row.material_code}</code></td>
+                            <td style="text-align: center;">${idx + 1}</td>
+                            <td><code>${m.material_code}</code></td>
                             <td title="${displayName}">${displayName.substring(0, 35)}${displayName.length > 35 ? '...' : ''}</td>
-                            <td>${row.unit}</td>
-                            <td class="${row.virtual_stock <= row.monthly_avg ? 'stock-critical' : 'stock-available'}">${row.virtual_stock}</td>
-                            <td>${row.monthly_avg}</td>
-                            <td><strong>${row.zonal_stock}</strong></td>
-                            <td><strong>${row.suggested_qty}</strong></td>
-                            <td><strong>${row.division}</strong></td>
+                            <td>${m.unit || 'NOS'}</td>
+                            <td class="${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(m.virtual_stock || 0).toLocaleString()}</td>
+                            <td>${Math.round(m.monthly_avg || 0).toLocaleString()}</td>
+                            <td><strong>${Math.round(m.zonal_stock || 0).toLocaleString()}</strong></td>
+                            <td><strong>${Math.round(suggestedQty || 0).toLocaleString()}</strong></td>
+                            <td><strong>${activeDivision}</strong></td>
                             <td ${showAllotted}>
                                 <input type="number" class="form-control form-control-sm allotted-input" 
-                                       value="${row.allotted_qty || ''}" min="0" 
+                                       value="${existingAllotted || ''}" min="0" 
                                        data-idx="${idx}" 
                                        placeholder="Enter Qty"
                                        ${isDisabled ? 'disabled' : ''}
@@ -2062,13 +1996,13 @@
                     return;
                 }
 
-                // Select divisions in UI
+                // Select the first division from the allotment
+                const activeDivision = divisions[0];
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.checked = divisions.includes(cb.value);
                 });
                 this.onDivisionSelect();
 
-                // Load final data
                 state.finalData = allotment.allotments || [];
                 state.stoCache = allotment.sto_numbers || {};
 
@@ -2078,21 +2012,24 @@
                 }
 
                 // Rebuild division materials from final data
-                state.divisionMaterials = {};
+                if (!state.divisionMaterials[activeDivision]) {
+                    state.divisionMaterials[activeDivision] = [];
+                }
                 for (const item of state.finalData) {
-                    const division = item.division;
-                    if (!state.divisionMaterials[division]) {
-                        state.divisionMaterials[division] = [];
-                    }
-                    const exists = state.divisionMaterials[division].some(m => m.material_code === item.material_code);
-                    if (!exists) {
-                        state.divisionMaterials[division].push({
-                            material_code: item.material_code,
-                            material_name: item.material_name || Utils.getMaterialName(item.material_code),
-                            unit: item.unit || 'NOS',
-                            zonal_stock: item.zonal_stock || 0,
-                            suggested_qty: item.suggested_qty || 0
-                        });
+                    if (item.division === activeDivision) {
+                        const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === item.material_code);
+                        if (!exists) {
+                            state.divisionMaterials[activeDivision].push({
+                                material_code: item.material_code,
+                                material_name: item.material_name || Utils.getMaterialName(item.material_code),
+                                unit: item.unit || 'NOS',
+                                zonal_stock: item.zonal_stock || 0,
+                                virtual_stock: item.virtual_stock || 0,
+                                monthly_avg: item.monthly_avg || 0,
+                                suggested_qty: item.suggested_qty || 0,
+                                is_critical: item.status === 'Critical'
+                            });
+                        }
                     }
                 }
 
@@ -2423,7 +2360,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE
+     HTML STRUCTURE - Same as before (keeping all UI elements)
      ================================================================ -->
 
 <!-- Back Navigation -->
