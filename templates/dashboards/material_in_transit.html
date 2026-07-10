@@ -38,9 +38,7 @@
             <span>Refresh</span>
         </button>
         
-        <!-- ============================================================
-             SHOW/HIDE COLUMNS BUTTON - EXTREME RIGHT CORNER
-             ============================================================ -->
+        <!-- Column Toggle -->
         <div class="column-toggle-wrapper" style="position: relative; display: inline-block;">
             <button onclick="toggleColumnMenu()" style="
                 display: inline-flex;
@@ -61,39 +59,14 @@
                 <i class="bi bi-chevron-down" id="columnToggleIcon" style="font-size: 0.7rem;"></i>
             </button>
             
-            <!-- Dropdown Menu -->
-            <div id="columnMenu" style="
-                display: none;
-                position: absolute;
-                right: 0;
-                top: calc(100% + 10px);
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                padding: 15px 20px;
-                min-width: 200px;
-                z-index: 1000;
-                border: 1px solid #eef2f6;
-                max-height: 400px;
-                overflow-y: auto;
-            ">
+            <div id="columnMenu" style="display: none; position: absolute; right: 0; top: calc(100% + 10px); background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); padding: 15px 20px; min-width: 200px; z-index: 1000; border: 1px solid #eef2f6; max-height: 400px; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #f0f2f5;">
                     <span style="font-weight: 700; font-size: 0.85rem; color: #1e2b3a;">
                         <i class="bi bi-eye" style="color: #667eea;"></i> Show/Hide Columns
                     </span>
-                    <button onclick="resetColumnVisibility()" style="
-                        background: none;
-                        border: none;
-                        color: #667eea;
-                        font-size: 0.7rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        text-decoration: underline;
-                    ">Reset</button>
+                    <button onclick="resetColumnVisibility()" style="background: none; border: none; color: #667eea; font-size: 0.7rem; font-weight: 600; cursor: pointer; text-decoration: underline;">Reset</button>
                 </div>
-                
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <!-- Column visibility checkboxes -->
                     <label class="column-toggle-item" style="display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;" onmouseover="this.style.background='#f8fafd'" onmouseout="this.style.background='transparent'">
                         <input type="checkbox" class="col-toggle" data-col="sno" checked onchange="updateColumnVisibility()">
                         <span>#</span>
@@ -155,10 +128,9 @@
                         <span>Status</span>
                     </label>
                 </div>
-                
                 <div style="margin-top: 12px; padding-top: 10px; border-top: 2px solid #f0f2f5; display: flex; gap: 8px;">
-                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Show All</button>
-                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#dee2e6'" onmouseout="this.style.background='#e9ecef'">Hide All</button>
+                    <button onclick="showAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600;">Show All</button>
+                    <button onclick="hideAllColumns()" style="flex:1; padding: 6px 12px; background: #e9ecef; border: none; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: 600;">Hide All</button>
                 </div>
             </div>
         </div>
@@ -332,7 +304,7 @@
             </tbody>
         </table>
     </div>
-    <div class="pagination-container" id="pagination" style="display: none; margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+    <div class="pagination-container" id="pagination" style="display: none; margin-top: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
         <!-- Pagination will be added here -->
     </div>
 </div>
@@ -347,10 +319,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
+    // ================================================================
+    // STATE
+    // ================================================================
     let transitData = [];
     let filteredData = [];
     let currentPage = 1;
     const itemsPerPage = 25;
+    
+    // All plants list
+    const ALL_PLANTS = ['3400', '3412', '3413', '3414', '3415', '3422', '3427', '3444', '3445', '3446', '3453', '3471', '3600'];
+    
+    // Plant to Division Mapping
+    const plantToDivisionMap = {
+        '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division', '3413': 'Kurseong Division',
+        '3414': 'Darjeeling Division', '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
+        '3427': 'Mal Division', '3444': 'Coochbehar Division', '3445': 'Mathabhanga Division',
+        '3446': 'Dinhata Division', '3453': 'Alipurduar Division', '3471': 'Kalimpong Division',
+        '3600': 'Central Store'
+    };
     
     // ================================================================
     // COLUMN VISIBILITY CONTROL
@@ -367,7 +354,6 @@
         }
     }
     
-    // Close column menu when clicking outside
     document.addEventListener('click', function(event) {
         const wrapper = document.querySelector('.column-toggle-wrapper');
         if (wrapper && !wrapper.contains(event.target)) {
@@ -399,7 +385,6 @@
             });
         });
         
-        // Save preference to localStorage
         const prefs = {};
         checkboxes.forEach(cb => {
             prefs[cb.dataset.col] = cb.checked;
@@ -420,49 +405,30 @@
                     }
                 });
                 updateColumnVisibility();
-            } catch(e) {
-                // Use defaults
-            }
+            } catch(e) {}
         }
     }
     
     function resetColumnVisibility() {
         const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => {
-            cb.checked = true;
-        });
+        checkboxes.forEach(cb => { cb.checked = true; });
         updateColumnVisibility();
         localStorage.removeItem('transit_column_prefs');
     }
     
     function showAllColumns() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => { cb.checked = true; });
+        document.querySelectorAll('.col-toggle').forEach(cb => { cb.checked = true; });
         updateColumnVisibility();
     }
     
     function hideAllColumns() {
-        const checkboxes = document.querySelectorAll('.col-toggle');
-        checkboxes.forEach(cb => { cb.checked = false; });
+        document.querySelectorAll('.col-toggle').forEach(cb => { cb.checked = false; });
         updateColumnVisibility();
     }
     
     // ================================================================
-    // END COLUMN VISIBILITY CONTROL
+    // UI HELPERS
     // ================================================================
-    
-    // All plants list
-    const ALL_PLANTS = ['3400', '3412', '3413', '3414', '3415', '3422', '3427', '3444', '3445', '3446', '3453', '3471', '3600'];
-    
-    // Plant to Division Mapping
-    const plantToDivisionMap = {
-        '3400': 'Siliguri Zonal Store', '3412': 'Siliguri Town Division', '3413': 'Kurseong Division',
-        '3414': 'Darjeeling Division', '3415': 'Sub-Urban Division', '3422': 'Jalpaiguri Division',
-        '3427': 'Mal Division', '3444': 'Coochbehar Division', '3445': 'Mathabhanga Division',
-        '3446': 'Dinhata Division', '3453': 'Alipurduar Division', '3471': 'Kalimpong Division',
-        '3600': 'Central Store'
-    };
-    
     function showLoading() { document.getElementById('loading').style.display = 'flex'; }
     function hideLoading() { document.getElementById('loading').style.display = 'none'; }
     
@@ -523,7 +489,7 @@
     }
     
     function getDelayDisplay(delayValue) {
-        if (!delayValue && delayValue !== 0) {
+        if (delayValue === undefined || delayValue === null || delayValue === '') {
             return '<span class="badge bg-success">0</span>';
         }
         const delayNum = parseFloat(delayValue);
@@ -540,7 +506,7 @@
     }
     
     function getDelayClass(delayValue) {
-        if (!delayValue && delayValue !== 0) return 'normal-text';
+        if (delayValue === undefined || delayValue === null || delayValue === '') return 'normal-text';
         const delayNum = parseFloat(delayValue);
         if (isNaN(delayNum)) return 'normal-text';
         if (delayNum === 0) return 'normal-text';
@@ -549,7 +515,7 @@
     }
     
     // ================================================================
-    // DYNAMIC FILTER: Document Type Change Handler
+    // FILTER FUNCTIONS
     // ================================================================
     function onDocTypeChange() {
         const docType = document.getElementById('docTypeFilter').value;
@@ -699,6 +665,9 @@
         await loadTransitData();
     }
     
+    // ================================================================
+    // MAIN LOAD FUNCTION
+    // ================================================================
     async function loadTransitData() {
         showLoading();
         
@@ -729,11 +698,37 @@
                 });
             }
             
+            // Calculate days in transit and ensure delay value is properly parsed
             transitData = transitData.map(item => {
                 const daysInTransit = calculateDaysInTransit(item.document_date);
-                return { ...item, days_in_transit: daysInTransit };
+                let delayValue = item.delay_in_delivery;
+                
+                // If delay_in_delivery is not present, calculate from days in transit
+                if (delayValue === undefined || delayValue === null || delayValue === '') {
+                    if (daysInTransit !== null && daysInTransit > 0) {
+                        delayValue = daysInTransit;
+                    } else {
+                        delayValue = 0;
+                    }
+                } else {
+                    const delayNum = parseFloat(delayValue);
+                    if (isNaN(delayNum)) {
+                        delayValue = daysInTransit || 0;
+                    } else {
+                        delayValue = delayNum;
+                    }
+                }
+                
+                return { 
+                    ...item, 
+                    days_in_transit: daysInTransit,
+                    delay_in_delivery: delayValue
+                };
             });
             
+            // ================================================================
+            // UPDATE KPI CARDS
+            // ================================================================
             const filteredDI = transitData.filter(item => item.document_type === 'DI');
             const filteredSTN = transitData.filter(item => item.document_type === 'STN');
             
@@ -741,9 +736,12 @@
             document.getElementById('diCount').textContent = filteredDI.length;
             document.getElementById('stnCount').textContent = filteredSTN.length;
             
-            const delayedCount = transitData.filter(item => item.days_in_transit > 30).length;
+            const delayedCount = transitData.filter(item => item.delay_in_delivery > 30).length;
             document.getElementById('delayedCount').textContent = delayedCount;
             
+            // ================================================================
+            // APPLY FILTERS AND RENDER
+            // ================================================================
             applyFilters();
             
             let msg = `📊 Loaded ${transitData.length} in-transit shipments. ${delayedCount} shipments delayed (>30 days).`;
@@ -763,6 +761,9 @@
         }
     }
     
+    // ================================================================
+    // APPLY FILTERS - FIXED: Transit Status Filter Working
+    // ================================================================
     function applyFilters() {
         const transitStatus = document.getElementById('transitStatusFilter').value;
         const docType = document.getElementById('docTypeFilter').value;
@@ -773,42 +774,74 @@
         
         filteredData = [...transitData];
         
+        // Document Type Filter
         if (docType !== 'all') {
             filteredData = filteredData.filter(item => item.document_type === docType);
         }
         
+        // From Plant Filter (except for DI)
         if (docType !== 'DI' && fromPlant !== 'all' && fromPlant !== 'Vendor') {
             filteredData = filteredData.filter(item => item.from_plant === fromPlant);
         }
         
+        // To Plant Filter
         if (toPlant !== 'all') {
             filteredData = filteredData.filter(item => item.to_plant === toPlant);
         }
         
+        // Material Group Filter
         if (materialGroup !== 'all') {
             filteredData = filteredData.filter(item => item.material_group === materialGroup);
         }
         
+        // Material Code Filter
         if (materialCode !== 'all') {
             filteredData = filteredData.filter(item => item.material_code === materialCode);
         }
         
+        // ================================================================
+        // TRANSIT STATUS FILTER - FIXED: Uses delay_in_delivery
+        // ================================================================
         if (transitStatus !== 'all') {
             if (transitStatus === '0-7') {
-                filteredData = filteredData.filter(item => item.days_in_transit !== null && item.days_in_transit <= 7);
+                filteredData = filteredData.filter(item => {
+                    const delay = parseFloat(item.delay_in_delivery);
+                    return !isNaN(delay) && delay >= 0 && delay <= 7;
+                });
             } else if (transitStatus === '8-14') {
-                filteredData = filteredData.filter(item => item.days_in_transit !== null && item.days_in_transit >= 8 && item.days_in_transit <= 14);
+                filteredData = filteredData.filter(item => {
+                    const delay = parseFloat(item.delay_in_delivery);
+                    return !isNaN(delay) && delay >= 8 && delay <= 14;
+                });
             } else if (transitStatus === '15-30') {
-                filteredData = filteredData.filter(item => item.days_in_transit !== null && item.days_in_transit >= 15 && item.days_in_transit <= 30);
+                filteredData = filteredData.filter(item => {
+                    const delay = parseFloat(item.delay_in_delivery);
+                    return !isNaN(delay) && delay >= 15 && delay <= 30;
+                });
             } else if (transitStatus === '30+') {
-                filteredData = filteredData.filter(item => item.days_in_transit !== null && item.days_in_transit > 30);
+                filteredData = filteredData.filter(item => {
+                    const delay = parseFloat(item.delay_in_delivery);
+                    return !isNaN(delay) && delay > 30;
+                });
             }
         }
+        
+        // ================================================================
+        // SORT BY DELAY (Low to High) - FIXED
+        // ================================================================
+        filteredData.sort((a, b) => {
+            const delayA = parseFloat(a.delay_in_delivery) || 0;
+            const delayB = parseFloat(b.delay_in_delivery) || 0;
+            return delayA - delayB;
+        });
         
         currentPage = 1;
         renderTable();
     }
     
+    // ================================================================
+    // RENDER TABLE
+    // ================================================================
     function renderTable() {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -821,26 +854,9 @@
                 const pendingPercent = item.pending_percentage || 0;
                 const statusBadge = getStatusBadge(item.status, balanceQty, pendingPercent);
                 
-                let delayValue = item.delay_in_delivery;
-                let delayDisplay = '0';
-                let delayClass = 'normal-text';
-                
-                if (delayValue !== undefined && delayValue !== null && delayValue !== '') {
-                    const delayNum = parseFloat(delayValue);
-                    if (!isNaN(delayNum)) {
-                        delayDisplay = delayNum.toString();
-                        if (delayNum === 0) {
-                            delayClass = 'normal-text';
-                        } else if (delayNum > 0 && delayNum <= 30) {
-                            delayClass = 'warning-text';
-                        } else {
-                            delayClass = 'delayed-text';
-                        }
-                    } else {
-                        delayDisplay = delayValue.toString();
-                        delayClass = 'normal-text';
-                    }
-                }
+                const delayValue = item.delay_in_delivery;
+                const delayDisplay = getDelayDisplay(delayValue);
+                const delayClass = getDelayClass(delayValue);
                 
                 const rowNum = startIndex + idx + 1;
                 const orderQty = item.order_quantity || item.di_issue_qty || 0;
@@ -875,6 +891,9 @@
         renderPagination();
     }
     
+    // ================================================================
+    // PAGINATION
+    // ================================================================
     function renderPagination() {
         const totalPages = Math.ceil(filteredData.length / itemsPerPage);
         const paginationContainer = document.getElementById('pagination');
@@ -917,9 +936,13 @@
         if (page < 1 || page > totalPages) return;
         currentPage = page;
         renderTable();
-        document.querySelector('.table-responsive').scrollTop = 0;
+        const tableResponsive = document.querySelector('.table-responsive');
+        if (tableResponsive) tableResponsive.scrollTop = 0;
     }
     
+    // ================================================================
+    // EXPORT FUNCTIONS
+    // ================================================================
     function refreshData() {
         loadTransitData();
     }
@@ -952,17 +975,7 @@
             const fromDisplay = item.document_type === 'DI' ? 'Vendor' : (item.from_division || item.from_plant);
             const balanceQty = item.balance_qty || item.quantity || 0;
             const pendingPercent = item.pending_percentage || 0;
-            
-            let delayValue = item.delay_in_delivery;
-            let delayDisplay = '0';
-            if (delayValue !== undefined && delayValue !== null && delayValue !== '') {
-                const delayNum = parseFloat(delayValue);
-                if (!isNaN(delayNum)) {
-                    delayDisplay = delayNum.toString();
-                } else {
-                    delayDisplay = delayValue.toString();
-                }
-            }
+            const delayValue = parseFloat(item.delay_in_delivery) || 0;
             
             let statusText = 'In Transit';
             if (balanceQty <= 0) {
@@ -987,7 +1000,7 @@
                 parseFloat(balanceQty).toLocaleString(),
                 item.unit || 'Units',
                 pendingPercent > 0 ? pendingPercent.toFixed(1) + '%' : '-',
-                delayDisplay,
+                delayValue,
                 statusText
             ]);
         });
@@ -1019,6 +1032,9 @@
         });
     }
     
+    // ================================================================
+    // INITIALIZE
+    // ================================================================
     document.addEventListener('DOMContentLoaded', () => {
         displayCurrentDate();
         loadColumnPreferences();
@@ -1069,7 +1085,7 @@
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
     
     /* ================================================================
-       TABLE STYLES - AUTO ADJUSTED WIDTHS
+       TABLE STYLES
        ================================================================ */
     .data-table { 
         width: 100%; 
@@ -1109,7 +1125,7 @@
     }
     
     /* ================================================================
-       AUTO-ADJUST COLUMN WIDTHS (No fixed widths - content based)
+       AUTO-ADJUST COLUMN WIDTHS
        ================================================================ */
     .col-sno { text-align: center; white-space: nowrap; }
     .col-doc-type { text-align: center; white-space: nowrap; }
