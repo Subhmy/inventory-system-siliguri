@@ -1,4 +1,10 @@
-<!-- allotment_tracker.html - Fixed: Both tables show same data -->
+<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v8.0 -->
+<!-- FIXED: Critical Materials show ALL critical items from division -->
+<!-- FIXED: Allotted quantities are EDITABLE in Final Allotment table -->
+<!-- FIXED: Weight auto-updates when quantities are edited -->
+<!-- Virtual Stock = Current Stock + In-Transit -->
+<!-- Critical = Virtual Stock <= Monthly Avg -->
+<!-- Suggested Qty = Monthly Avg - Virtual Stock -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -39,6 +45,19 @@
             STO_PATTERN: /^[0-9]{10}$/,
             ALLOTMENT_NO_PATTERN: /^\d{1,4}$/,
             MATERIAL_CODE_PATTERN: /^\d{9}$/,
+            TRANSPORT_OPTIONS: [
+                { value: 0, label: '-- Select Truck Capacity --' },
+                { value: 3000, label: '3 MT' },
+                { value: 4000, label: '4 MT' },
+                { value: 5000, label: '5 MT' },
+                { value: 6000, label: '6 MT' },
+                { value: 7000, label: '7 MT' },
+                { value: 8000, label: '8 MT' },
+                { value: 9000, label: '9 MT' },
+                { value: 10000, label: '10 MT' },
+                { value: 11000, label: '11 MT' },
+                { value: 12000, label: '12 MT' }
+            ],
             API_ENDPOINTS: {
                 divisions: '/api/divisions/with-regions',
                 materials: '/api/consumption/materials',
@@ -50,7 +69,8 @@
                 savePending: '/api/allotments/bulk/save-pending',
                 saveFinal: '/api/allotments/bulk',
                 reject: '/api/allotments/bulk/reject',
-                finalize: (id) => `/api/allotments/${id}/finalize`
+                finalize: (id) => `/api/allotments/${id}/finalize`,
+                calculateWeight: '/api/weight/calculate'
             }
         };
 
@@ -71,6 +91,7 @@
             allMaterials: [],
             materialNameCache: {},
             materialUnitCache: {},
+            materialWeightCache: {},
             divisionRegionMap: {},
             stoCache: {},
             rowCounter: 0,
@@ -81,7 +102,10 @@
             divisionMaterials: {},
             stockDataCache: null,
             avgDataCache: {},
-            transitMapCache: {}
+            transitMapCache: {},
+            transportCapacity: 0,
+            totalWeight: 0,
+            utilization: 0
         };
 
         // ============================================================
@@ -124,7 +148,15 @@
                 columnMenu: '#columnMenu',
                 columnToggleIcon: '#columnToggleIcon',
                 bulkPasteInput: '#bulkPasteInput',
-                selectedDivisionDisplay: '#selectedDivisionDisplay'
+                selectedDivisionDisplay: '#selectedDivisionDisplay',
+                transportSection: '#transportSection',
+                transportWeight: '#transportWeight',
+                currentWeightDisplay: '#currentWeightDisplay',
+                utilizationDisplay: '#utilizationDisplay',
+                weightProgressBar: '#weightProgressBar',
+                weightStatusMessage: '#weightStatusMessage',
+                suggestionContainer: '#suggestionContainer',
+                suggestionList: '#suggestionList'
             };
 
             for (const [key, selector] of Object.entries(selectors)) {
@@ -206,7 +238,13 @@
 
             calculateSuggestedQty: (virtualStock, monthlyAvg) => {
                 if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
-                    return Math.max(0, Math.ceil((monthlyAvg - virtualStock) + (monthlyAvg * 0.2)));
+                    let suggested = monthlyAvg - virtualStock;
+                    if (suggested < 1) {
+                        suggested = Math.ceil(suggested * 1000) / 1000;
+                    } else {
+                        suggested = Math.ceil(suggested);
+                    }
+                    return Math.max(0, suggested);
                 }
                 return 0;
             },
@@ -217,11 +255,9 @@
 
             getMaterialName: (code) => {
                 if (!code) return '';
-                
                 if (state.materialNameCache[code]) {
                     return state.materialNameCache[code];
                 }
-                
                 if (state.allMaterials && state.allMaterials.length > 0) {
                     const material = state.allMaterials.find(m => String(m.material_code) === String(code));
                     if (material && material.material_name) {
@@ -229,17 +265,14 @@
                         return material.material_name;
                     }
                 }
-                
                 return code;
             },
 
             getMaterialUnit: (code) => {
                 if (!code) return 'NOS';
-                
                 if (state.materialUnitCache[code]) {
                     return state.materialUnitCache[code];
                 }
-                
                 if (state.allMaterials && state.allMaterials.length > 0) {
                     const material = state.allMaterials.find(m => String(m.material_code) === String(code));
                     if (material && material.unit) {
@@ -247,8 +280,28 @@
                         return material.unit;
                     }
                 }
-                
                 return 'NOS';
+            },
+
+            getMaterialWeightKG: (code) => {
+                if (!code) return 0;
+                if (state.materialWeightCache[code] !== undefined) {
+                    return state.materialWeightCache[code];
+                }
+                if (state.allMaterials && state.allMaterials.length > 0) {
+                    const material = state.allMaterials.find(m => String(m.material_code) === String(code));
+                    if (material && material.weight_per_unit_mt) {
+                        const weightKG = parseFloat(material.weight_per_unit_mt) * 1000;
+                        state.materialWeightCache[code] = weightKG;
+                        return weightKG;
+                    }
+                }
+                state.materialWeightCache[code] = 0;
+                return 0;
+            },
+
+            getMaterialWeightMT: (code) => {
+                return Utils.getMaterialWeightKG(code) / 1000;
             },
 
             fetchMaterialName: async (code) => {
@@ -260,6 +313,9 @@
                         if (material && material.material_name) {
                             state.materialNameCache[code] = material.material_name;
                             state.materialUnitCache[code] = material.unit || 'NOS';
+                            if (material.weight_per_unit_mt) {
+                                state.materialWeightCache[code] = parseFloat(material.weight_per_unit_mt) * 1000;
+                            }
                             return material.material_name;
                         }
                     }
@@ -380,6 +436,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
+            },
+
+            async calculateWeight(allotments) {
+                return this.fetchWithRetry(CONFIG.API_ENDPOINTS.calculateWeight, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allotments: allotments })
+                });
             }
         };
 
@@ -462,6 +526,7 @@
                 if (tabName === 'history') AllotmentManager.loadHistory();
                 if (tabName === 'step2' && state.finalData.length > 0) {
                     AllotmentManager.renderFinalTable();
+                    AllotmentManager.updateWeightStatus();
                 }
                 if (tabName === 'step1') {
                     AllotmentManager.updateSuggestedTable();
@@ -551,6 +616,12 @@
                     el.textContent = `${divisions.length} divisions selected`;
                     el.style.color = '#17a2b8';
                 }
+            },
+
+            showTransportSection: (show) => {
+                if (dom.transportSection) {
+                    dom.transportSection.style.display = show ? 'block' : 'none';
+                }
             }
         };
 
@@ -565,9 +636,11 @@
                 UiService.displayCurrentDate();
                 this.loadDivisions();
                 UiService.loadColumnPreferences();
+                this.populateTransportDropdown();
 
+                await this.loadMaterials();
+                
                 try {
-                    await this.loadMaterials();
                     await this.loadDivisionMapping();
                     await this.loadStockData();
                 } catch (error) {
@@ -581,10 +654,25 @@
 
                 this.setupBulkPaste();
                 UiService.updateDivisionDisplay();
+                UiService.showTransportSection(false);
+            },
+
+            populateTransportDropdown() {
+                if (!dom.transportWeight) return;
+                dom.transportWeight.innerHTML = '';
+                CONFIG.TRANSPORT_OPTIONS.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    dom.transportWeight.appendChild(option);
+                });
+                dom.transportWeight.addEventListener('change', () => {
+                    this.updateWeightStatus();
+                });
             },
 
             // ------------------------------------------------------------
-            // LOAD STOCK DATA - Cached for performance
+            // LOAD STOCK DATA
             // ------------------------------------------------------------
             async loadStockData() {
                 try {
@@ -615,23 +703,29 @@
             // ------------------------------------------------------------
             // GET STOCK FOR MATERIAL
             // ------------------------------------------------------------
-            getStockForMaterial(materialCode, plantCode) {
+            getStockForMaterial: function(materialCode, plantCode) {
                 if (!state.stockDataCache) return 0;
                 return state.stockDataCache
                     .filter(item => String(item.plant) === plantCode && String(item.material_code) === String(materialCode))
                     .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
             },
 
-            getZonalStock(materialCode) {
+            getZonalStock: function(materialCode) {
                 if (!state.stockDataCache) return 0;
                 return state.stockDataCache
                     .filter(item => String(item.plant) === CONFIG.ZONAL_STORE_PLANT && String(item.material_code) === String(materialCode))
                     .reduce((sum, item) => sum + (parseFloat(item.current_stock) || 0), 0);
             },
 
-            getTransitForMaterial(materialCode) {
+            getTransitForMaterial: function(materialCode) {
                 if (!state.transitMapCache) return 0;
                 return state.transitMapCache[materialCode] || 0;
+            },
+
+            getVirtualStock: function(materialCode, plantCode) {
+                const currentStock = this.getStockForMaterial(materialCode, plantCode);
+                const inTransit = this.getTransitForMaterial(materialCode);
+                return currentStock + inTransit;
             },
 
             // ------------------------------------------------------------
@@ -693,25 +787,25 @@
                     if (!exists) {
                         const materialName = Utils.getMaterialName(code);
                         const unit = Utils.getMaterialUnit(code);
+                        const weightKG = Utils.getMaterialWeightKG(code);
                         
-                        // Calculate stock data immediately
                         const stock = this.getStockForMaterial(code, activePlantCode);
                         const inTransit = this.getTransitForMaterial(code);
                         const virtualStock = stock + inTransit;
                         const zonalStock = this.getZonalStock(code);
                         
-                        // Get monthly average (will be updated async)
                         state.divisionMaterials[activeDivision].push({
                             material_code: code,
-                            material_name: materialName,
-                            unit: unit,
+                            material_name: materialName || code,
+                            unit: unit || 'NOS',
+                            weight_per_unit_kg: weightKG || 0,
                             zonal_stock: zonalStock,
+                            stock: stock,
+                            in_transit: inTransit,
                             virtual_stock: virtualStock,
                             monthly_avg: 0,
                             suggested_qty: 0,
-                            is_critical: false,
-                            stock: stock,
-                            in_transit: inTransit
+                            is_critical: false
                         });
                         addedCount++;
                     }
@@ -721,10 +815,8 @@
 
                 if (addedCount > 0) {
                     UiService.showToast(`✅ Added ${addedCount} material codes for ${activeDivision}`);
-                    // Update both tables
                     this.updateMaterialsTable();
                     this.updateSuggestedTable();
-                    // Fetch monthly averages and update
                     this.fetchAndUpdateAverages(activePlantCode);
                 } else {
                     UiService.showToast('ℹ️ No new material codes to add (all already exist).');
@@ -739,20 +831,22 @@
                     const avgData = await ApiService.getMonthlyAvg([plantCode]);
                     state.avgDataCache[plantCode] = avgData;
                     
-                    // Update all materials with averages
                     const activeDivision = state.selectedDivisions[0];
                     if (activeDivision && state.divisionMaterials[activeDivision]) {
                         const materials = state.divisionMaterials[activeDivision];
                         for (const material of materials) {
                             const monthlyAvg = avgData[material.material_code]?.[plantCode]?.monthly_avg || 0;
                             material.monthly_avg = monthlyAvg;
-                            const isCritical = material.virtual_stock <= monthlyAvg && monthlyAvg > 0;
+                            
+                            const virtualStock = material.stock + (material.in_transit || 0);
+                            material.virtual_stock = virtualStock;
+                            
+                            const isCritical = virtualStock <= monthlyAvg && monthlyAvg > 0;
                             material.is_critical = isCritical;
-                            material.suggested_qty = isCritical ? Utils.calculateSuggestedQty(material.virtual_stock, monthlyAvg) : 0;
+                            material.suggested_qty = isCritical ? Utils.calculateSuggestedQty(virtualStock, monthlyAvg) : 0;
                         }
                     }
                     
-                    // Refresh both tables
                     this.updateMaterialsTable();
                     this.updateSuggestedTable();
                     
@@ -762,7 +856,7 @@
             },
 
             // ------------------------------------------------------------
-            // UPDATE MATERIALS TABLE - Shows data for active division
+            // UPDATE MATERIALS TABLE
             // ------------------------------------------------------------
             updateMaterialsTable() {
                 const tbody = dom.materialBody;
@@ -793,8 +887,10 @@
                 state.rowCounter = materials.length;
 
                 tbody.innerHTML = materials.map((m, index) => {
-                    const isCritical = m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0);
-                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(m.virtual_stock, m.monthly_avg) : 0);
+                    const virtualStock = m.virtual_stock || (m.stock + (m.in_transit || 0));
+                    const isCritical = m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
+                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(virtualStock, m.monthly_avg) : 0);
+                    const displayName = m.material_name || m.material_code || 'Unknown';
                     
                     return `
                         <tr>
@@ -805,14 +901,14 @@
                             </td>
                             <td>
                                 <input type="text" class="form-control form-control-sm mat-name-input" 
-                                       value="${m.material_name}" readonly>
+                                       value="${displayName}" readonly>
                             </td>
                             <td>
                                 <input type="text" class="form-control form-control-sm mat-unit-input" 
                                        value="${m.unit || 'NOS'}" readonly>
                             </td>
                             <td class="stock-cell" id="mat-virtual-${index}">
-                                <span class="stock-badge ${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(m.virtual_stock || 0).toLocaleString()}</span>
+                                <span class="stock-badge ${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(virtualStock || 0).toLocaleString()}</span>
                             </td>
                             <td class="stock-cell" id="mat-avg-${index}">
                                 <span class="stock-badge">${Math.round(m.monthly_avg || 0).toLocaleString()}</span>
@@ -836,8 +932,10 @@
                     dom.totalMaterials.textContent = materials.length;
                 }
                 
-                // Update critical items count
-                const criticalCount = materials.filter(m => m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0)).length;
+                const criticalCount = materials.filter(m => {
+                    const virtualStock = m.virtual_stock || (m.stock + (m.in_transit || 0));
+                    return m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
+                }).length;
                 if (dom.criticalItems) dom.criticalItems.textContent = criticalCount;
             },
 
@@ -859,11 +957,12 @@
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
+                this.updateWeightStatus();
                 UiService.updateFinalBadge();
             },
 
             // ------------------------------------------------------------
-            // ADD MATERIAL ROW (Manual entry)
+            // ADD MATERIAL ROW
             // ------------------------------------------------------------
             addMaterialRow() {
                 if (state.selectedDivisions.length === 0) {
@@ -887,8 +986,9 @@
 
                 const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === code);
                 if (!exists) {
-                    const materialName = Utils.getMaterialName(code);
-                    const unit = Utils.getMaterialUnit(code);
+                    const materialName = Utils.getMaterialName(code) || code;
+                    const unit = Utils.getMaterialUnit(code) || 'NOS';
+                    const weightKG = Utils.getMaterialWeightKG(code) || 0;
                     const stock = this.getStockForMaterial(code, activePlantCode);
                     const inTransit = this.getTransitForMaterial(code);
                     const virtualStock = stock + inTransit;
@@ -898,13 +998,14 @@
                         material_code: code,
                         material_name: materialName,
                         unit: unit,
+                        weight_per_unit_kg: weightKG,
                         zonal_stock: zonalStock,
+                        stock: stock,
+                        in_transit: inTransit,
                         virtual_stock: virtualStock,
                         monthly_avg: 0,
                         suggested_qty: 0,
-                        is_critical: false,
-                        stock: stock,
-                        in_transit: inTransit
+                        is_critical: false
                     });
                     
                     this.updateMaterialsTable();
@@ -946,13 +1047,11 @@
                 UiService.updateSelectedCount();
                 UiService.updateDivisionDisplay();
                 
-                // If a division is selected, show its materials
                 if (state.selectedDivisions.length > 0) {
                     const activeDivision = state.selectedDivisions[0];
                     if (!state.divisionMaterials[activeDivision]) {
                         state.divisionMaterials[activeDivision] = [];
                     }
-                    // Fetch averages for this division if not already cached
                     const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
                     if (activePlantCode && !state.avgDataCache[activePlantCode]) {
                         this.fetchAndUpdateAverages(activePlantCode);
@@ -1024,25 +1123,29 @@
                         if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
                             const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === code);
                             if (!exists) {
-                                let materialName = Utils.getMaterialName(code);
+                                let materialName = Utils.getMaterialName(code) || code;
                                 if (materialName === code) {
                                     await Utils.fetchMaterialName(code);
-                                    materialName = Utils.getMaterialName(code);
+                                    materialName = Utils.getMaterialName(code) || code;
                                 }
-                                const unit = Utils.getMaterialUnit(code);
+                                const unit = Utils.getMaterialUnit(code) || 'NOS';
+                                const weightKG = Utils.getMaterialWeightKG(code) || 0;
                                 const zonalStock = this.getZonalStock(code);
+                                
+                                const suggestedQty = Utils.calculateSuggestedQty(virtualStock, monthlyAvg);
                                 
                                 state.divisionMaterials[activeDivision].push({
                                     material_code: code,
                                     material_name: materialName,
                                     unit: unit,
+                                    weight_per_unit_kg: weightKG,
                                     zonal_stock: zonalStock,
+                                    stock: stock,
+                                    in_transit: inTransit,
                                     virtual_stock: virtualStock,
                                     monthly_avg: monthlyAvg,
-                                    suggested_qty: Utils.calculateSuggestedQty(virtualStock, monthlyAvg),
-                                    is_critical: true,
-                                    stock: stock,
-                                    in_transit: inTransit
+                                    suggested_qty: suggestedQty,
+                                    is_critical: true
                                 });
                                 addedCount++;
                             }
@@ -1063,7 +1166,7 @@
             },
 
             // ------------------------------------------------------------
-            // SUGGESTED TABLE - Shows same data as Materials Table
+            // SUGGESTED TABLE
             // ------------------------------------------------------------
             updateSuggestedTable() {
                 const activeDivision = state.selectedDivisions[0] || '';
@@ -1080,8 +1183,9 @@
                 state.suggestedData = [];
 
                 tbody.innerHTML = materials.map((m, idx) => {
-                    const isCritical = m.is_critical || (m.virtual_stock <= m.monthly_avg && m.monthly_avg > 0);
-                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(m.virtual_stock, m.monthly_avg) : 0);
+                    const virtualStock = m.virtual_stock || (m.stock + (m.in_transit || 0));
+                    const isCritical = m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
+                    const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(virtualStock, m.monthly_avg) : 0);
                     
                     const isInFinal = state.finalData.some(f =>
                         f.material_code === m.material_code &&
@@ -1100,7 +1204,7 @@
                     const isChecked = isInFinal ? 'checked' : '';
                     const isDisabled = isInFinal ? 'disabled' : '';
                     const showAllotted = isChecked ? '' : 'style="display:none;"';
-                    const displayName = m.material_name || m.material_code;
+                    const displayName = m.material_name || m.material_code || 'Unknown';
 
                     state.suggestedData.push({
                         sno: idx + 1,
@@ -1108,7 +1212,8 @@
                         material_code: m.material_code,
                         material_name: displayName,
                         unit: m.unit || 'NOS',
-                        virtual_stock: Math.round(m.virtual_stock || 0),
+                        weight_per_unit_kg: m.weight_per_unit_kg || 0,
+                        virtual_stock: Math.round(virtualStock || 0),
                         monthly_avg: Math.round(m.monthly_avg || 0),
                         zonal_stock: Math.round(m.zonal_stock || 0),
                         suggested_qty: Math.round(suggestedQty || 0),
@@ -1128,7 +1233,7 @@
                             <td><code>${m.material_code}</code></td>
                             <td title="${displayName}">${displayName.substring(0, 35)}${displayName.length > 35 ? '...' : ''}</td>
                             <td>${m.unit || 'NOS'}</td>
-                            <td class="${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(m.virtual_stock || 0).toLocaleString()}</td>
+                            <td class="${isCritical ? 'stock-critical' : 'stock-available'}">${Math.round(virtualStock || 0).toLocaleString()}</td>
                             <td>${Math.round(m.monthly_avg || 0).toLocaleString()}</td>
                             <td><strong>${Math.round(m.zonal_stock || 0).toLocaleString()}</strong></td>
                             <td><strong>${Math.round(suggestedQty || 0).toLocaleString()}</strong></td>
@@ -1241,7 +1346,8 @@
                     );
 
                     if (!exists) {
-                        const materialName = row.material_name || Utils.getMaterialName(row.material_code);
+                        const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
+                        const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
                         
                         state.finalData.push({
                             sno: state.finalData.length + 1,
@@ -1249,6 +1355,7 @@
                             material_code: row.material_code,
                             material_name: materialName,
                             unit: row.unit || 'NOS',
+                            weight_per_unit_kg: weightKG,
                             suggested_qty: row.suggested_qty,
                             allotted_qty: allottedQty,
                             sto_no: state.stoCache[row.division] || '',
@@ -1276,16 +1383,18 @@
 
                 this.updateSuggestedTable();
                 this.renderFinalTable();
+                this.updateWeightStatus();
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
                 if (dom.finalContainer) dom.finalContainer.style.display = 'block';
                 UiService.updateFinalBadge();
+                UiService.showTransportSection(true);
 
                 UiService.showToast(`✅ ${addedCount} item(s) added to Final Allotment. Total: ${state.finalData.length} items`);
                 UiService.switchTab('step2');
             },
 
             // ------------------------------------------------------------
-            // FINAL TABLE
+            // FINAL TABLE - WITH EDITABLE QUANTITIES
             // ------------------------------------------------------------
             renderFinalTable() {
                 const tbody = dom.finalBody;
@@ -1294,11 +1403,13 @@
                     if (dom.finalContainer) dom.finalContainer.style.display = 'none';
                     if (dom.finalEmpty) dom.finalEmpty.style.display = 'block';
                     UiService.updateFinalBadge();
+                    UiService.showTransportSection(false);
                     return;
                 }
 
                 if (dom.finalContainer) dom.finalContainer.style.display = 'block';
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
+                UiService.showTransportSection(true);
 
                 state.finalData.forEach((row, idx) => {
                     row.sno = idx + 1;
@@ -1306,7 +1417,7 @@
 
                 tbody.innerHTML = state.finalData.map((row, idx) => {
                     const isFirstForDivision = state.finalData.findIndex(r => r.division === row.division) === idx;
-                    const displayName = row.material_name || Utils.getMaterialName(row.material_code);
+                    const displayName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
 
                     return `
                         <tr>
@@ -1316,7 +1427,14 @@
                             <td>${row.unit || 'NOS'}</td>
                             <td><strong>${row.division}</strong></td>
                             <td>${row.suggested_qty || 0}</td>
-                            <td><strong>${row.allotted_qty}</strong></td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm allotted-input" 
+                                       value="${row.allotted_qty}" min="0" 
+                                       data-row="${idx}"
+                                       style="width: 80px; text-align: center; font-weight: 700;"
+                                       onchange="AllotmentManager.onAllottedChange(${idx}, this.value)"
+                                       oninput="AllotmentManager.onAllottedChange(${idx}, this.value)">
+                            </td>
                             <td>
                                 ${isFirstForDivision ? `
                                     <input type="text" class="form-control form-control-sm sto-input" 
@@ -1334,6 +1452,17 @@
                 }).join('');
 
                 UiService.updateFinalBadge();
+            },
+
+            // ★ NEW: Handle quantity change in Final Allotment table
+            onAllottedChange: function(rowIndex, newValue) {
+                const qty = parseFloat(newValue);
+                if (isNaN(qty) || qty < 0) return;
+                
+                if (state.finalData[rowIndex]) {
+                    state.finalData[rowIndex].allotted_qty = qty;
+                    this.updateWeightStatus();
+                }
             },
 
             validateSTOInput(input) {
@@ -1363,6 +1492,382 @@
                         input.value = state.stoCache[division] || '';
                     }
                 }
+            },
+
+            // ============================================================
+            // ★ TRANSPORT WEIGHT OPTIMIZATION FUNCTIONS
+            // ============================================================
+
+            calculateTotalWeightMT() {
+                let totalWeightKG = 0;
+                
+                if (!state.finalData || state.finalData.length === 0) {
+                    return 0;
+                }
+                
+                for (const item of state.finalData) {
+                    let weightPerUnitKG = parseFloat(item.weight_per_unit_kg);
+                    if (!weightPerUnitKG || weightPerUnitKG === 0) {
+                        weightPerUnitKG = Utils.getMaterialWeightKG(item.material_code);
+                        item.weight_per_unit_kg = weightPerUnitKG;
+                    }
+                    const quantity = parseFloat(item.allotted_qty) || 0;
+                    totalWeightKG += quantity * weightPerUnitKG;
+                }
+                
+                return Math.round((totalWeightKG / 1000) * 100) / 100;
+            },
+
+            updateWeightStatus() {
+                const transportSelect = dom.transportWeight;
+                if (!transportSelect) return;
+                
+                const transportCapacityKG = parseFloat(transportSelect.value) || 0;
+                const totalWeightMT = this.calculateTotalWeightMT();
+                const totalWeightKG = totalWeightMT * 1000;
+                
+                state.transportCapacity = transportCapacityKG;
+                state.totalWeight = totalWeightKG;
+                
+                if (dom.currentWeightDisplay) {
+                    dom.currentWeightDisplay.textContent = totalWeightMT.toFixed(1) + ' MT';
+                }
+                
+                const utilization = transportCapacityKG > 0 ? (totalWeightKG / transportCapacityKG) * 100 : 0;
+                state.utilization = utilization;
+                
+                if (dom.utilizationDisplay) {
+                    dom.utilizationDisplay.textContent = utilization.toFixed(1) + '%';
+                    dom.utilizationDisplay.style.color = utilization >= 85 ? '#28a745' : utilization >= 50 ? '#ffc107' : '#dc3545';
+                }
+                
+                if (dom.weightProgressBar) {
+                    const pct = Math.min(utilization, 100);
+                    dom.weightProgressBar.style.width = pct + '%';
+                    dom.weightProgressBar.style.background = pct >= 85 ? '#28a745' : pct >= 50 ? '#ffc107' : '#dc3545';
+                }
+                
+                const statusMsg = dom.weightStatusMessage;
+                if (statusMsg) {
+                    let message = '';
+                    let bgColor = '#e9ecef';
+                    let textColor = '#6c757d';
+                    
+                    if (transportCapacityKG === 0) {
+                        message = '⚠️ Please select a truck capacity to calculate weight status.';
+                        bgColor = '#fff3cd';
+                        textColor = '#856404';
+                    } else if (utilization >= 85) {
+                        message = `✅ Excellent! Truck is optimally utilized (${utilization.toFixed(1)}%). Ready for dispatch.`;
+                        bgColor = '#d4edda';
+                        textColor = '#155724';
+                    } else if (utilization >= 50) {
+                        const shortfallMT = ((transportCapacityKG - totalWeightKG) / 1000).toFixed(1);
+                        message = `🟡 Partial load (${utilization.toFixed(1)}%). Shortfall: ${shortfallMT} MT. Consider adding more materials.`;
+                        bgColor = '#fff3cd';
+                        textColor = '#856404';
+                        this.showSuggestions(transportCapacityKG, totalWeightKG);
+                    } else {
+                        const shortfallMT = ((transportCapacityKG - totalWeightKG) / 1000).toFixed(1);
+                        message = `🔴 Low utilization (${utilization.toFixed(1)}%). Shortfall: ${shortfallMT} MT. Add more materials to avoid transport delay.`;
+                        bgColor = '#f8d7da';
+                        textColor = '#721c24';
+                        this.showSuggestions(transportCapacityKG, totalWeightKG);
+                    }
+                    
+                    statusMsg.style.background = bgColor;
+                    statusMsg.style.color = textColor;
+                    statusMsg.textContent = message;
+                }
+                
+                const showSection = state.finalData.length > 0;
+                UiService.showTransportSection(showSection);
+                
+                if (dom.suggestionContainer && transportCapacityKG > 0 && totalWeightKG > 0 && utilization < 85) {
+                    dom.suggestionContainer.style.display = 'block';
+                } else if (dom.suggestionContainer) {
+                    dom.suggestionContainer.style.display = 'none';
+                }
+            },
+
+            // ★ FIXED: Shows ALL critical materials from division stock data
+            showSuggestions(transportCapacityKG, currentWeightKG) {
+                const shortfall = transportCapacityKG - currentWeightKG;
+                const suggestionList = dom.suggestionList;
+                
+                if (shortfall <= 0 || !suggestionList) {
+                    if (suggestionList) suggestionList.innerHTML = '';
+                    return;
+                }
+                
+                let suggestionsHTML = '';
+                let totalSuggestions = 0;
+                
+                const activeDivision = state.selectedDivisions[0] || '';
+                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+                
+                // --- SECTION 1: Increase existing allotment quantities ---
+                if (state.finalData.length > 0) {
+                    let hasExistingSuggestions = false;
+                    let existingHTML = '';
+                    let remaining = shortfall;
+                    
+                    for (const item of state.finalData) {
+                        let weightPerUnitKG = parseFloat(item.weight_per_unit_kg);
+                        if (!weightPerUnitKG || weightPerUnitKG === 0) {
+                            weightPerUnitKG = Utils.getMaterialWeightKG(item.material_code);
+                            item.weight_per_unit_kg = weightPerUnitKG;
+                        }
+                        
+                        if (weightPerUnitKG > 0 && remaining > 0) {
+                            const maxAdditional = Math.floor(remaining / weightPerUnitKG);
+                            if (maxAdditional > 0) {
+                                const currentQty = parseFloat(item.allotted_qty) || 0;
+                                const suggestedQty = currentQty + maxAdditional;
+                                const weightAdded = maxAdditional * weightPerUnitKG;
+                                const weightAddedMT = weightAdded / 1000;
+                                remaining -= weightAdded;
+                                
+                                existingHTML += `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eef2f6;">
+                                        <div>
+                                            <strong>${item.material_name || item.material_code}</strong>
+                                            <span style="font-size: 0.8rem; color: #6c757d;">(${item.unit || 'NOS'})</span>
+                                            <br>
+                                            <span style="font-size: 0.65rem; color: #28a745;">
+                                                Current: ${currentQty} → ${suggestedQty}
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 15px;">
+                                            <span style="font-size: 0.75rem; color: #6c757d;">
+                                                +${weightAddedMT.toFixed(2)} MT
+                                            </span>
+                                            <button class="btn-add-item" style="padding: 2px 10px; font-size: 0.7rem; background: linear-gradient(135deg, #28a745, #20c997);" 
+                                                    onclick="AllotmentManager.applySuggestion('${item.material_code}', ${suggestedQty})">
+                                                Apply
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                                hasExistingSuggestions = true;
+                                totalSuggestions++;
+                                
+                                if (remaining <= 0) break;
+                            }
+                        }
+                    }
+                    
+                    if (hasExistingSuggestions) {
+                        suggestionsHTML += `
+                            <div style="padding: 6px 10px; background: #d4edda; border-radius: 4px; margin-bottom: 8px; font-weight: 600; font-size: 0.8rem; color: #155724;">
+                                📦 Increase existing allotment quantities
+                            </div>
+                            ${existingHTML}
+                        `;
+                    }
+                }
+                
+                // --- SECTION 2: Critical Materials from ALL stock data ---
+                const allStockData = state.stockDataCache || [];
+                const divisionStock = allStockData.filter(item => String(item.plant) === activePlantCode);
+                const criticalMaterials = [];
+                let remainingShortfall = shortfall;
+                
+                const avgData = state.avgDataCache[activePlantCode] || {};
+                const divisionMaterials = state.divisionMaterials[activeDivision] || [];
+                
+                // Collect all material codes from both sources
+                const allMaterialCodes = new Set();
+                
+                for (const item of divisionStock) {
+                    const code = item.material_code;
+                    if (code) allMaterialCodes.add(code);
+                }
+                
+                for (const mat of divisionMaterials) {
+                    const code = mat.material_code;
+                    if (code) allMaterialCodes.add(code);
+                }
+                
+                for (const code of allMaterialCodes) {
+                    const stock = this.getStockForMaterial(code, activePlantCode);
+                    const inTransit = this.getTransitForMaterial(code);
+                    const virtualStock = stock + inTransit;
+                    
+                    const monthlyAvg = avgData[code]?.[activePlantCode]?.monthly_avg || 0;
+                    
+                    // ★ Critical = Virtual Stock <= Monthly Avg
+                    if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
+                        const weightKG = Utils.getMaterialWeightKG(code) || 0;
+                        if (weightKG > 0) {
+                            let suggestedQty = monthlyAvg - virtualStock;
+                            if (suggestedQty < 1) {
+                                suggestedQty = Math.ceil(suggestedQty * 1000) / 1000;
+                            } else {
+                                suggestedQty = Math.ceil(suggestedQty);
+                            }
+                            
+                            const existsInFinal = state.finalData.some(f => f.material_code === code);
+                            const materialName = Utils.getMaterialName(code) || code;
+                            const unit = Utils.getMaterialUnit(code) || 'NOS';
+                            
+                            if (suggestedQty > 0 && !existsInFinal) {
+                                criticalMaterials.push({
+                                    material_code: code,
+                                    material_name: materialName,
+                                    unit: unit,
+                                    weight_per_unit_kg: weightKG,
+                                    virtual_stock: virtualStock,
+                                    monthly_avg: monthlyAvg,
+                                    suggested_qty: suggestedQty,
+                                    weight_added: suggestedQty * weightKG
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Sort by weight (lighter first for better filling)
+                criticalMaterials.sort((a, b) => a.weight_per_unit_kg - b.weight_per_unit_kg);
+                
+                if (criticalMaterials.length > 0) {
+                    let criticalHTML = '';
+                    let remaining = remainingShortfall;
+                    let criticalCount = 0;
+                    
+                    for (const mat of criticalMaterials) {
+                        let qtyToAdd = mat.suggested_qty;
+                        let weightToAdd = mat.weight_added;
+                        
+                        if (weightToAdd > remaining) {
+                            const maxQty = Math.floor(remaining / mat.weight_per_unit_kg);
+                            if (maxQty <= 0) continue;
+                            qtyToAdd = maxQty;
+                            weightToAdd = maxQty * mat.weight_per_unit_kg;
+                        }
+                        
+                        remaining -= weightToAdd;
+                        criticalCount++;
+                        
+                        criticalHTML += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eef2f6; background: #fffdf5;">
+                                <div>
+                                    <strong>${mat.material_name}</strong>
+                                    <span style="font-size: 0.8rem; color: #6c757d;">(${mat.unit})</span>
+                                    <br>
+                                    <span style="font-size: 0.65rem; color: #856404;">
+                                        Virtual: ${mat.virtual_stock.toFixed(2)} | Avg: ${mat.monthly_avg.toFixed(2)}
+                                    </span>
+                                    <span style="font-size: 0.65rem; color: #28a745; display: block;">
+                                        Add ${qtyToAdd} units → Editable in table
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <span style="font-size: 0.75rem; color: #6c757d;">
+                                        +${(weightToAdd/1000).toFixed(2)} MT
+                                    </span>
+                                    <button class="btn-add-item" style="padding: 2px 10px; font-size: 0.7rem; background: linear-gradient(135deg, #ffc107, #fd7e14);" 
+                                            onclick="AllotmentManager.applyCriticalSuggestion('${mat.material_code}', ${qtyToAdd})">
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        totalSuggestions++;
+                        
+                        if (remaining <= 0) break;
+                    }
+                    
+                    if (criticalHTML) {
+                        suggestionsHTML += `
+                            <div style="padding: 6px 10px; background: #fff3cd; border-radius: 4px; margin: 8px 0; font-weight: 600; font-size: 0.8rem; color: #856404;">
+                                ⚠️ Critical Materials (Virtual Stock &lt; Monthly Avg)
+                            </div>
+                            ${criticalHTML}
+                        `;
+                    }
+                }
+                
+                if (totalSuggestions === 0) {
+                    suggestionsHTML = `
+                        <div style="text-align: center; padding: 20px; color: #6c757d;">
+                            <i class="bi bi-info-circle"></i> 
+                            No additional materials available to fill the truck.
+                            <br>Try adding new materials or selecting a smaller truck.
+                        </div>
+                    `;
+                }
+                
+                suggestionList.innerHTML = suggestionsHTML;
+            },
+
+            // ★ Apply critical material suggestion - goes to Final Allotment (editable)
+            applyCriticalSuggestion: function(materialCode, suggestedQty) {
+                const activeDivision = state.selectedDivisions[0] || '';
+                
+                // Check if already in final
+                const exists = state.finalData.some(f => f.material_code === materialCode);
+                
+                if (exists) {
+                    // Update existing - add to current quantity
+                    const item = state.finalData.find(f => f.material_code === materialCode);
+                    if (item) {
+                        item.allotted_qty = (parseFloat(item.allotted_qty) || 0) + suggestedQty;
+                        UiService.showToast(`✅ Updated ${item.material_name || materialCode} to ${item.allotted_qty} units`);
+                    }
+                } else {
+                    // Add new - quantity is editable in Final Allotment table
+                    const materialName = Utils.getMaterialName(materialCode) || materialCode;
+                    const unit = Utils.getMaterialUnit(materialCode) || 'NOS';
+                    const weightKG = Utils.getMaterialWeightKG(materialCode) || 0;
+                    
+                    state.finalData.push({
+                        sno: state.finalData.length + 1,
+                        division: activeDivision,
+                        material_code: materialCode,
+                        material_name: materialName,
+                        unit: unit,
+                        weight_per_unit_kg: weightKG,
+                        suggested_qty: suggestedQty,
+                        allotted_qty: suggestedQty,
+                        sto_no: state.stoCache[activeDivision] || '',
+                        virtual_stock: 0,
+                        monthly_avg: 0,
+                        zonal_stock: 0,
+                        status: 'Critical'
+                    });
+                    UiService.showToast(`✅ Added ${suggestedQty} units of ${materialName} (edit in table)`);
+                }
+                
+                // Re-render the Final Allotment table with editable quantities
+                this.renderFinalTable();
+                this.updateWeightStatus();
+            },
+
+            // ★ Apply existing material suggestion (increases quantity)
+            applySuggestion(materialCode, suggestedQty) {
+                const item = state.finalData.find(f => f.material_code === materialCode);
+                if (item) {
+                    item.allotted_qty = suggestedQty;
+                    this.renderFinalTable();
+                    this.updateWeightStatus();
+                    UiService.showToast(`✅ Updated ${item.material_name || materialCode} to ${suggestedQty} units`);
+                }
+            },
+
+            // ★ Apply all suggestions
+            applyAllSuggestions() {
+                const suggestionItems = dom.suggestionList?.querySelectorAll('.btn-add-item') || [];
+                if (suggestionItems.length === 0) {
+                    UiService.showToast('No suggestions to apply.', true);
+                    return;
+                }
+                
+                suggestionItems.forEach(btn => {
+                    btn.click();
+                });
+                
+                UiService.showToast(`✅ Applied all ${suggestionItems.length} suggestions!`);
             },
 
             // ------------------------------------------------------------
@@ -1461,7 +1966,7 @@
                 const materials = {};
                 state.finalData.forEach(row => {
                     if (!materials[row.material_code]) {
-                        const materialName = row.material_name || Utils.getMaterialName(row.material_code);
+                        const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
                         materials[row.material_code] = {
                             code: row.material_code,
                             name: materialName,
@@ -1479,6 +1984,9 @@
 
                 const uniqueRegions = Utils.getUniqueRegions(divisionKeys, state.divisionRegionMap);
                 const regionsList = uniqueRegions.join(', ');
+
+                const totalWeightMT = this.calculateTotalWeightMT();
+                const weightDisplay = totalWeightMT > 0 ? totalWeightMT.toFixed(1) + ' MT' : '0 MT';
 
                 let tableRowsHTML = '';
                 Object.keys(materials).forEach((code, idx) => {
@@ -1516,6 +2024,15 @@
                         </tr>
                     `;
                 }
+
+                const weightSummaryHTML = `
+                    <tr>
+                        <td colspan="4" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Total Transport Weight</td>
+                        <td colspan="${divisionKeys.length + 1}" style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">
+                            ${totalWeightMT > 0 ? totalWeightMT.toFixed(1) + ' MT (Approx)' : '0 MT'}
+                        </td>
+                    </tr>
+                `;
 
                 const copyForwardedHTML = `
                     <p style="font-size: 9px; margin: 2px 0 0 0; font-weight: 700;">Copy forwarded for information:</p>
@@ -1590,6 +2107,7 @@
                                 </thead>
                                 <tbody>
                                     ${tableRowsHTML}
+                                    ${weightSummaryHTML}
                                 </tbody>
                                 <tfoot>
                                     ${stoRowHTML}
@@ -1757,8 +2275,13 @@
                         memoNo = 'SZ/Allotment/E-12/' + String(Math.floor(Math.random() * 9000) + 1000);
                     }
 
+                    const transportWeight = parseInt(dom.transportWeight?.value) || 0;
+                    const totalWeightMT = this.calculateTotalWeightMT();
+                    const totalWeightKG = Math.round(totalWeightMT * 1000);
+                    const utilization = transportWeight > 0 ? Math.round((totalWeightKG / transportWeight) * 100) : 0;
+
                     const materialsWithNames = state.materialRows.map(m => {
-                        const name = m.material_name || Utils.getMaterialName(m.material_code);
+                        const name = m.material_name || Utils.getMaterialName(m.material_code) || m.material_code;
                         return {
                             material_code: m.material_code,
                             material_name: name,
@@ -1767,7 +2290,7 @@
                     });
 
                     const allotmentsWithNames = state.finalData.map(f => {
-                        const name = f.material_name || Utils.getMaterialName(f.material_code);
+                        const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
                         return {
                             ...f,
                             material_name: name
@@ -1783,6 +2306,9 @@
                         allotments: allotmentsWithNames,
                         sto_numbers: state.stoCache,
                         status: status,
+                        transport_weight: transportWeight,
+                        total_weight_kg: totalWeightKG,
+                        utilization_percent: utilization,
                         created_by: state.user.username,
                         created_by_name: state.user.name,
                         user_role: state.user.role,
@@ -1857,8 +2383,13 @@
                     const allotmentNo = dom.allotmentNo.value || Utils.generateAllotmentNo();
                     const memoNo = dom.memoNo.value || `SZ/Allotment/E-12/${Math.floor(Math.random() * 9000 + 1000)}`;
 
+                    const transportWeight = parseInt(dom.transportWeight?.value) || 0;
+                    const totalWeightMT = this.calculateTotalWeightMT();
+                    const totalWeightKG = Math.round(totalWeightMT * 1000);
+                    const utilization = transportWeight > 0 ? Math.round((totalWeightKG / transportWeight) * 100) : 0;
+
                     const materialsWithNames = state.materialRows.map(m => {
-                        const name = m.material_name || Utils.getMaterialName(m.material_code);
+                        const name = m.material_name || Utils.getMaterialName(m.material_code) || m.material_code;
                         return {
                             material_code: m.material_code,
                             material_name: name,
@@ -1867,7 +2398,7 @@
                     });
 
                     const allotmentsWithNames = state.finalData.map(f => {
-                        const name = f.material_name || Utils.getMaterialName(f.material_code);
+                        const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
                         return {
                             ...f,
                             material_name: name
@@ -1884,6 +2415,9 @@
                         sto_numbers: state.stoCache,
                         status: 'Rejected',
                         rejection_reason: reason || 'No reason provided',
+                        transport_weight: transportWeight,
+                        total_weight_kg: totalWeightKG,
+                        utilization_percent: utilization,
                         rejected_by: state.user.username,
                         rejected_by_name: state.user.name,
                         created_by: state.user.username,
@@ -1939,10 +2473,12 @@
                     pendingAllotments.forEach((item, idx) => {
                         const date = item.created_date ? new Date(item.created_date).toLocaleDateString('en-IN') : 'N/A';
                         const divisions = item.divisions?.join(', ') || 'N/A';
+                        const weight = item.total_weight_kg ? `${item.total_weight_kg} kg` : 'N/A';
                         message += `${idx + 1}. ${item.allotment_no}\n`;
                         message += `   Created By: ${item.created_by_name || item.created_by || 'Unknown'}\n`;
                         message += `   Date: ${date}\n`;
-                        message += `   Divisions: ${divisions}\n\n`;
+                        message += `   Divisions: ${divisions}\n`;
+                        message += `   Weight: ${weight}\n\n`;
                     });
 
                     message += '='.repeat(50) + '\n';
@@ -1988,6 +2524,10 @@
                     dom.allotmentDate.value = allotment.allotment_date || new Date().toISOString().split('T')[0];
                 }
 
+                if (allotment.transport_weight && dom.transportWeight) {
+                    dom.transportWeight.value = allotment.transport_weight;
+                }
+
                 state.currentAllotmentId = allotment._id || allotment.id || null;
 
                 const divisions = allotment.divisions || [];
@@ -1996,7 +2536,6 @@
                     return;
                 }
 
-                // Select the first division from the allotment
                 const activeDivision = divisions[0];
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                     cb.checked = divisions.includes(cb.value);
@@ -2011,7 +2550,6 @@
                     return;
                 }
 
-                // Rebuild division materials from final data
                 if (!state.divisionMaterials[activeDivision]) {
                     state.divisionMaterials[activeDivision] = [];
                 }
@@ -2019,11 +2557,15 @@
                     if (item.division === activeDivision) {
                         const exists = state.divisionMaterials[activeDivision].some(m => m.material_code === item.material_code);
                         if (!exists) {
+                            const weightKG = item.weight_per_unit_kg || Utils.getMaterialWeightKG(item.material_code) || 0;
                             state.divisionMaterials[activeDivision].push({
                                 material_code: item.material_code,
-                                material_name: item.material_name || Utils.getMaterialName(item.material_code),
+                                material_name: item.material_name || Utils.getMaterialName(item.material_code) || item.material_code,
                                 unit: item.unit || 'NOS',
+                                weight_per_unit_kg: weightKG,
                                 zonal_stock: item.zonal_stock || 0,
+                                stock: 0,
+                                in_transit: 0,
                                 virtual_stock: item.virtual_stock || 0,
                                 monthly_avg: item.monthly_avg || 0,
                                 suggested_qty: item.suggested_qty || 0,
@@ -2036,9 +2578,11 @@
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
+                this.updateWeightStatus();
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
                 if (dom.finalContainer) dom.finalContainer.style.display = 'block';
                 UiService.updateFinalBadge();
+                UiService.showTransportSection(true);
 
                 UiService.switchTab('step2');
                 UiService.showToast(`✅ Loaded pending allotment: ${allotment.allotment_no}`);
@@ -2053,6 +2597,7 @@
                 if (dom.allotmentDate) {
                     dom.allotmentDate.value = new Date().toISOString().split('T')[0];
                 }
+                if (dom.transportWeight) dom.transportWeight.value = '0';
 
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 state.selectedDivisions = [];
@@ -2096,6 +2641,7 @@
                 if (dom.totalMaterials) dom.totalMaterials.textContent = '0';
                 if (dom.readyForFinal) dom.readyForFinal.textContent = '0';
                 UiService.updateFinalBadge();
+                UiService.showTransportSection(false);
             },
 
             clearAllotment() {
@@ -2122,7 +2668,9 @@
                 state.stoCache = {};
                 this.renderFinalTable();
                 this.updateSuggestedTable();
+                this.updateWeightStatus();
                 UiService.updateFinalBadge();
+                UiService.showTransportSection(false);
                 UiService.showToast('🗑️ Final Allotment cleared');
             },
 
@@ -2136,7 +2684,7 @@
                 } catch (error) {
                     console.error('Error loading history:', error);
                     if (dom.historyBody) {
-                        dom.historyBody.innerHTML = '<tr><td colspan="8" class="text-center">Error loading history</td></tr>';
+                        dom.historyBody.innerHTML = '<tr><td colspan="9" class="text-center">Error loading history</td></tr>';
                     }
                 }
             },
@@ -2146,11 +2694,15 @@
                 if (!tbody) return;
 
                 if (!history || history.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">No history found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No history found</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = history.map((item, idx) => `
+                tbody.innerHTML = history.map((item, idx) => {
+                    const weightDisplay = item.total_weight_kg ? `${item.total_weight_kg} kg` : '-';
+                    const utilizationDisplay = item.utilization_percent ? `${item.utilization_percent}%` : '-';
+                    
+                    return `
                     <tr>
                         <td style="text-align: center;">${idx + 1}</td>
                         <td><code>${item.allotment_no}</code></td>
@@ -2163,6 +2715,10 @@
                             </span>
                         </td>
                         <td>${item.created_by_name || item.created_by || '-'}</td>
+                        <td style="font-size: 0.7rem; color: #6c757d;">
+                            ${weightDisplay}
+                            ${item.utilization_percent ? `<br>${utilizationDisplay}` : ''}
+                        </td>
                         <td>
                             <button class="btn-action view" onclick="AllotmentManager.viewHistoryAllotment('${item.allotment_no}')">
                                 <i class="bi bi-eye"></i> View
@@ -2177,7 +2733,7 @@
                             ` : ''}
                         </td>
                     </tr>
-                `).join('');
+                `}).join('');
             },
 
             viewHistoryAllotment(allotmentNo) {
@@ -2219,17 +2775,20 @@
                 const sheetData = [
                     ['BULK ALLOTMENT REPORT'],
                     ['Generated on:', new Date().toLocaleString()],
+                    ['Total Weight:', `${this.calculateTotalWeightMT().toFixed(1)} MT`],
                     [],
-                    ['#', 'Material Code', 'Material Name', 'UOM', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No']
+                    ['#', 'Material Code', 'Material Name', 'UOM', 'Weight/Unit (KG)', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No']
                 ];
 
                 data.forEach((row) => {
-                    const materialName = row.material_name || Utils.getMaterialName(row.material_code);
+                    const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
+                    const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
                     sheetData.push([
                         row.sno,
                         row.material_code,
                         materialName,
                         row.unit || 'NOS',
+                        weightKG || '',
                         row.virtual_stock || '',
                         row.monthly_avg || '',
                         row.zonal_stock || '',
@@ -2252,14 +2811,35 @@
             },
 
             // ------------------------------------------------------------
-            // DATA LOADING (Legacy compatibility)
+            // DATA LOADING
             // ------------------------------------------------------------
             async loadMaterials() {
                 try {
                     const data = await ApiService.getMaterials();
                     if (data && data.length > 0) {
                         state.allMaterials = data;
+                        console.log('✅ Materials loaded:', data.length, 'items');
+                        
+                        state.materialNameCache = {};
+                        state.materialUnitCache = {};
+                        state.materialWeightCache = {};
+                        for (const m of data) {
+                            if (m.material_code) {
+                                if (m.material_name) {
+                                    state.materialNameCache[m.material_code] = m.material_name;
+                                }
+                                if (m.unit) {
+                                    state.materialUnitCache[m.material_code] = m.unit;
+                                }
+                                if (m.weight_per_unit_mt) {
+                                    state.materialWeightCache[m.material_code] = parseFloat(m.weight_per_unit_mt) * 1000;
+                                }
+                            }
+                        }
+                        console.log('✅ Name cache:', Object.keys(state.materialNameCache).length, 'items');
+                        console.log('✅ Weight cache:', Object.keys(state.materialWeightCache).length, 'items');
                     } else {
+                        console.warn('⚠️ No materials from API, using fallback');
                         state.allMaterials = this.getFallbackMaterials();
                     }
                 } catch (error) {
@@ -2267,21 +2847,7 @@
                     state.allMaterials = this.getFallbackMaterials();
                 }
 
-                state.materialNameCache = {};
-                state.materialUnitCache = {};
-                for (const m of state.allMaterials) {
-                    if (m.material_code) {
-                        if (m.material_name) {
-                            state.materialNameCache[m.material_code] = m.material_name;
-                        }
-                        if (m.unit) {
-                            state.materialUnitCache[m.material_code] = m.unit;
-                        }
-                    }
-                }
-
                 state.isMaterialDataLoaded = true;
-                console.log('✅ Materials loaded:', state.allMaterials.length, 'items');
                 return state.allMaterials;
             },
 
@@ -2360,7 +2926,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE - Same as before (keeping all UI elements)
+     HTML STRUCTURE - SAME AS YOUR SCREENSHOT
      ================================================================ -->
 
 <!-- Back Navigation -->
@@ -2444,7 +3010,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-clipboard-check"></i> Bulk Allotment System</h1>
-        <p>Multi-Division Allotment with Auto-Suggested Quantities</p>
+        <p>Multi-Division Allotment with Auto-Suggested Quantities & Transport Optimization</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -2682,7 +3248,7 @@
 </div>
 
 <!-- ================================================================
-     TAB 2: FINAL ALLOTMENT
+     TAB 2: FINAL ALLOTMENT (WITH TRANSPORT SECTION)
      ================================================================ -->
 <div class="tab-content" id="tab-step2">
     <div class="content-card">
@@ -2722,6 +3288,88 @@
                         <tr><td colspan="8" class="text-center">No data available. Go to Step 1 and add items to final allotment.</td></tr>
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- ★ TRANSPORT WEIGHT OPTIMIZATION SECTION -->
+            <div id="transportSection" style="display: none; background: #f8fafd; border-radius: 12px; padding: 20px; margin-top: 20px; border: 2px solid #667eea;">
+                <div class="section-title" style="margin-bottom: 15px;">
+                    <i class="bi bi-truck" style="color: #28a745; font-size: 1.5rem;"></i>
+                    <h3 style="margin: 0;">🚚 Transport Weight Optimization</h3>
+                    <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
+                        <i class="bi bi-info-circle"></i> Select truck capacity to optimize load
+                    </span>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="bi bi-truck"></i> Available Transport Capacity</label>
+                        <select id="transportWeight" class="form-control" style="font-size: 1.1rem; font-weight: 600;" onchange="AllotmentManager.updateWeightStatus()">
+                            <option value="0">-- Select Truck Capacity --</option>
+                            <option value="3000">3 MT</option>
+                            <option value="4000">4 MT</option>
+                            <option value="5000">5 MT</option>
+                            <option value="6000">6 MT</option>
+                            <option value="7000">7 MT</option>
+                            <option value="8000">8 MT</option>
+                            <option value="9000">9 MT</option>
+                            <option value="10000">10 MT</option>
+                            <option value="11000">11 MT</option>
+                            <option value="12000">12 MT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="bi bi-calculator"></i> Current Total Weight</label>
+                        <div id="currentWeightDisplay" style="font-size: 1.3rem; font-weight: 700; color: #1e2b3a;">
+                            0 MT
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="bi bi-pie-chart"></i> Utilization</label>
+                        <div id="utilizationDisplay" style="font-size: 1.3rem; font-weight: 700; color: #dc3545;">
+                            0%
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #6c757d; margin-bottom: 4px;">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>85%</span>
+                        <span>100%</span>
+                    </div>
+                    <div style="height: 12px; background: #eef2f6; border-radius: 10px; overflow: hidden; position: relative;">
+                        <div id="weightProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #dc3545, #ffc107, #28a745); border-radius: 10px; transition: width 0.5s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.7rem;">
+                        <span style="color: #dc3545;">🔴 Low</span>
+                        <span style="color: #ffc107;">🟡 Partial</span>
+                        <span style="color: #28a745;">🟢 Ready</span>
+                    </div>
+                </div>
+                
+                <!-- Status Message -->
+                <div id="weightStatusMessage" style="margin-top: 15px; padding: 12px 16px; border-radius: 8px; font-weight: 500; background: #e9ecef; color: #6c757d;">
+                    Please select a truck capacity to calculate weight status.
+                </div>
+                
+                <!-- Suggestions -->
+                <div id="suggestionContainer" style="display: none; margin-top: 15px;">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 10px;">
+                        <i class="bi bi-lightbulb" style="color: #ffc107;"></i> 
+                        Suggested Additions to Fill Truck
+                    </h4>
+                    <div id="suggestionList" style="background: white; border-radius: 8px; padding: 10px; border: 1px solid #eef2f6; max-height: 200px; overflow-y: auto;">
+                        <!-- Dynamic suggestions -->
+                    </div>
+                    <div style="margin-top: 10px; text-align: right;">
+                        <button type="button" class="btn-add-item" onclick="AllotmentManager.applyAllSuggestions()" 
+                                style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            <i class="bi bi-check-all"></i> Apply All Suggestions
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div class="form-actions" style="margin-top: 20px;">
@@ -2858,11 +3506,12 @@
                         <th style="width: 80px;">Total Allotted</th>
                         <th style="width: 100px;">Status</th>
                         <th style="width: 80px;">Created By</th>
+                        <th style="width: 100px;">Weight</th>
                         <th style="width: 80px;">Action</th>
                     </tr>
                 </thead>
                 <tbody id="historyBody">
-                    <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                    <tr><td colspan="9" class="text-center">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -2897,12 +3546,9 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- ================================================================
-     CSS STYLES - WITH FROZEN HEADERS
+     CSS STYLES
      ================================================================ -->
 <style>
-    /* ============================================================
-       BASE STYLES
-       ============================================================ */
     .welcome-banner {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         border-radius: 15px;
@@ -3282,9 +3928,7 @@
         font-weight: 600;
     }
 
-    /* ============================================================
-       FROZEN HEADER - Materials Table
-       ============================================================ */
+    /* Frozen Header - Materials Table */
     .requisition-table {
         width: 100%;
         border-collapse: collapse;
@@ -3319,9 +3963,7 @@
         width: 100%;
     }
 
-    /* ============================================================
-       FROZEN HEADER - Suggested Table
-       ============================================================ */
+    /* Frozen Header - Suggested Table */
     .data-table {
         width: 100%;
         border-collapse: collapse;
@@ -3495,7 +4137,20 @@
         color: #721c24;
     }
 
-    /* Responsive */
+    /* Transport section styles */
+    #transportSection {
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    #weightProgressBar {
+        transition: width 0.5s ease;
+    }
+
     @media (max-width: 768px) {
         .tab-buttons {
             flex-direction: column;

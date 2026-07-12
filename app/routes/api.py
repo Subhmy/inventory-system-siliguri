@@ -1,7 +1,7 @@
 """
 API Routes - Enhanced with Caching for Fast Response
 Using consumption_summary collection for consumption data
-Last Updated: June 27, 2026
+Last Updated: July 11, 2026
 - Added In-Memory Caching for 10x faster responses
 - Added Cache Management endpoints
 - Optimized MongoDB queries with indexes
@@ -9,6 +9,10 @@ Last Updated: June 27, 2026
 - Added Division-Region mapping endpoint with proper name mapping
 - Added Pending Allotment endpoints for User→Manager workflow
 - Added Finalize Allotment endpoint for Manager
+- ★ NEW: Added Unit Weight (MT) to materials endpoint for Transport Optimization
+- ★ NEW: Added weight calculation endpoints
+- ★ NEW: Added bulk weight update endpoint
+- ★ FIXED: Proper NaN handling in safe_json_response
 """
 
 from flask import Blueprint, jsonify, session, request
@@ -21,6 +25,7 @@ import re
 import hashlib
 import json
 import uuid
+import math
 
 api_bp = Blueprint('api', __name__)
 
@@ -98,13 +103,34 @@ def get_cache_key(*args, **kwargs):
     return hashlib.md5(key_str.encode()).hexdigest()
 
 # ================================================================
-# HELPER FUNCTIONS
+# ★ FIXED: HELPER FUNCTIONS WITH NaN HANDLING
 # ================================================================
 
+def clean_nan(obj):
+    """Recursively replace NaN, Infinity with None for valid JSON"""
+    if isinstance(obj, dict):
+        return {k: clean_nan(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, str):
+        # Check if string is 'nan' or 'NaN'
+        if obj.lower() == 'nan':
+            return None
+        return obj
+    else:
+        return obj
+
 def safe_json_response(data, status=200):
+    """Convert data to JSON safely, replacing NaN with None"""
     try:
-        return jsonify(data), status
+        cleaned_data = clean_nan(data)
+        return jsonify(cleaned_data), status
     except Exception as e:
+        print(f"Error in safe_json_response: {e}")
         return jsonify({"error": str(e)}), 500
 
 def parse_period(period_str):
@@ -167,7 +193,6 @@ def get_full_division_name(short_name):
     if not short_name:
         return ''
     
-    # If already has "Division" suffix, return as is
     if short_name.endswith('Division'):
         return short_name
     
@@ -190,14 +215,11 @@ def get_full_division_name(short_name):
 def clean_region_name(region_id, region_name=None):
     """Clean region name from region_id or region_name"""
     if region_name and not region_name.startswith('reg_'):
-        # If region_name is already clean, return it
         if region_name.endswith('Region'):
             return region_name
         return region_name + ' Region'
     
-    # Clean from region_id
     if region_id and region_id.startswith('reg_'):
-        # reg_darjeeling -> Darjeeling Region
         name_part = region_id.replace('reg_', '')
         return name_part.capitalize() + ' Region'
     
@@ -210,7 +232,7 @@ def get_fallback_division_region_mapping():
         {'division': 'Kurseong Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
         {'division': 'Darjeeling Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
         {'division': 'Sub-Urban Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
-        {'division': 'Kalimpong Division', 'region': 'Darjeeling Region', 'region_id': 'reg_darjeeling'},
+        {'division': 'Kalimpong Division', 'region': 'Kalimpong Region', 'region_id': 'reg_kalimpong'},
         {'division': 'Jalpaiguri Division', 'region': 'Jalpaiguri Region', 'region_id': 'reg_jalpaiguri'},
         {'division': 'Mal Division', 'region': 'Jalpaiguri Region', 'region_id': 'reg_jalpaiguri'},
         {'division': 'Coochbehar Division', 'region': 'Coochbehar Region', 'region_id': 'reg_coochbehar'},
@@ -235,18 +257,13 @@ def get_divisions_with_regions():
         
         db = get_db()
         if db is None:
-            # Return fallback mapping if DB not connected
             fallback = get_fallback_division_region_mapping()
             _cache.set(cache_key, fallback, ttl=3600)
             return safe_json_response(fallback)
         
-        # Get all divisions from DB
         divisions = list(db.divisions.find({}, {'_id': 0, 'name': 1, 'region_id': 1}))
-        
-        # Get all regions from DB
         regions = list(db.regions.find({}, {'_id': 0, '_id': 1, 'name': 1}))
         
-        # Create region map
         region_map = {}
         for region in regions:
             region_id = region.get('_id')
@@ -254,7 +271,6 @@ def get_divisions_with_regions():
             if region_id:
                 region_map[region_id] = clean_region_name(region_id, region_name)
         
-        # Build division data with region names
         result = []
         for div in divisions:
             div_name = div.get('name')
@@ -263,10 +279,8 @@ def get_divisions_with_regions():
             if not div_name:
                 continue
             
-            # Convert short name to full name for frontend compatibility
             full_div_name = get_full_division_name(div_name)
             
-            # Get region name from map or clean from region_id
             if region_id and region_id in region_map:
                 region_name = region_map[region_id]
             else:
@@ -278,11 +292,9 @@ def get_divisions_with_regions():
                 'region_id': region_id
             })
         
-        # If no data from MongoDB, use fallback
         if not result:
             result = get_fallback_division_region_mapping()
         
-        # Cache for 1 hour
         _cache.set(cache_key, result, ttl=3600)
         print(f"✅ Division-Region mapping loaded: {len(result)} divisions")
         return safe_json_response(result)
@@ -291,7 +303,6 @@ def get_divisions_with_regions():
         print(f"Error in get_divisions_with_regions: {e}")
         import traceback
         traceback.print_exc()
-        # Return fallback mapping on error
         fallback = get_fallback_division_region_mapping()
         return safe_json_response(fallback)
 
@@ -339,32 +350,32 @@ def save_bulk_allotment():
         
         data = request.json or {}
         
-        # Validate required fields
         required_fields = ['allotment_no', 'divisions', 'allotments']
         for field in required_fields:
             if not data.get(field):
                 return safe_json_response({'error': f'Missing required field: {field}'}, 400)
         
-        # Add metadata
         data['created_by'] = user.get('username', 'Unknown')
         data['created_by_name'] = user.get('name', 'Unknown')
         data['user_role'] = user.get('role', 'user')
         data['created_date'] = datetime.now().isoformat()
         data['updated_date'] = datetime.now().isoformat()
         
+        if data.get('transport_weight') and data.get('allotments'):
+            total_weight = calculate_total_allotment_weight(data['allotments'])
+            data['total_weight_kg'] = total_weight
+            data['utilization_percent'] = round((total_weight / data['transport_weight']) * 100, 1) if data['transport_weight'] > 0 else 0
+        
         db = get_db()
         if db is None:
             return safe_json_response({'error': 'Database not connected'}, 500)
         
-        # Check if allotments collection exists
         collections = db.list_collection_names()
         if 'allotments' not in collections:
             db.create_collection('allotments')
         
-        # Insert the allotment
         result = db.allotments.insert_one(data)
         
-        # Clear cache
         _cache.clear('allotments_data')
         _cache.clear('allotment_summary')
         _cache.clear('allotment_history')
@@ -373,6 +384,7 @@ def save_bulk_allotment():
             'success': True, 
             'id': str(result.inserted_id),
             'allotment_no': data.get('allotment_no'),
+            'total_weight': data.get('total_weight_kg', 0),
             'message': f'Allotment {data.get("allotment_no")} saved successfully'
         }, 201)
         
@@ -403,7 +415,6 @@ def get_allotment_history():
             {'_id': 0}
         ).sort('created_date', -1).limit(50))
         
-        # Calculate total allotted for each record
         for item in history:
             total = 0
             if item.get('allotments'):
@@ -411,7 +422,7 @@ def get_allotment_history():
                     total += allot.get('allotted_qty', 0)
             item['total_allotted'] = total
         
-        _cache.set(cache_key, history, ttl=120)  # 2 minutes
+        _cache.set(cache_key, history, ttl=120)
         return safe_json_response(history)
         
     except Exception as e:
@@ -419,7 +430,7 @@ def get_allotment_history():
         return safe_json_response([])
 
 # ================================================================
-# PENDING ALLOTMENT ENDPOINTS (User → Manager Workflow)
+# PENDING ALLOTMENT ENDPOINTS
 # ================================================================
 
 @api_bp.route('/api/allotments/bulk/pending')
@@ -448,14 +459,14 @@ def get_pending_allotments():
             {'status': 'Pending'},
             {'_id': 1, 'allotment_no': 1, 'memo_no': 1, 'allotment_date': 1, 
              'divisions': 1, 'materials': 1, 'allotments': 1, 'sto_numbers': 1,
-             'created_by': 1, 'created_by_name': 1, 'created_date': 1}
+             'created_by': 1, 'created_by_name': 1, 'created_date': 1,
+             'transport_weight': 1, 'total_weight_kg': 1, 'utilization_percent': 1}
         ).sort('created_date', -1))
         
-        # Convert ObjectId to string for frontend
         for item in pending:
             item['_id'] = str(item['_id'])
         
-        _cache.set(cache_key, pending, ttl=60)  # 1 minute cache
+        _cache.set(cache_key, pending, ttl=60)
         return safe_json_response(pending)
         
     except Exception as e:
@@ -489,7 +500,6 @@ def get_pending_allotment(allotment_id):
                 allotment['_id'] = str(allotment['_id'])
                 return safe_json_response(allotment)
         except:
-            # If not ObjectId, try string ID
             allotment = db.allotments.find_one(
                 {'_id': allotment_id, 'status': 'Pending'}
             )
@@ -523,7 +533,6 @@ def finalize_allotment(allotment_id):
         if 'allotments' not in collections:
             return safe_json_response({'error': 'Allotments collection not found'}, 404)
         
-        # Update the allotment
         update_data = {
             'status': 'Completed',
             'finalized_by': user.get('username', 'Unknown'),
@@ -532,7 +541,6 @@ def finalize_allotment(allotment_id):
             'updated_date': datetime.now().isoformat()
         }
         
-        # Merge with provided data
         if data.get('allotments'):
             update_data['allotments'] = data['allotments']
         if data.get('sto_numbers'):
@@ -547,6 +555,12 @@ def finalize_allotment(allotment_id):
             update_data['divisions'] = data['divisions']
         if data.get('materials'):
             update_data['materials'] = data['materials']
+        if data.get('transport_weight'):
+            update_data['transport_weight'] = data['transport_weight']
+        if data.get('total_weight_kg'):
+            update_data['total_weight_kg'] = data['total_weight_kg']
+        if data.get('utilization_percent'):
+            update_data['utilization_percent'] = data['utilization_percent']
         
         try:
             obj_id = ObjectId(allotment_id)
@@ -561,7 +575,6 @@ def finalize_allotment(allotment_id):
             )
         
         if result.modified_count > 0:
-            # Clear caches
             _cache.clear('pending_allotments')
             _cache.clear('allotment_history')
             _cache.clear('allotments_data')
@@ -581,33 +594,33 @@ def save_pending_allotment():
         user = session.get('user', {})
         data = request.json or {}
         
-        # Validate required fields
         required_fields = ['allotment_no', 'divisions', 'allotments']
         for field in required_fields:
             if not data.get(field):
                 return safe_json_response({'error': f'Missing required field: {field}'}, 400)
         
-        # Add metadata - mark as PENDING
         data['created_by'] = user.get('username', 'Unknown')
         data['created_by_name'] = user.get('name', 'Unknown')
         data['user_role'] = user.get('role', 'user')
-        data['status'] = 'Pending'  # IMPORTANT: Pending status
+        data['status'] = 'Pending'
         data['created_date'] = datetime.now().isoformat()
         data['updated_date'] = datetime.now().isoformat()
+        
+        if data.get('transport_weight') and data.get('allotments'):
+            total_weight = calculate_total_allotment_weight(data['allotments'])
+            data['total_weight_kg'] = total_weight
+            data['utilization_percent'] = round((total_weight / data['transport_weight']) * 100, 1) if data['transport_weight'] > 0 else 0
         
         db = get_db()
         if db is None:
             return safe_json_response({'error': 'Database not connected'}, 500)
         
-        # Check if allotments collection exists
         collections = db.list_collection_names()
         if 'allotments' not in collections:
             db.create_collection('allotments')
         
-        # Insert the allotment
         result = db.allotments.insert_one(data)
         
-        # Clear cache
         _cache.clear('pending_allotments')
         _cache.clear('allotment_history')
         _cache.clear('allotments_data')
@@ -617,6 +630,7 @@ def save_pending_allotment():
             'id': str(result.inserted_id),
             'allotment_no': data.get('allotment_no'),
             'status': 'Pending',
+            'total_weight': data.get('total_weight_kg', 0),
             'message': f'Allotment {data.get("allotment_no")} saved as PENDING successfully'
         }, 201)
         
@@ -642,7 +656,6 @@ def get_allotments():
         if db is None:
             return safe_json_response([])
         
-        # Try to fetch from MongoDB collection if exists
         try:
             collections = db.list_collection_names()
             if 'allotments' in collections:
@@ -653,7 +666,6 @@ def get_allotments():
         except:
             pass
         
-        # If collection doesn't exist or is empty, return sample data
         sample_allotments = generate_sample_allotments()
         _cache.set(cache_key, sample_allotments, ttl=120)
         return safe_json_response(sample_allotments)
@@ -695,20 +707,16 @@ def create_allotment():
         db = get_db()
         if db is not None:
             try:
-                # Check if allotments collection exists, if not create it
                 collections = db.list_collection_names()
                 if 'allotments' not in collections:
                     db.create_collection('allotments')
                 
                 db.allotments.insert_one(allotment)
-                # Clear cache
                 _cache.clear('allotments_data')
                 return safe_json_response({'success': True, 'allotment': allotment}, 201)
             except Exception as e:
                 print(f"Database error: {e}")
-                # Fallback to in-memory storage
         
-        # If DB fails, store in memory (temporary)
         if not hasattr(api_bp, 'memory_allotments'):
             api_bp.memory_allotments = []
         api_bp.memory_allotments.append(allotment)
@@ -726,7 +734,6 @@ def approve_allotment(allotment_id):
     """Approve an allotment request"""
     try:
         user = session.get('user', {})
-        # Only admin and manager can approve
         if user.get('role') not in ['admin', 'manager']:
             return safe_json_response({'error': 'Only admin or manager can approve allotments'}, 403)
         
@@ -736,7 +743,6 @@ def approve_allotment(allotment_id):
         db = get_db()
         if db is not None:
             try:
-                # Try to update in MongoDB
                 result = db.allotments.update_one(
                     {'id': allotment_id},
                     {'$set': {
@@ -754,7 +760,6 @@ def approve_allotment(allotment_id):
             except Exception as e:
                 print(f"Database error: {e}")
         
-        # Fallback to in-memory
         if hasattr(api_bp, 'memory_allotments'):
             for item in api_bp.memory_allotments:
                 if item['id'] == allotment_id and item['status'] == 'Pending':
@@ -850,13 +855,11 @@ def get_allotment_summary():
         rejected = len([a for a in allotments if a.get('status') == 'Rejected'])
         partially = len([a for a in allotments if a.get('status') == 'Partially Approved'])
         
-        # Monthly count
         now = datetime.now()
         monthly = len([a for a in allotments if a.get('request_date') and 
                       datetime.fromisoformat(a['request_date']).month == now.month and
                       datetime.fromisoformat(a['request_date']).year == now.year])
         
-        # Completion rate
         completion_rate = round((approved / total * 100) if total > 0 else 0, 1)
         
         response = {
@@ -878,6 +881,178 @@ def get_allotment_summary():
             'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 
             'partially_approved': 0, 'monthly': 0, 'completion_rate': 0
         })
+
+# ================================================================
+# ★ NEW: TRANSPORT WEIGHT ENDPOINTS
+# ================================================================
+
+def calculate_total_allotment_weight(allotments):
+    """Calculate total weight of allotment items in KG"""
+    db = get_db()
+    if db is None:
+        return 0
+    
+    total_weight_kg = 0
+    
+    material_codes = list(set([a.get('material_code') for a in allotments if a.get('material_code')]))
+    if not material_codes:
+        return 0
+    
+    material_weights = {}
+    try:
+        weight_records = db.material_master.find(
+            {'Material_Code': {'$in': material_codes}},
+            {'Material_Code': 1, 'Unit Weight (MT)': 1}
+        )
+        for record in weight_records:
+            code = record.get('Material_Code')
+            weight_mt = record.get('Unit Weight (MT)', 0)
+            if weight_mt and weight_mt > 0:
+                material_weights[code] = weight_mt * 1000
+            else:
+                material_weights[code] = 0
+    except Exception as e:
+        print(f"Error fetching weights: {e}")
+        return 0
+    
+    for allotment in allotments:
+        code = allotment.get('material_code')
+        qty = float(allotment.get('allotted_qty', 0))
+        weight_per_unit_kg = material_weights.get(code, 0)
+        total_weight_kg += qty * weight_per_unit_kg
+    
+    return round(total_weight_kg, 2)
+
+@api_bp.route('/api/weight/calculate', methods=['POST'])
+@login_required
+def calculate_weight():
+    """Calculate total weight for given allotment items"""
+    try:
+        data = request.json or {}
+        allotments = data.get('allotments', [])
+        
+        if not allotments:
+            return safe_json_response({'total_weight_kg': 0, 'items': []})
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        material_codes = list(set([a.get('material_code') for a in allotments if a.get('material_code')]))
+        if not material_codes:
+            return safe_json_response({'total_weight_kg': 0, 'items': []})
+        
+        material_weights = {}
+        material_names = {}
+        try:
+            records = db.material_master.find(
+                {'Material_Code': {'$in': material_codes}},
+                {'Material_Code': 1, 'Unit Weight (MT)': 1, 'Material Description': 1, 'Unit of Entry': 1}
+            )
+            for record in records:
+                code = record.get('Material_Code')
+                weight_mt = record.get('Unit Weight (MT)', 0)
+                material_weights[code] = weight_mt * 1000 if weight_mt else 0
+                material_names[code] = record.get('Material Description', code)
+        except Exception as e:
+            print(f"Error fetching weights: {e}")
+        
+        items_with_weight = []
+        total_weight_kg = 0
+        for allotment in allotments:
+            code = allotment.get('material_code')
+            qty = float(allotment.get('allotted_qty', 0))
+            weight_per_unit_kg = material_weights.get(code, 0)
+            item_weight = qty * weight_per_unit_kg
+            total_weight_kg += item_weight
+            
+            items_with_weight.append({
+                'material_code': code,
+                'material_name': material_names.get(code, code),
+                'unit': allotment.get('unit', 'NOS'),
+                'allotted_qty': qty,
+                'weight_per_unit_kg': weight_per_unit_kg,
+                'total_weight_kg': round(item_weight, 2)
+            })
+        
+        return safe_json_response({
+            'total_weight_kg': round(total_weight_kg, 2),
+            'items': items_with_weight
+        })
+        
+    except Exception as e:
+        print(f"Error in calculate_weight: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/weight/material/<material_code>')
+@login_required
+def get_material_weight(material_code):
+    """Get weight for a specific material"""
+    try:
+        if not material_code:
+            return safe_json_response({'error': 'Material code required'}, 400)
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        record = db.material_master.find_one(
+            {'Material_Code': material_code},
+            {'Material_Code': 1, 'Unit Weight (MT)': 1, 'Material Description': 1, 'Unit of Entry': 1}
+        )
+        
+        if record:
+            weight_mt = record.get('Unit Weight (MT)', 0)
+            return safe_json_response({
+                'material_code': material_code,
+                'material_name': record.get('Material Description', material_code),
+                'unit': record.get('Unit of Entry', 'NOS'),
+                'weight_per_unit_mt': weight_mt if weight_mt else 0,
+                'weight_per_unit_kg': (weight_mt * 1000) if weight_mt else 0
+            })
+        else:
+            return safe_json_response({'error': 'Material not found'}, 404)
+        
+    except Exception as e:
+        print(f"Error in get_material_weight: {e}")
+        return safe_json_response({'error': str(e)}, 500)
+
+@api_bp.route('/api/weight/bulk', methods=['POST'])
+@login_required
+def get_bulk_material_weights():
+    """Get weights for multiple materials"""
+    try:
+        data = request.json or {}
+        material_codes = data.get('material_codes', [])
+        
+        if not material_codes:
+            return safe_json_response({})
+        
+        db = get_db()
+        if db is None:
+            return safe_json_response({'error': 'Database not connected'}, 500)
+        
+        records = db.material_master.find(
+            {'Material_Code': {'$in': material_codes}},
+            {'Material_Code': 1, 'Unit Weight (MT)': 1, 'Material Description': 1, 'Unit of Entry': 1}
+        )
+        
+        result = {}
+        for record in records:
+            code = record.get('Material_Code')
+            weight_mt = record.get('Unit Weight (MT)', 0)
+            result[code] = {
+                'material_name': record.get('Material Description', code),
+                'unit': record.get('Unit of Entry', 'NOS'),
+                'weight_per_unit_mt': weight_mt if weight_mt else 0,
+                'weight_per_unit_kg': (weight_mt * 1000) if weight_mt else 0
+            }
+        
+        return safe_json_response(result)
+        
+    except Exception as e:
+        print(f"Error in get_bulk_material_weights: {e}")
+        return safe_json_response({'error': str(e)}, 500)
 
 # ================================================================
 # SAMPLE ALLOTMENT DATA GENERATOR
@@ -945,7 +1120,6 @@ def generate_sample_allotments():
 def get_filter_options():
     """Get filter options - CACHED for 1 hour"""
     try:
-        # Try cache
         cache_key = 'filter_options'
         cached_data = _cache.get(cache_key)
         if cached_data is not None:
@@ -965,7 +1139,6 @@ def get_filter_options():
             "divisions": [{"id": d, "name": d} for d in divisions]
         }
         
-        # Cache for 1 hour (rarely changes)
         _cache.set(cache_key, response, ttl=3600)
         return safe_json_response(response)
     except Exception as e:
@@ -1012,7 +1185,6 @@ def get_zones():
 def get_current_stock():
     """Get current stock - CACHED for 5 minutes"""
     try:
-        # Try cache
         cache_key = 'current_stock_data'
         cached_data = _cache.get(cache_key)
         if cached_data is not None:
@@ -1029,7 +1201,6 @@ def get_current_stock():
             if 'plant' in item:
                 item['plant'] = str(item['plant']).replace('.0', '')
         
-        # Cache for 5 minutes
         _cache.set(cache_key, stock, ttl=300)
         print(f"✅ Cached {len(stock)} stock records")
         
@@ -1043,14 +1214,12 @@ def get_current_stock():
 def get_material_in_transit():
     """Get material in transit - CACHED for 2 minutes"""
     try:
-        # Get filter parameters for cache key
         doc_type = request.args.get('doc_type', 'all')
         from_plant = request.args.get('from_plant', 'all')
         to_plant = request.args.get('to_plant', 'all')
         material_group = request.args.get('material_group', 'all')
         material_code = request.args.get('material_code', 'all')
         
-        # Generate cache key
         cache_key = f'transit_{doc_type}_{from_plant}_{to_plant}_{material_group}_{material_code}'
         cached_data = _cache.get(cache_key)
         if cached_data is not None:
@@ -1060,7 +1229,6 @@ def get_material_in_transit():
         if db is None:
             return safe_json_response([])
         
-        # Build query
         query = {}
         if doc_type and doc_type != 'all':
             query['document_type'] = doc_type
@@ -1076,7 +1244,6 @@ def get_material_in_transit():
         print(f"🚚 Fetching transit data from database...")
         transit_items = list(db.material_in_transit.find(query, {'_id': 0}))
         
-        # Get material groups from material_master
         material_group_map = {}
         all_material_codes = list(set([item.get('material_code') for item in transit_items if item.get('material_code')]))
         if all_material_codes:
@@ -1089,7 +1256,6 @@ def get_material_in_transit():
                 if material_code_key:
                     material_group_map[material_code_key] = record.get('Material Group', 'Uncategorized')
         
-        # Add division names and material group
         for item in transit_items:
             material_code = item.get('material_code')
             if material_code and material_code in material_group_map:
@@ -1104,7 +1270,6 @@ def get_material_in_transit():
                 to_division = db.storage_locations.find_one({'plant': item.get('to_plant')}, {'division': 1})
                 item['to_division'] = to_division.get('division', item.get('to_plant')) if to_division else item.get('to_plant')
         
-        # Cache for 2 minutes (transit changes more often)
         _cache.set(cache_key, transit_items, ttl=120)
         print(f"✅ Cached {len(transit_items)} transit records")
         
@@ -1219,7 +1384,7 @@ def get_consumption_overview():
                 'active_plants': 12,
                 'warnings': {'stock_only': 0, 'no_stock': 0}
             }
-            _cache.set(cache_key, response, ttl=600)  # 10 minutes
+            _cache.set(cache_key, response, ttl=600)
             return safe_json_response(response)
         
         response = {
@@ -1259,16 +1424,21 @@ def get_consumption_material_groups():
         excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
         groups = [g for g in groups if g and not any(ex in g.lower() for ex in excluded)]
         
-        _cache.set(cache_key, sorted(groups), ttl=3600)  # 1 hour
+        _cache.set(cache_key, sorted(groups), ttl=3600)
         return safe_json_response(sorted(groups))
     except Exception as e:
         print(f"Error in get_consumption_material_groups: {e}")
         return safe_json_response([])
 
+# ★ FIXED: CONSUMPTION MATERIALS ENDPOINT WITH PROPER NaN HANDLING
 @api_bp.route('/api/consumption/materials')
 @login_required
 def get_consumption_materials():
-    """Get materials - CACHED for 30 minutes"""
+    """
+    ★ FIXED: Get materials with names and weights from material_master
+    Returns: material_code, material_name, unit, material_group, weight_per_unit_mt
+    Properly handles NaN values by converting to None
+    """
     try:
         group = request.args.get('group', None)
         cache_key = f'materials_{group if group else "all"}'
@@ -1280,45 +1450,119 @@ def get_consumption_materials():
         if db is None:
             return safe_json_response([])
         
+        materials = []
+        
+        # Build query
         query = {}
         if group and group != 'all' and group != 'undefined':
-            query['material_group'] = group
+            query['Material Group'] = group
         
-        pipeline = [
-            {'$match': query} if query else {'$match': {}},
-            {'$match': {'material_code': {'$exists': True, '$ne': None, '$ne': ''}}},
-            {'$group': {
-                '_id': {
-                    'code': '$material_code',
-                    'name': '$material_name',
-                    'group': '$material_group',
-                    'unit': '$unit'
-                }
-            }},
-            {'$sort': {'_id.name': 1}}
-        ]
+        # Get all records from material_master
+        master_records = db.material_master.find(
+            query,
+            {
+                'Material_Code': 1, 
+                'Material Description': 1, 
+                'Unit of Entry': 1, 
+                'Material Group': 1, 
+                'Unit Weight (MT)': 1
+            }
+        )
         
-        materials_raw = list(db.consumption_summary.aggregate(pipeline))
+        for record in master_records:
+            code = record.get('Material_Code')
+            if not code:
+                continue
+            
+            # Get material name
+            material_name = record.get('Material Description', '')
+            if not material_name or str(material_name).strip() == '':
+                material_name = str(code)
+            
+            # ★ FIXED: Get weight and handle NaN properly
+            weight_mt = record.get('Unit Weight (MT)', None)
+            if weight_mt is not None and weight_mt != '':
+                try:
+                    weight_mt = float(weight_mt)
+                    # Check for NaN
+                    if math.isnan(weight_mt):
+                        weight_mt = None
+                except (ValueError, TypeError):
+                    weight_mt = None
+            else:
+                weight_mt = None
+            
+            materials.append({
+                'material_code': str(code),
+                'material_name': str(material_name),
+                'unit': str(record.get('Unit of Entry', 'NOS')),
+                'material_group': str(record.get('Material Group', 'Uncategorized')),
+                'weight_per_unit_mt': weight_mt
+            })
         
-        materials = []
-        for m in materials_raw:
-            if m['_id']['code']:
-                materials.append({
-                    'material_code': str(m['_id']['code']),
-                    'material_name': m['_id']['name'] or str(m['_id']['code']),
-                    'material_group': m['_id']['group'] or 'Uncategorized',
-                    'unit': m['_id']['unit'] or 'Units'
-                })
+        # If no materials from material_master, try consumption_summary as fallback
+        if not materials:
+            print("⚠️ No materials in material_master, trying consumption_summary...")
+            try:
+                pipeline = [
+                    {'$match': {'material_code': {'$exists': True, '$ne': None, '$ne': ''}}},
+                    {'$group': {
+                        '_id': {
+                            'code': '$material_code',
+                            'name': '$material_name',
+                            'group': '$material_group',
+                            'unit': '$unit'
+                        }
+                    }},
+                    {'$sort': {'_id.name': 1}}
+                ]
+                
+                if group and group != 'all' and group != 'undefined':
+                    pipeline[0]['$match']['material_group'] = group
+                
+                materials_raw = list(db.consumption_summary.aggregate(pipeline))
+                
+                for m in materials_raw:
+                    if m['_id']['code']:
+                        materials.append({
+                            'material_code': str(m['_id']['code']),
+                            'material_name': str(m['_id']['name'] or m['_id']['code']),
+                            'material_group': str(m['_id']['group'] or 'Uncategorized'),
+                            'unit': str(m['_id']['unit'] or 'Units'),
+                            'weight_per_unit_mt': None
+                        })
+            except Exception as e:
+                print(f"Error fetching from consumption_summary: {e}")
         
-        excluded = ['monthly=', 'monthly=27', 'quarterly=3', 'qterly=3', 'yearly']
-        materials = [m for m in materials if not any(ex in m.get('material_group', '').lower() for ex in excluded)]
+        # Remove duplicates by material_code
+        seen = set()
+        unique_materials = []
+        for m in materials:
+            code = m['material_code']
+            if code not in seen:
+                seen.add(code)
+                unique_materials.append(m)
         
-        _cache.set(cache_key, materials[:1000], ttl=1800)  # 30 minutes
-        return safe_json_response(materials[:1000])
+        # Sort by material_name
+        unique_materials.sort(key=lambda x: x.get('material_name', ''))
+        
+        # Log stats
+        weight_count = len([m for m in unique_materials if m.get('weight_per_unit_mt') is not None])
+        print(f"✅ Materials: {len(unique_materials)} total, {weight_count} with weight")
+        
+        # Cache for 30 minutes
+        _cache.set(cache_key, unique_materials, ttl=1800)
+        return safe_json_response(unique_materials)
         
     except Exception as e:
         print(f"Error in get_consumption_materials: {e}")
+        import traceback
+        traceback.print_exc()
         return safe_json_response([])
+
+# ================================================================
+# REST OF EXISTING ENDPOINTS (UNCHANGED)
+# ================================================================
 
 @api_bp.route('/api/consumption/plants')
 @login_required
@@ -1338,7 +1582,7 @@ def get_consumption_plants():
         plants = [p for p in plants if p and p != 'all']
         plant_list = [{'code': p, 'name': p} for p in sorted(plants)]
         
-        _cache.set(cache_key, plant_list, ttl=3600)  # 1 hour
+        _cache.set(cache_key, plant_list, ttl=3600)
         return safe_json_response(plant_list)
     except Exception as e:
         print(f"Error in get_consumption_plants: {e}")
@@ -1423,7 +1667,6 @@ def get_monthly_average_consumption():
                 'plant': plant_key
             }
         
-        # Zone-level fallback
         zone_query = {'period_type': 'monthly'}
         if material_group and material_group != 'all':
             zone_query['material_group'] = material_group
@@ -1470,7 +1713,7 @@ def get_monthly_average_consumption():
                 'plant': 'all'
             }
         
-        _cache.set(cache_key, avg_map, ttl=600)  # 10 minutes
+        _cache.set(cache_key, avg_map, ttl=600)
         print(f"Returning averages for {len(avg_map)} materials")
         return safe_json_response(avg_map)
         
@@ -1559,7 +1802,7 @@ def get_monthly_average_by_plant():
                 'plant': plant_key
             }
         
-        _cache.set(cache_key, avg_map, ttl=600)  # 10 minutes
+        _cache.set(cache_key, avg_map, ttl=600)
         print(f"Returning averages for {len(avg_map)} materials")
         return safe_json_response(avg_map)
         
@@ -1576,10 +1819,7 @@ def get_monthly_average_by_plant():
 @api_bp.route('/api/consumption/data', methods=['POST'])
 @login_required
 def get_consumption_data():
-    """
-    Get detailed consumption data with proper period-based aggregation.
-    POST endpoint - Not cached as it's dynamic
-    """
+    """Get detailed consumption data with period-based aggregation"""
     try:
         data = request.json or {}
         period_type = data.get('period', 'monthly')
@@ -1781,7 +2021,7 @@ def get_admin_data():
             'divisions': divisions_data
         }
         
-        _cache.set(cache_key, response, ttl=300)  # 5 minutes
+        _cache.set(cache_key, response, ttl=300)
         return safe_json_response(response)
     except Exception as e:
         return safe_json_response({"error": str(e)})
@@ -1814,7 +2054,7 @@ def get_priority_works_overview():
             'new11kv': {'count': 5, 'length': '15 km', 'poles': 225, 'budget': '₹1.8Cr', 'start': 'May 2026'},
             'cond11kv': {'count': 12, 'length': '38 km', 'completed': 12, 'progress': '100%', 'budget': '₹1.2Cr'}
         }
-        _cache.set(cache_key, response, ttl=3600)  # 1 hour
+        _cache.set(cache_key, response, ttl=3600)
         return safe_json_response(response)
     except Exception as e:
         return safe_json_response({'error': str(e)})
