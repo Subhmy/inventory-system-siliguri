@@ -1,7 +1,8 @@
-<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v8.0 -->
-<!-- FIXED: Critical Materials show ALL critical items from division -->
-<!-- FIXED: Allotted quantities are EDITABLE in Final Allotment table -->
-<!-- FIXED: Weight auto-updates when quantities are edited -->
+<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v8.1 -->
+<!-- ★ NEW: Multiple comments per quantity (Note 1, Note 2, Note 3...) -->
+<!-- ★ NEW: Grouped display in letter: Note 1-3: For Connection X, Y, Z (3 NOS Material - Division) -->
+<!-- ★ NEW: Sequential popup for each comment -->
+<!-- ★ NEW: Click on note icon to view all comments -->
 <!-- Virtual Stock = Current Stock + In-Transit -->
 <!-- Critical = Virtual Stock <= Monthly Avg -->
 <!-- Suggested Qty = Monthly Avg - Virtual Stock -->
@@ -105,7 +106,11 @@
             transitMapCache: {},
             transportCapacity: 0,
             totalWeight: 0,
-            utilization: 0
+            utilization: 0,
+            // ★ NEW: Multiple comments support
+            materialComments: {},      // { materialCode: { division: [comment1, comment2, ...] } }
+            commentModalData: null,    // Data for comment modal
+            commentCounter: 0          // Global counter for note numbering
         };
 
         // ============================================================
@@ -156,7 +161,14 @@
                 weightProgressBar: '#weightProgressBar',
                 weightStatusMessage: '#weightStatusMessage',
                 suggestionContainer: '#suggestionContainer',
-                suggestionList: '#suggestionList'
+                suggestionList: '#suggestionList',
+                // ★ NEW: Comment modal
+                commentModal: '#commentModal',
+                commentMaterialDisplay: '#commentMaterialDisplay',
+                commentDivisionDisplay: '#commentDivisionDisplay',
+                commentQuantityDisplay: '#commentQuantityDisplay',
+                commentInput: '#commentInput',
+                existingCommentsDisplay: '#existingCommentsDisplay'
             };
 
             for (const [key, selector] of Object.entries(selectors)) {
@@ -1362,7 +1374,10 @@
                             virtual_stock: row.virtual_stock,
                             monthly_avg: row.monthly_avg,
                             zonal_stock: row.zonal_stock,
-                            status: row.status
+                            status: row.status,
+                            // ★ NEW: Multiple comments support
+                            comment_count: 0,
+                            comments: []
                         });
                         addedCount++;
                     }
@@ -1394,7 +1409,7 @@
             },
 
             // ------------------------------------------------------------
-            // FINAL TABLE - WITH EDITABLE QUANTITIES
+            // FINAL TABLE - WITH MULTIPLE COMMENT SUPPORT
             // ------------------------------------------------------------
             renderFinalTable() {
                 const tbody = dom.finalBody;
@@ -1418,10 +1433,23 @@
                 tbody.innerHTML = state.finalData.map((row, idx) => {
                     const isFirstForDivision = state.finalData.findIndex(r => r.division === row.division) === idx;
                     const displayName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
+                    
+                    // ★ NEW: Show comment count with click to view
+                    const commentCount = row.comment_count || 0;
+                    const hasComments = commentCount > 0;
+                    const comments = row.comments || [];
+                    const commentTooltip = hasComments ? comments.map((c, i) => `Note ${i+1}: ${c}`).join('\n') : '';
+                    
+                    const commentIndicator = hasComments ? 
+                        `<span style="color: #28a745; font-size: 0.6rem; margin-left: 4px; cursor: pointer;" 
+                               title="${commentTooltip}" 
+                               onclick="AllotmentManager.viewComments(${idx})">
+                            <i class="bi bi-chat-fill"></i> ${commentCount} Note${commentCount > 1 ? 's' : ''}
+                        </span>` : '';
 
                     return `
                         <tr>
-                            <td style="text-align: center;">${row.sno}</td>
+                            <td style="text-align: center;">${row.sno} ${commentIndicator}</td>
                             <td><code>${row.material_code}</code></td>
                             <td title="${displayName}">${displayName.substring(0, 30)}${displayName.length > 30 ? '...' : ''}</td>
                             <td>${row.unit || 'NOS'}</td>
@@ -1433,7 +1461,8 @@
                                        data-row="${idx}"
                                        style="width: 80px; text-align: center; font-weight: 700;"
                                        onchange="AllotmentManager.onAllottedChange(${idx}, this.value)"
-                                       oninput="AllotmentManager.onAllottedChange(${idx}, this.value)">
+                                       oninput="AllotmentManager.onAllottedChange(${idx}, this.value)"
+                                       onkeydown="if(event.key==='Enter'){event.preventDefault();AllotmentManager.onAllottedEnter(${idx}, event);}">
                             </td>
                             <td>
                                 ${isFirstForDivision ? `
@@ -1454,7 +1483,7 @@
                 UiService.updateFinalBadge();
             },
 
-            // ★ NEW: Handle quantity change in Final Allotment table
+            // ★ NEW: Handle quantity change
             onAllottedChange: function(rowIndex, newValue) {
                 const qty = parseFloat(newValue);
                 if (isNaN(qty) || qty < 0) return;
@@ -1463,6 +1492,204 @@
                     state.finalData[rowIndex].allotted_qty = qty;
                     this.updateWeightStatus();
                 }
+            },
+
+            // ★ NEW: Handle Enter key - triggers comment popup
+            onAllottedEnter: function(rowIndex, event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const qty = parseFloat(event.target.value);
+                    if (isNaN(qty) || qty < 0) return;
+                    
+                    if (state.finalData[rowIndex]) {
+                        state.finalData[rowIndex].allotted_qty = qty;
+                        this.updateWeightStatus();
+                        const item = state.finalData[rowIndex];
+                        this.openCommentModal(rowIndex, item);
+                    }
+                }
+            },
+
+            // ★ NEW: Open comment modal with sequential notes
+            openCommentModal: function(rowIndex, item) {
+                const materialName = item.material_name || Utils.getMaterialName(item.material_code) || item.material_code;
+                const materialCode = item.material_code;
+                const division = item.division;
+                const quantity = parseFloat(item.allotted_qty) || 0;
+                
+                // Initialize comments array for this material-division
+                if (!state.materialComments[materialCode]) {
+                    state.materialComments[materialCode] = {};
+                }
+                if (!state.materialComments[materialCode][division]) {
+                    state.materialComments[materialCode][division] = [];
+                }
+                
+                const existingComments = state.materialComments[materialCode][division] || [];
+                const remaining = quantity - existingComments.length;
+                
+                // If all quantities have comments, close modal
+                if (remaining <= 0) {
+                    UiService.showToast('✅ All quantities have comments!');
+                    this.closeCommentModal();
+                    return;
+                }
+                
+                // Store modal data
+                state.commentModalData = {
+                    rowIndex: rowIndex,
+                    materialCode: materialCode,
+                    division: division,
+                    quantity: quantity,
+                    materialName: materialName,
+                    commentNumber: existingComments.length + 1,
+                    remaining: remaining
+                };
+                
+                // Populate modal
+                if (dom.commentMaterialDisplay) {
+                    dom.commentMaterialDisplay.textContent = `${materialCode} - ${materialName}`;
+                }
+                if (dom.commentDivisionDisplay) {
+                    dom.commentDivisionDisplay.textContent = division;
+                }
+                if (dom.commentQuantityDisplay) {
+                    dom.commentQuantityDisplay.textContent = `${quantity} units (${existingComments.length} commented, ${remaining} remaining)`;
+                }
+                if (dom.commentInput) {
+                    dom.commentInput.value = '';
+                    dom.commentInput.placeholder = `Enter Note ${existingComments.length + 1} (e.g., For Connection X)`;
+                    setTimeout(() => dom.commentInput.focus(), 100);
+                }
+                
+                // Update modal title
+                const modalTitle = document.querySelector('#commentModal .modal-header h3');
+                if (modalTitle) {
+                    modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${quantity}`;
+                }
+                
+                // Show existing comments
+                if (dom.existingCommentsDisplay) {
+                    if (existingComments.length > 0) {
+                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
+                            `<div style="font-size: 0.8rem; color: #28a745; padding: 2px 0;">✅ Note ${i+1}: ${c}</div>`
+                        ).join('');
+                        dom.existingCommentsDisplay.style.display = 'block';
+                    } else {
+                        dom.existingCommentsDisplay.style.display = 'none';
+                    }
+                }
+                
+                if (dom.commentModal) {
+                    dom.commentModal.style.display = 'flex';
+                }
+            },
+
+            // ★ NEW: Save comment
+            saveComment: function() {
+                const comment = dom.commentInput ? dom.commentInput.value.trim() : '';
+                const data = state.commentModalData;
+                
+                if (!data) return;
+                
+                // Initialize arrays if not exist
+                if (!state.materialComments[data.materialCode]) {
+                    state.materialComments[data.materialCode] = {};
+                }
+                if (!state.materialComments[data.materialCode][data.division]) {
+                    state.materialComments[data.materialCode][data.division] = [];
+                }
+                
+                // Save comment
+                if (comment) {
+                    state.materialComments[data.materialCode][data.division].push(comment);
+                    state.commentCounter++;
+                    UiService.showToast(`✅ Note ${data.commentNumber} saved: "${comment}"`);
+                } else {
+                    UiService.showToast('ℹ️ No comment added (skipped)');
+                }
+                
+                // Update finalData with comment info
+                const commentCount = state.materialComments[data.materialCode][data.division].length;
+                if (state.finalData[data.rowIndex]) {
+                    state.finalData[data.rowIndex].comment_count = commentCount;
+                    state.finalData[data.rowIndex].comments = state.materialComments[data.materialCode][data.division];
+                }
+                
+                // Re-render final table
+                this.renderFinalTable();
+                
+                // Check if all quantities have comments
+                const existingComments = state.materialComments[data.materialCode][data.division] || [];
+                const totalQty = data.quantity;
+                
+                if (existingComments.length >= totalQty) {
+                    // All done - close modal
+                    UiService.showToast(`✅ All ${totalQty} notes added for ${data.materialName}!`);
+                    this.closeCommentModal();
+                } else {
+                    // More comments needed - keep modal open
+                    const remaining = totalQty - existingComments.length;
+                    if (dom.commentInput) {
+                        dom.commentInput.value = '';
+                        dom.commentInput.placeholder = `Enter Note ${existingComments.length + 1} (${remaining} remaining)`;
+                        dom.commentInput.focus();
+                    }
+                    
+                    if (dom.commentQuantityDisplay) {
+                        dom.commentQuantityDisplay.textContent = `${totalQty} units (${existingComments.length} commented, ${remaining} remaining)`;
+                    }
+                    
+                    // Update modal title
+                    const modalTitle = document.querySelector('#commentModal .modal-header h3');
+                    if (modalTitle) {
+                        modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${totalQty}`;
+                    }
+                    
+                    // Update existing comments display
+                    if (dom.existingCommentsDisplay) {
+                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
+                            `<div style="font-size: 0.8rem; color: #28a745; padding: 2px 0;">✅ Note ${i+1}: ${c}</div>`
+                        ).join('');
+                        dom.existingCommentsDisplay.style.display = 'block';
+                    }
+                    
+                    UiService.showToast(`📝 ${remaining} more note(s) remaining for this item`);
+                }
+            },
+
+            // ★ NEW: Skip comment
+            skipComment: function() {
+                const data = state.commentModalData;
+                if (data) {
+                    UiService.showToast('ℹ️ Comment skipped');
+                }
+                this.closeCommentModal();
+            },
+
+            // ★ NEW: Close comment modal
+            closeCommentModal: function() {
+                if (dom.commentModal) {
+                    dom.commentModal.style.display = 'none';
+                }
+                state.commentModalData = null;
+            },
+
+            // ★ NEW: View all comments for an item
+            viewComments: function(rowIndex) {
+                const row = state.finalData[rowIndex];
+                if (!row) return;
+                
+                const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
+                const comments = row.comments || [];
+                
+                if (comments.length === 0) {
+                    UiService.showToast('No comments for this item');
+                    return;
+                }
+                
+                const commentText = comments.map((c, i) => `Note ${i+1}: ${c}`).join('\n');
+                alert(`📝 Comments for ${materialName} (${row.division}):\n\n${commentText}`);
             },
 
             validateSTOInput(input) {
@@ -1834,7 +2061,9 @@
                         virtual_stock: 0,
                         monthly_avg: 0,
                         zonal_stock: 0,
-                        status: 'Critical'
+                        status: 'Critical',
+                        comment_count: 0,
+                        comments: []
                     });
                     UiService.showToast(`✅ Added ${suggestedQty} units of ${materialName} (edit in table)`);
                 }
@@ -2034,6 +2263,96 @@
                     </tr>
                 `;
 
+                // ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
+                // ★ UPDATED: Grouped comments display in letter
+                // ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
+                let commentsHTML = '';
+                let noteCounter = 1;
+
+                // Build grouped comments from state.materialComments
+                const groupedComments = {};
+
+                for (const [materialCode, divisions] of Object.entries(state.materialComments)) {
+                    for (const [division, comments] of Object.entries(divisions)) {
+                        if (!comments || comments.length === 0) continue;
+                        
+                        const key = `${materialCode}|${division}`;
+                        const materialName = Utils.getMaterialName(materialCode) || materialCode;
+                        
+                        if (!groupedComments[key]) {
+                            groupedComments[key] = {
+                                materialCode: materialCode,
+                                materialName: materialName,
+                                division: division,
+                                comments: []
+                            };
+                        }
+                        groupedComments[key].comments = comments;
+                    }
+                }
+
+                // Find quantities from finalData
+                for (const key of Object.keys(groupedComments)) {
+                    const [materialCode, division] = key.split('|');
+                    const row = state.finalData.find(f => f.material_code === materialCode && f.division === division);
+                    groupedComments[key].quantity = row ? parseFloat(row.allotted_qty) || 0 : 0;
+                }
+
+                // Generate HTML for each group
+                const commentGroups = Object.values(groupedComments);
+
+                commentGroups.forEach((group) => {
+                    const comments = group.comments;
+                    const qty = group.quantity;
+                    const materialName = group.materialName;
+                    const division = group.division;
+                    const materialCode = group.materialCode;
+                    
+                    if (comments.length === 0) return;
+                    
+                    // Determine note range
+                    const startNote = noteCounter;
+                    const endNote = noteCounter + comments.length - 1;
+                    const noteRange = comments.length === 1 ? `Note ${startNote}` : `Note ${startNote}-${endNote}`;
+                    noteCounter += comments.length;
+                    
+                    // Format comment text
+                    let commentText = '';
+                    if (comments.length === 1) {
+                        commentText = comments[0];
+                    } else {
+                        // Check if all comments start with "For " or similar pattern
+                        const allSamePrefix = comments.every(c => c.startsWith('For '));
+                        if (allSamePrefix) {
+                            // Remove "For " from each, join with commas
+                            const items = comments.map(c => c.replace(/^For\s+/, ''));
+                            commentText = `For ${items.join(', ')}`;
+                        } else {
+                            // Different comments - join with semicolons
+                            commentText = comments.join('; ');
+                        }
+                    }
+                    
+                    // Build HTML with grouped format
+                    commentsHTML += `
+                        <p style="font-size: 8px; margin: 2px 0; font-style: italic; color: #333;">
+                            <strong>${noteRange}:</strong> ${commentText} 
+                            <span style="color: #28a745; font-weight: 600; font-size: 7px;">
+                                (${qty > 0 ? qty : comments.length} NOS ${materialName} - ${division})
+                            </span>
+                        </p>
+                    `;
+                });
+
+                // Wrap in container if there are comments
+                if (commentsHTML) {
+                    commentsHTML = `
+                        <div style="margin-top: 6px; padding: 4px 8px; background: #f8fafd; border-left: 3px solid #28a745; border-radius: 3px;">
+                            ${commentsHTML}
+                        </div>
+                    `;
+                }
+
                 const copyForwardedHTML = `
                     <p style="font-size: 9px; margin: 2px 0 0 0; font-weight: 700;">Copy forwarded for information:</p>
                     <p style="font-size: 9px; margin: 1px 0 1px 20px;">1) The Regional Manager : ${regionsList}</p>
@@ -2113,6 +2432,9 @@
                                     ${stoRowHTML}
                                 </tfoot>
                             </table>
+
+                            <!-- ★ NEW: Grouped comments section -->
+                            ${commentsHTML}
 
                             <div style="margin-top: 6px; text-align: right;">
                                 <div style="display: inline-block; text-align: center;">
@@ -2289,11 +2611,15 @@
                         };
                     });
 
-                    const allotmentsWithNames = state.finalData.map(f => {
+                    // ★ NEW: Include multiple comments in allotments data
+                    const allotmentsWithComments = state.finalData.map(f => {
                         const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
+                        const comments = state.materialComments[f.material_code]?.[f.division] || [];
                         return {
                             ...f,
-                            material_name: name
+                            material_name: name,
+                            comment_count: comments.length,
+                            comments: comments
                         };
                     });
 
@@ -2303,12 +2629,14 @@
                         allotment_date: dom.allotmentDate.value,
                         divisions: state.selectedDivisions,
                         materials: materialsWithNames,
-                        allotments: allotmentsWithNames,
+                        allotments: allotmentsWithComments,
                         sto_numbers: state.stoCache,
                         status: status,
                         transport_weight: transportWeight,
                         total_weight_kg: totalWeightKG,
                         utilization_percent: utilization,
+                        material_comments: state.materialComments,
+                        comment_counter: state.commentCounter,
                         created_by: state.user.username,
                         created_by_name: state.user.name,
                         user_role: state.user.role,
@@ -2397,11 +2725,14 @@
                         };
                     });
 
-                    const allotmentsWithNames = state.finalData.map(f => {
+                    const allotmentsWithComments = state.finalData.map(f => {
                         const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
+                        const comments = state.materialComments[f.material_code]?.[f.division] || [];
                         return {
                             ...f,
-                            material_name: name
+                            material_name: name,
+                            comment_count: comments.length,
+                            comments: comments
                         };
                     });
 
@@ -2411,13 +2742,15 @@
                         allotment_date: dom.allotmentDate.value,
                         divisions: state.selectedDivisions,
                         materials: materialsWithNames,
-                        allotments: allotmentsWithNames,
+                        allotments: allotmentsWithComments,
                         sto_numbers: state.stoCache,
                         status: 'Rejected',
                         rejection_reason: reason || 'No reason provided',
                         transport_weight: transportWeight,
                         total_weight_kg: totalWeightKG,
                         utilization_percent: utilization,
+                        material_comments: state.materialComments,
+                        comment_counter: state.commentCounter,
                         rejected_by: state.user.username,
                         rejected_by_name: state.user.name,
                         created_by: state.user.username,
@@ -2474,11 +2807,16 @@
                         const date = item.created_date ? new Date(item.created_date).toLocaleDateString('en-IN') : 'N/A';
                         const divisions = item.divisions?.join(', ') || 'N/A';
                         const weight = item.total_weight_kg ? `${item.total_weight_kg} kg` : 'N/A';
+                        const commentCount = item.material_comments ? 
+                            Object.values(item.material_comments).reduce((sum, divs) => {
+                                return sum + Object.values(divs).reduce((s, c) => s + c.length, 0);
+                            }, 0) : 0;
                         message += `${idx + 1}. ${item.allotment_no}\n`;
                         message += `   Created By: ${item.created_by_name || item.created_by || 'Unknown'}\n`;
                         message += `   Date: ${date}\n`;
                         message += `   Divisions: ${divisions}\n`;
-                        message += `   Weight: ${weight}\n\n`;
+                        message += `   Weight: ${weight}\n`;
+                        message += `   Comments: ${commentCount}\n\n`;
                     });
 
                     message += '='.repeat(50) + '\n';
@@ -2542,8 +2880,32 @@
                 });
                 this.onDivisionSelect();
 
-                state.finalData = allotment.allotments || [];
+                // ★ NEW: Load multiple comments from allotment data
+                state.finalData = (allotment.allotments || []).map(f => ({
+                    ...f,
+                    comment_count: f.comment_count || 0,
+                    comments: f.comments || []
+                }));
                 state.stoCache = allotment.sto_numbers || {};
+
+                // ★ NEW: Restore materialComments from saved data
+                if (allotment.material_comments) {
+                    state.materialComments = allotment.material_comments;
+                } else {
+                    // Rebuild from finalData comments
+                    state.materialComments = {};
+                    state.finalData.forEach(f => {
+                        if (f.comments && f.comments.length > 0) {
+                            if (!state.materialComments[f.material_code]) {
+                                state.materialComments[f.material_code] = {};
+                            }
+                            state.materialComments[f.material_code][f.division] = f.comments;
+                        }
+                    });
+                }
+
+                // ★ NEW: Restore comment counter
+                state.commentCounter = allotment.comment_counter || 0;
 
                 if (state.finalData.length === 0) {
                     UiService.showToast('⚠️ No materials found in this allotment', true);
@@ -2626,6 +2988,9 @@
                 state.selectedSuggestedRows = [];
                 state.currentAllotmentId = null;
                 state.divisionMaterials = {};
+                // ★ NEW: Clear comments
+                state.materialComments = {};
+                state.commentCounter = 0;
 
                 if (dom.suggestedContainer) dom.suggestedContainer.style.display = 'none';
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'block';
@@ -2666,6 +3031,8 @@
                 if (!confirm('Clear all items from Final Allotment?')) return;
                 state.finalData = [];
                 state.stoCache = {};
+                state.materialComments = {};
+                state.commentCounter = 0;
                 this.renderFinalTable();
                 this.updateSuggestedTable();
                 this.updateWeightStatus();
@@ -2702,12 +3069,23 @@
                     const weightDisplay = item.total_weight_kg ? `${item.total_weight_kg} kg` : '-';
                     const utilizationDisplay = item.utilization_percent ? `${item.utilization_percent}%` : '-';
                     
+                    // ★ NEW: Show comment count
+                    let totalComments = 0;
+                    if (item.material_comments) {
+                        for (const [matCode, divisions] of Object.entries(item.material_comments)) {
+                            for (const [div, comments] of Object.entries(divisions)) {
+                                totalComments += comments.length;
+                            }
+                        }
+                    }
+                    const commentDisplay = totalComments > 0 ? `📝 ${totalComments}` : '';
+                    
                     return `
                     <tr>
                         <td style="text-align: center;">${idx + 1}</td>
                         <td><code>${item.allotment_no}</code></td>
                         <td>${item.divisions?.join(', ') || '-'}</td>
-                        <td>${item.materials?.length || 0} items</td>
+                        <td>${item.materials?.length || 0} items ${commentDisplay}</td>
                         <td><strong>${item.total_allotted || 0}</strong></td>
                         <td>
                             <span class="status-badge ${item.status === 'Completed' ? 'status-approved' : item.status === 'Rejected' ? 'status-rejected' : 'status-pending'}">
@@ -2776,13 +3154,17 @@
                     ['BULK ALLOTMENT REPORT'],
                     ['Generated on:', new Date().toLocaleString()],
                     ['Total Weight:', `${this.calculateTotalWeightMT().toFixed(1)} MT`],
+                    ['Comments:', Object.keys(state.materialComments).length > 0 ? 'Yes' : 'No'],
                     [],
-                    ['#', 'Material Code', 'Material Name', 'UOM', 'Weight/Unit (KG)', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No']
+                    ['#', 'Material Code', 'Material Name', 'UOM', 'Weight/Unit (KG)', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No', 'Comments (Notes)']
                 ];
 
                 data.forEach((row) => {
                     const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
                     const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
+                    const comments = row.comments || state.materialComments[row.material_code]?.[row.division] || [];
+                    const commentText = comments.map((c, i) => `Note ${i+1}: ${c}`).join('; ');
+                    
                     sheetData.push([
                         row.sno,
                         row.material_code,
@@ -2795,7 +3177,8 @@
                         row.suggested_qty,
                         row.division,
                         row.allotted_qty || row.suggested_qty,
-                        state.stoCache[row.division] || ''
+                        state.stoCache[row.division] || '',
+                        commentText
                     ]);
                 });
 
@@ -2926,7 +3309,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE - SAME AS YOUR SCREENSHOT
+     HTML STRUCTURE
      ================================================================ -->
 
 <!-- Back Navigation -->
@@ -3256,7 +3639,7 @@
             <i class="bi bi-pencil-square" style="color: #ffc107;"></i>
             <h2>Step 2: Final Allotment</h2>
             <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                <i class="bi bi-info-circle"></i> Enter STO No (10 digits) for each division
+                <i class="bi bi-info-circle"></i> Enter STO No (10 digits). Press <kbd>Enter</kbd> after quantity to add multiple notes.
             </span>
         </div>
         
@@ -3533,6 +3916,61 @@
         <div class="modal-footer">
             <button class="btn-cancel" onclick="UiService.closeConfirm()">Cancel</button>
             <button class="btn-submit" id="confirmYesBtn">Yes, Proceed</button>
+        </div>
+    </div>
+</div>
+
+<!-- ★ NEW: COMMENT MODAL - Multiple Comments Support -->
+<div class="modal-overlay" id="commentModal">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3><i class="bi bi-pencil-square"></i> Add Note 1 of 1</h3>
+            <button class="modal-close" onclick="AllotmentManager.closeCommentModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="commentModalBody">
+            <div style="margin-bottom: 12px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">
+                    <i class="bi bi-box-seam"></i> Material:
+                </label>
+                <div id="commentMaterialDisplay" style="background: #f8fafd; padding: 8px 12px; border-radius: 8px; font-family: 'Courier New', monospace;"></div>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">
+                    <i class="bi bi-building"></i> Division:
+                </label>
+                <div id="commentDivisionDisplay" style="background: #f8fafd; padding: 8px 12px; border-radius: 8px;"></div>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;">
+                    <i class="bi bi-hash"></i> Quantity &amp; Progress:
+                </label>
+                <div id="commentQuantityDisplay" style="background: #f8fafd; padding: 8px 12px; border-radius: 8px;"></div>
+            </div>
+            
+            <!-- Existing comments display -->
+            <div id="existingCommentsDisplay" style="margin-bottom: 12px; display: none; background: #d4edda; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #28a745;">
+                <!-- Dynamic -->
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 5px;">
+                    <i class="bi bi-chat-dots"></i> Comment / Note:
+                </label>
+                <textarea id="commentInput" class="form-control" rows="3" 
+                          placeholder="Enter comment or note for this item (e.g., For Connection X)"
+                          style="resize: vertical; width: 100%; font-size: 0.9rem;"></textarea>
+                <div style="font-size: 0.7rem; color: #6c757d; margin-top: 4px;">
+                    <i class="bi bi-info-circle"></i> Press <kbd>Enter</kbd> in quantity field to add multiple notes.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="AllotmentManager.skipComment()">
+                <i class="bi bi-x-circle"></i> Skip
+            </button>
+            <button class="btn-submit" onclick="AllotmentManager.saveComment()" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                <i class="bi bi-check-circle"></i> Add Comment
+            </button>
         </div>
     </div>
 </div>
@@ -4151,6 +4589,26 @@
         transition: width 0.5s ease;
     }
 
+    /* ★ Comment Modal styles */
+    #commentModal .modal-content {
+        max-width: 550px;
+    }
+    #commentModal textarea {
+        font-family: 'Book Antiqua', Palatino, serif;
+        border: 2px solid #eef2f6;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    #commentModal textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+    #existingCommentsDisplay {
+        font-size: 0.85rem;
+    }
+
     @media (max-width: 768px) {
         .tab-buttons {
             flex-direction: column;
@@ -4190,6 +4648,9 @@
         .requisition-table td {
             padding: 4px 4px;
         }
+        #commentModal .modal-content {
+            width: 98%;
+        }
     }
 
     @media (max-width: 576px) {
@@ -4219,9 +4680,6 @@
         }
         .modal-content {
             width: 98%;
-        }
-        .bulk-paste-input {
-            font-size: 0.7rem;
         }
     }
 
