@@ -1,13 +1,10 @@
-<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v9.0 -->
-<!-- ★ FIXED: Division-wise transport weight optimization -->
+<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v10.1 -->
+<!-- ★ FIXED: Weight displayed as "X.X MT (Approx)" without green tick -->
 <!-- ★ Each division has its own truck capacity selection -->
 <!-- ★ Weight calculated per division -->
-<!-- ★ Suggestions per division (based on shortfall) -->
-<!-- ★ Letter shows weight per division -->
-<!-- ★ Multiple comments per quantity with grouped display -->
-<!-- Virtual Stock = Current Stock + In-Transit -->
-<!-- Critical = Virtual Stock <= Monthly Avg -->
-<!-- Suggested Qty = Monthly Avg - Virtual Stock -->
+<!-- ★ Virtual Stock = Current Stock + In-Transit -->
+<!-- ★ Critical = Virtual Stock <= Monthly Avg -->
+<!-- ★ Suggested Qty = Monthly Avg - Virtual Stock -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -106,13 +103,11 @@
             stockDataCache: null,
             avgDataCache: {},
             transitMapCache: {},
-            // ★ NEW: Division-wise transport
-            divisionTransport: {},      // { division: { capacity: 5000, weight: 0, utilization: 0 } }
-            divisionWeights: {},        // { division: weight_in_kg }
-            // ★ NEW: Multiple comments support
-            materialComments: {},       // { materialCode: { division: [comment1, comment2, ...] } }
-            commentModalData: null,     // Data for comment modal
-            commentCounter: 0           // Global counter for note numbering
+            divisionTransport: {},
+            divisionWeights: {},
+            materialComments: {},
+            commentModalData: null,
+            commentCounter: 0
         };
 
         // ============================================================
@@ -156,9 +151,7 @@
                 columnToggleIcon: '#columnToggleIcon',
                 bulkPasteInput: '#bulkPasteInput',
                 selectedDivisionDisplay: '#selectedDivisionDisplay',
-                // ★ NEW: Division-wise transport
                 divisionTransportContainer: '#divisionTransportContainer',
-                // ★ NEW: Comment modal
                 commentModal: '#commentModal',
                 commentMaterialDisplay: '#commentMaterialDisplay',
                 commentDivisionDisplay: '#commentDivisionDisplay',
@@ -1463,7 +1456,6 @@
                 UiService.updateFinalBadge();
             },
 
-            // ★ NEW: Handle quantity change
             onAllottedChange: function(rowIndex, newValue) {
                 const qty = parseFloat(newValue);
                 if (isNaN(qty) || qty < 0) return;
@@ -1474,7 +1466,6 @@
                 }
             },
 
-            // ★ NEW: Handle Enter key - triggers comment popup
             onAllottedEnter: function(rowIndex, event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
@@ -1490,7 +1481,6 @@
                 }
             },
 
-            // ★ NEW: Open comment modal with sequential notes
             openCommentModal: function(rowIndex, item) {
                 const materialName = item.material_name || Utils.getMaterialName(item.material_code) || item.material_code;
                 const materialCode = item.material_code;
@@ -1559,7 +1549,6 @@
                 }
             },
 
-            // ★ NEW: Save comment
             saveComment: function() {
                 const comment = dom.commentInput ? dom.commentInput.value.trim() : '';
                 const data = state.commentModalData;
@@ -1623,13 +1612,11 @@
                 }
             },
 
-            // ★ NEW: Skip comment
             skipComment: function() {
                 this.closeCommentModal();
                 UiService.showToast('ℹ️ Comment skipped');
             },
 
-            // ★ NEW: Close comment modal
             closeCommentModal: function() {
                 if (dom.commentModal) {
                     dom.commentModal.style.display = 'none';
@@ -1637,7 +1624,6 @@
                 state.commentModalData = null;
             },
 
-            // ★ NEW: View all comments for an item
             viewComments: function(rowIndex) {
                 const row = state.finalData[rowIndex];
                 if (!row) return;
@@ -1684,7 +1670,7 @@
             },
 
             // ============================================================
-            // ★ DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION
+            // DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION
             // ============================================================
 
             calculateDivisionWeights() {
@@ -1710,7 +1696,6 @@
                 const weights = this.calculateDivisionWeights();
                 state.divisionWeights = weights;
                 
-                // Get unique divisions from finalData
                 const divisions = [...new Set(state.finalData.map(row => row.division))];
                 
                 if (divisions.length === 0) {
@@ -1722,7 +1707,6 @@
                 const container = dom.divisionTransportContainer;
                 if (!container) return;
                 
-                // Build transport UI for each division
                 let html = '';
                 
                 divisions.forEach((division, idx) => {
@@ -1741,7 +1725,7 @@
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <strong style="color: #1a3c6e; font-size: 0.95rem;">${division}</strong>
                                     <span style="font-size: 0.7rem; color: ${statusColor}; font-weight: 600;">
-                                        ${statusIcon} ${statusText} (${utilization.toFixed(1)}%)
+                                        ${statusIcon} ${statusText}
                                     </span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
@@ -1779,9 +1763,7 @@
                                     <span>100%</span>
                                 </div>
                             </div>
-                            <!-- ★ Division-wise suggestions -->
                             <div class="division-suggestions" data-division="${division}" style="margin-top: 8px; display: none; background: #fffdf5; border-radius: 6px; padding: 8px; border: 1px dashed #ffc107;">
-                                <!-- Dynamic suggestions -->
                             </div>
                         </div>
                     `;
@@ -1789,7 +1771,6 @@
                 
                 container.innerHTML = html;
                 
-                // Update stored capacities
                 divisions.forEach(division => {
                     const select = document.querySelector(`.division-transport-select[data-division="${division}"]`);
                     if (select) {
@@ -1803,7 +1784,6 @@
                     }
                 });
                 
-                // Show suggestions for divisions with low utilization
                 divisions.forEach(division => {
                     const capacity = state.divisionTransport[division]?.capacity || 0;
                     const weight = weights[division] || 0;
@@ -1822,7 +1802,6 @@
                 this.updateDivisionTransportUI();
             },
 
-            // ★ Division-wise suggestions
             showDivisionSuggestions(division, capacityKG, currentWeightKG) {
                 const shortfall = capacityKG - currentWeightKG;
                 const suggestionContainer = document.querySelector(`.division-suggestions[data-division="${division}"]`);
@@ -1840,7 +1819,6 @@
                 const divisionStock = state.stockDataCache?.filter(item => String(item.plant) === plantCode) || [];
                 const divisionMaterials = state.divisionMaterials[division] || [];
                 
-                // Get all material codes
                 const allMaterialCodes = new Set();
                 divisionStock.forEach(item => { if (item.material_code) allMaterialCodes.add(item.material_code); });
                 divisionMaterials.forEach(mat => { if (mat.material_code) allMaterialCodes.add(mat.material_code); });
@@ -1879,7 +1857,6 @@
                     }
                 }
                 
-                // Sort by weight (lighter first for better filling)
                 criticalMaterials.sort((a, b) => a.weight_per_unit_kg - b.weight_per_unit_kg);
                 
                 let remainingShortfall = shortfall;
@@ -1940,7 +1917,6 @@
                 `;
             },
 
-            // ★ Apply division suggestion
             applyDivisionSuggestion: function(division, materialCode, suggestedQty) {
                 const exists = state.finalData.some(f => f.material_code === materialCode && f.division === division);
                 
@@ -1979,7 +1955,6 @@
                 this.updateDivisionTransportUI();
             },
 
-            // ★ Apply all division suggestions
             applyAllDivisionSuggestions: function(division) {
                 const buttons = document.querySelectorAll(`.division-suggestions[data-division="${division}"] .btn-add-item`);
                 if (buttons.length === 0) {
@@ -2109,7 +2084,7 @@
                 const uniqueRegions = Utils.getUniqueRegions(divisionKeys, state.divisionRegionMap);
                 const regionsList = uniqueRegions.join(', ');
 
-                // ★ Calculate division-wise weights
+                // ★ Calculate division-wise weights (NO PERCENTAGE, NO GREEN TICK)
                 const weights = this.calculateDivisionWeights();
                 const totalWeightMT = Object.values(weights).reduce((sum, w) => sum + (w / 1000), 0);
 
@@ -2136,15 +2111,12 @@
                     `;
                 });
 
-                // ★ Division-wise weight summary row
+                // ★ Weight summary row - NO PERCENTAGE, NO GREEN TICK, just "X.X MT (Approx)"
                 const weightSummaryCols = divisionKeys.map(div => {
                     const weightMT = (weights[div] || 0) / 1000;
-                    const capacity = state.divisionTransport[div]?.capacity || 0;
-                    const util = capacity > 0 ? (weights[div] / capacity) * 100 : 0;
-                    const statusIcon = util >= 85 ? '✅' : util >= 50 ? '🟡' : '🔴';
+                    // ★ Show only weight in MT (Approx) - NO GREEN TICK
                     return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 7px; font-weight: 600;">
-                        ${weightMT.toFixed(1)} MT
-                        ${capacity > 0 ? `<br><span style="font-size: 6px; color: ${util >= 85 ? '#28a745' : util >= 50 ? '#ffc107' : '#dc3545'};">${statusIcon} ${util.toFixed(0)}%</span>` : ''}
+                        ${weightMT.toFixed(1)} MT (Approx)
                     </td>`;
                 }).join('');
 
@@ -2153,7 +2125,7 @@
                         <td colspan="4" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Total Transport Weight</td>
                         ${weightSummaryCols}
                         <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">
-                            ${totalWeightMT.toFixed(1)} MT
+                            ${totalWeightMT.toFixed(1)} MT (Approx)
                         </td>
                     </tr>
                 `;
@@ -2177,8 +2149,8 @@
                 let noteCounter = 1;
                 const groupedComments = {};
 
-                for (const [materialCode, divisions] of Object.entries(state.materialComments)) {
-                    for (const [division, comments] of Object.entries(divisions)) {
+                for (const [materialCode, divisionsObj] of Object.entries(state.materialComments)) {
+                    for (const [division, comments] of Object.entries(divisionsObj)) {
                         if (!comments || comments.length === 0) continue;
                         const key = `${materialCode}|${division}`;
                         const materialName = Utils.getMaterialName(materialCode) || materialCode;
@@ -2498,7 +2470,6 @@
                         };
                     });
 
-                    // ★ Include division-wise transport data
                     const divisionTransportData = {};
                     for (const [division, data] of Object.entries(state.divisionTransport)) {
                         divisionTransportData[division] = {
@@ -2770,7 +2741,6 @@
                 });
                 this.onDivisionSelect();
 
-                // ★ Load division transport data
                 if (allotment.division_transport) {
                     state.divisionTransport = {};
                     for (const [division, data] of Object.entries(allotment.division_transport)) {
@@ -4396,7 +4366,6 @@
         color: #721c24;
     }
 
-    /* Division Transport Styles */
     .division-transport-item {
         animation: fadeIn 0.3s ease;
         transition: all 0.3s ease;
@@ -4425,7 +4394,6 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Comment Modal */
     #commentModal .modal-content {
         max-width: 550px;
     }
