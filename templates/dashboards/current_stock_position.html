@@ -85,7 +85,7 @@
         <!-- Zone Filter -->
         <div class="filter-group">
             <label><i class="bi bi-globe2"></i> ZONE</label>
-            <select id="zoneFilter" class="filter-select" onchange="onZoneChange()">
+            <select id="zoneFilter" class="filter-select" onchange="Manager.onZoneChange()">
                 <option value="all">All Zones</option>
                 <option value="siliguri">Siliguri Zone</option>
             </select>
@@ -130,7 +130,7 @@
         <!-- Material Group Filter -->
         <div class="filter-group">
             <label><i class="bi bi-tags"></i> MATERIAL GROUP</label>
-            <select id="groupFilter" class="filter-select" onchange="onMaterialGroupChange()">
+            <select id="groupFilter" class="filter-select" onchange="Manager.onMaterialGroupChange()">
                 <option value="all">All Material Groups</option>
             </select>
         </div>
@@ -138,7 +138,7 @@
         <!-- Material Filter -->
         <div class="filter-group">
             <label><i class="bi bi-box-seam"></i> MATERIAL</label>
-            <select id="materialFilter" class="filter-select" onchange="loadStockData()">
+            <select id="materialFilter" class="filter-select" onchange="Manager.applyFilters()">
                 <option value="all">All Materials</option>
             </select>
         </div>
@@ -146,7 +146,7 @@
         <!-- Sort By Filter -->
         <div class="filter-group">
             <label><i class="bi bi-sort-numeric-down"></i> SORT BY</label>
-            <select id="sortFilter" class="filter-select" onchange="filterTable()">
+            <select id="sortFilter" class="filter-select" onchange="Manager.applyFilters()">
                 <option value="material_code">Material Code (A-Z)</option>
                 <option value="material_code_desc">Material Code (Z-A)</option>
                 <option value="current_stock_asc">Stock (Low to High)</option>
@@ -291,7 +291,7 @@
 <script>
     /**
      * ================================================================
-     * CURRENT STOCK POSITION - SIMPLIFIED FILTER APPROACH
+     * CURRENT STOCK POSITION - COMPLETE FIXED VERSION
      * ================================================================
      */
 
@@ -452,7 +452,7 @@
         
         showGuidance: (msg) => {
             const el = Ui.dom.guidance, t = Ui.dom.gText;
-            if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 6000); }
+            if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 8000); }
         },
         
         showError: (msg) => {
@@ -460,6 +460,7 @@
             if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 5000); }
         },
         
+        // ★ FIXED: Show ONLY unique materials with status breakdown
         renderTable: (data) => {
             const tb = Ui.dom.table;
             const countEl = Ui.dom.resultCount;
@@ -472,25 +473,73 @@
                 return;
             }
             
-            tb.innerHTML = data.map(item => `
+            // ★ Get unique materials by material_code
+            const uniqueMap = new Map();
+            data.forEach(item => {
+                const code = item.material_code;
+                if (!uniqueMap.has(code)) {
+                    uniqueMap.set(code, {
+                        material_code: code,
+                        material_name: item.material_name || code,
+                        status: item.status,
+                        status_class: item.status_class,
+                        has_transit: item.has_transit,
+                        transit_qty: item.transit_qty || 0,
+                        current_stock: item.current_stock,
+                        virtual_stock: item.virtual_stock,
+                        unit: item.unit || 'Units',
+                        division_name: item.division_name,
+                        material_group: item.material_group,
+                        monthly_avg: item.monthly_avg,
+                        reorder_level: item.reorder_level,
+                        stock_months: item.stock_months,
+                        sl: item.sl
+                    });
+                }
+            });
+            
+            const uniqueData = Array.from(uniqueMap.values());
+            const uniqueCount = uniqueData.length;
+            
+            // ★ Count unique materials by status
+            const criticalCount = uniqueData.filter(item => item.status === 'Critical').length;
+            const normalCount = uniqueData.filter(item => item.status === 'Normal').length;
+            const transitCount = uniqueData.filter(item => item.has_transit).length;
+            const transitTotal = data.reduce((sum, item) => sum + (item.transit_qty || 0), 0);
+            
+            // ★ Render unique materials only
+            tb.innerHTML = uniqueData.map((item, index) => `
                 <tr>
-                    <td class="col-sno">${item.sl}</td>
+                    <td class="col-sno">${index + 1}</td>
                     <td class="col-mat-code"><code>${Utils.sanitize(item.material_code)}</code></td>
                     <td class="col-mat-name" title="${Utils.sanitize(item.material_name || 'Unknown')}">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 28))}${(item.material_name || '').length > 28 ? '...' : ''}</td>
                     <td class="col-group"><span class="badge-group">${Utils.sanitize(item.material_group || '-')}</span></td>
                     <td class="col-division">${Utils.sanitize(item.division_name)}</td>
-                    <td class="col-current-stock ${item.status_class}"><strong>${Utils.formatNum(item.current_stock)}</strong></td>
+                    <td class="col-current-stock"><strong>${Utils.formatNum(item.current_stock)}</strong></td>
                     <td class="col-unit">${Utils.sanitize(item.unit || 'Units')}</td>
                     <td class="col-transit ${item.has_transit ? 'has-transit' : ''}">${item.has_transit ? '🚚 ' + Utils.formatNum(item.transit_qty) : '-'}</td>
-                    <td class="col-virtual-stock ${item.status_class}"><strong>${Utils.formatNum(item.virtual_stock)}</strong></td>
+                    <td class="col-virtual-stock"><strong>${Utils.formatNum(item.virtual_stock)}</strong></td>
                     <td class="col-monthly-avg"><strong>${item.monthly_avg}</strong></td>
                     <td class="col-reorder"><strong>${item.reorder_level}</strong></td>
-                    <td class="col-status ${item.status_class}">${item.status}${item.has_transit ? ' 🚚' : ''}</td>
+                    <td class="col-status">
+                        <span class="status-badge ${item.status_class}">${item.status}${item.has_transit ? ' 🚚' : ''}</span>
+                    </td>
                     <td class="col-stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
                 </tr>
             `).join('');
             
-            if (countEl) countEl.textContent = `${data.length} items`;
+            // ★ Show ONLY unique materials count
+            if (countEl) {
+                countEl.textContent = `${uniqueCount} unique materials`;
+            }
+            
+            // ★ Build message: Total unique materials first, then breakdown
+            let msg = `✅ ${uniqueCount} unique materials`;
+            if (criticalCount > 0) msg += `, ${criticalCount} critical`;
+            if (normalCount > 0) msg += `, ${normalCount} normal`;
+            if (transitCount > 0) msg += `, ${transitCount} with in-transit`;
+            if (transitTotal > 0) msg += ` (${Math.round(transitTotal)} units on the way)`;
+            Ui.showGuidance(msg);
         },
         
         setDate: () => { const el = Ui.dom.date; if (el) el.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); },
@@ -665,6 +714,7 @@
             this.applyFilters();
         },
         
+        // ★ Main filter function
         applyFilters() {
             if (!State.allRawData || State.allRawData.length === 0) {
                 this.loadStockData();
@@ -707,7 +757,7 @@
                 filtered = filtered.filter(item => item.material_group === group);
             }
             
-            // Material Code Filter
+            // Material Filter
             const material = Ui.dom.material?.value || 'all';
             if (material !== 'all') {
                 filtered = filtered.filter(item => String(item.material_code) === String(material));
@@ -722,7 +772,7 @@
                 filtered = filtered.filter(item => item.has_transit);
             }
             
-            // Sort
+            // Sort Filter
             const sortBy = Ui.dom.sort?.value || 'material_code';
             const sortMap = {
                 'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
@@ -745,17 +795,6 @@
             
             State.filteredData = filtered;
             Ui.renderTable(filtered);
-            
-            const total = filtered.length;
-            const critical = filtered.filter(m => m.status === 'Critical').length;
-            const withTransit = filtered.filter(m => m.has_transit).length;
-            const transitTotal = filtered.reduce((sum, m) => sum + m.transit_qty, 0);
-            
-            let msg = `✅ Showing ${total} materials`;
-            if (critical > 0) msg += ` (${critical} critical)`;
-            if (withTransit > 0) msg += `, ${withTransit} with in-transit`;
-            if (total > 0 && transitTotal > 0) msg += ` (${transitTotal.toFixed(0)} units on the way)`;
-            Ui.showGuidance(msg);
         },
         
         selectAllRegions() { 
@@ -787,8 +826,6 @@
         setStatusFilter(status) {
             State.statusFilter = status;
             document.querySelectorAll('.status-card').forEach(c => c.classList.toggle('active', c.dataset.status === status));
-            const names = { all: 'All Items', critical: 'Critical Stock Only', normal: 'Normal Stock Only', in_transit: 'With In-Transit Only' };
-            Ui.showGuidance(`📊 Showing: ${names[status] || 'All Items'}`);
             this.applyFilters();
         },
         
@@ -872,7 +909,7 @@
                         reorder_level: reorderLevel,
                         stock_months: stockMonths,
                         status: isCritical ? 'Critical' : 'Normal',
-                        status_class: isCritical ? 'status-critical' : 'status-normal',
+                        status_class: isCritical ? 'critical' : 'normal',
                         has_transit: item.transit_qty > 0
                     };
                 });
@@ -983,7 +1020,7 @@
 </script>
 
 <!-- ================================================================
-     CSS STYLES - WITH FROZEN HEADER
+     CSS STYLES - WITH FROZEN HEADER & STATUS BADGES
      ================================================================ -->
 <style>
     * { box-sizing: border-box; }
@@ -1520,7 +1557,6 @@
         z-index: 10;
     }
     
-    /* Fix for thead background to prevent content showing through */
     .data-table thead th {
         background: #f8fafd;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -1558,8 +1594,46 @@
 
     .col-mat-name, .col-division { text-align: left !important; }
 
-    .status-critical { background: #fee; color: #dc3545; font-weight: bold; }
-    .status-normal { color: #28a745; }
+    /* Status Badge Styles */
+    .status-badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-align: center;
+        min-width: 65px;
+    }
+    
+    .status-badge.critical {
+        background: #fce4e4 !important;
+        color: #c62828 !important;
+        border: 1px solid #ffcdd2;
+    }
+    
+    .status-badge.normal {
+        background: #e8f5e9 !important;
+        color: #2e7d32 !important;
+        border: 1px solid #c8e6c9;
+    }
+    
+    /* Row background highlights */
+    .data-table tr td.status-critical {
+        background: #fce4e4 !important;
+    }
+    
+    .data-table tr td.status-normal {
+        background: #e8f5e9 !important;
+    }
+    
+    .data-table tr:hover td.status-critical {
+        background: #f8d7da !important;
+    }
+    
+    .data-table tr:hover td.status-normal {
+        background: #d4edda !important;
+    }
+
     .has-transit { color: #17a2b8; font-weight: bold; }
 
     .badge-group {
