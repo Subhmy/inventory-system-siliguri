@@ -1,8 +1,10 @@
-<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v8.1 -->
-<!-- ★ NEW: Multiple comments per quantity (Note 1, Note 2, Note 3...) -->
-<!-- ★ NEW: Grouped display in letter: Note 1-3: For Connection X, Y, Z (3 NOS Material - Division) -->
-<!-- ★ NEW: Sequential popup for each comment -->
-<!-- ★ NEW: Click on note icon to view all comments -->
+<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v9.0 -->
+<!-- ★ FIXED: Division-wise transport weight optimization -->
+<!-- ★ Each division has its own truck capacity selection -->
+<!-- ★ Weight calculated per division -->
+<!-- ★ Suggestions per division (based on shortfall) -->
+<!-- ★ Letter shows weight per division -->
+<!-- ★ Multiple comments per quantity with grouped display -->
 <!-- Virtual Stock = Current Stock + In-Transit -->
 <!-- Critical = Virtual Stock <= Monthly Avg -->
 <!-- Suggested Qty = Monthly Avg - Virtual Stock -->
@@ -47,7 +49,7 @@
             ALLOTMENT_NO_PATTERN: /^\d{1,4}$/,
             MATERIAL_CODE_PATTERN: /^\d{9}$/,
             TRANSPORT_OPTIONS: [
-                { value: 0, label: '-- Select Truck Capacity --' },
+                { value: 0, label: '-- Select --' },
                 { value: 3000, label: '3 MT' },
                 { value: 4000, label: '4 MT' },
                 { value: 5000, label: '5 MT' },
@@ -104,13 +106,13 @@
             stockDataCache: null,
             avgDataCache: {},
             transitMapCache: {},
-            transportCapacity: 0,
-            totalWeight: 0,
-            utilization: 0,
+            // ★ NEW: Division-wise transport
+            divisionTransport: {},      // { division: { capacity: 5000, weight: 0, utilization: 0 } }
+            divisionWeights: {},        // { division: weight_in_kg }
             // ★ NEW: Multiple comments support
-            materialComments: {},      // { materialCode: { division: [comment1, comment2, ...] } }
-            commentModalData: null,    // Data for comment modal
-            commentCounter: 0          // Global counter for note numbering
+            materialComments: {},       // { materialCode: { division: [comment1, comment2, ...] } }
+            commentModalData: null,     // Data for comment modal
+            commentCounter: 0           // Global counter for note numbering
         };
 
         // ============================================================
@@ -154,14 +156,8 @@
                 columnToggleIcon: '#columnToggleIcon',
                 bulkPasteInput: '#bulkPasteInput',
                 selectedDivisionDisplay: '#selectedDivisionDisplay',
-                transportSection: '#transportSection',
-                transportWeight: '#transportWeight',
-                currentWeightDisplay: '#currentWeightDisplay',
-                utilizationDisplay: '#utilizationDisplay',
-                weightProgressBar: '#weightProgressBar',
-                weightStatusMessage: '#weightStatusMessage',
-                suggestionContainer: '#suggestionContainer',
-                suggestionList: '#suggestionList',
+                // ★ NEW: Division-wise transport
+                divisionTransportContainer: '#divisionTransportContainer',
                 // ★ NEW: Comment modal
                 commentModal: '#commentModal',
                 commentMaterialDisplay: '#commentMaterialDisplay',
@@ -538,7 +534,7 @@
                 if (tabName === 'history') AllotmentManager.loadHistory();
                 if (tabName === 'step2' && state.finalData.length > 0) {
                     AllotmentManager.renderFinalTable();
-                    AllotmentManager.updateWeightStatus();
+                    AllotmentManager.updateDivisionTransportUI();
                 }
                 if (tabName === 'step1') {
                     AllotmentManager.updateSuggestedTable();
@@ -631,8 +627,9 @@
             },
 
             showTransportSection: (show) => {
-                if (dom.transportSection) {
-                    dom.transportSection.style.display = show ? 'block' : 'none';
+                const container = dom.divisionTransportContainer;
+                if (container) {
+                    container.style.display = show ? 'block' : 'none';
                 }
             }
         };
@@ -648,7 +645,6 @@
                 UiService.displayCurrentDate();
                 this.loadDivisions();
                 UiService.loadColumnPreferences();
-                this.populateTransportDropdown();
 
                 await this.loadMaterials();
                 
@@ -667,20 +663,6 @@
                 this.setupBulkPaste();
                 UiService.updateDivisionDisplay();
                 UiService.showTransportSection(false);
-            },
-
-            populateTransportDropdown() {
-                if (!dom.transportWeight) return;
-                dom.transportWeight.innerHTML = '';
-                CONFIG.TRANSPORT_OPTIONS.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt.value;
-                    option.textContent = opt.label;
-                    dom.transportWeight.appendChild(option);
-                });
-                dom.transportWeight.addEventListener('change', () => {
-                    this.updateWeightStatus();
-                });
             },
 
             // ------------------------------------------------------------
@@ -969,7 +951,7 @@
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
-                this.updateWeightStatus();
+                this.updateDivisionTransportUI();
                 UiService.updateFinalBadge();
             },
 
@@ -1375,7 +1357,6 @@
                             monthly_avg: row.monthly_avg,
                             zonal_stock: row.zonal_stock,
                             status: row.status,
-                            // ★ NEW: Multiple comments support
                             comment_count: 0,
                             comments: []
                         });
@@ -1398,7 +1379,7 @@
 
                 this.updateSuggestedTable();
                 this.renderFinalTable();
-                this.updateWeightStatus();
+                this.updateDivisionTransportUI();
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
                 if (dom.finalContainer) dom.finalContainer.style.display = 'block';
                 UiService.updateFinalBadge();
@@ -1434,7 +1415,6 @@
                     const isFirstForDivision = state.finalData.findIndex(r => r.division === row.division) === idx;
                     const displayName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
                     
-                    // ★ NEW: Show comment count with click to view
                     const commentCount = row.comment_count || 0;
                     const hasComments = commentCount > 0;
                     const comments = row.comments || [];
@@ -1490,7 +1470,7 @@
                 
                 if (state.finalData[rowIndex]) {
                     state.finalData[rowIndex].allotted_qty = qty;
-                    this.updateWeightStatus();
+                    this.updateDivisionTransportUI();
                 }
             },
 
@@ -1503,7 +1483,7 @@
                     
                     if (state.finalData[rowIndex]) {
                         state.finalData[rowIndex].allotted_qty = qty;
-                        this.updateWeightStatus();
+                        this.updateDivisionTransportUI();
                         const item = state.finalData[rowIndex];
                         this.openCommentModal(rowIndex, item);
                     }
@@ -1517,7 +1497,6 @@
                 const division = item.division;
                 const quantity = parseFloat(item.allotted_qty) || 0;
                 
-                // Initialize comments array for this material-division
                 if (!state.materialComments[materialCode]) {
                     state.materialComments[materialCode] = {};
                 }
@@ -1528,14 +1507,12 @@
                 const existingComments = state.materialComments[materialCode][division] || [];
                 const remaining = quantity - existingComments.length;
                 
-                // If all quantities have comments, close modal
                 if (remaining <= 0) {
                     UiService.showToast('✅ All quantities have comments!');
                     this.closeCommentModal();
                     return;
                 }
                 
-                // Store modal data
                 state.commentModalData = {
                     rowIndex: rowIndex,
                     materialCode: materialCode,
@@ -1546,7 +1523,6 @@
                     remaining: remaining
                 };
                 
-                // Populate modal
                 if (dom.commentMaterialDisplay) {
                     dom.commentMaterialDisplay.textContent = `${materialCode} - ${materialName}`;
                 }
@@ -1562,13 +1538,11 @@
                     setTimeout(() => dom.commentInput.focus(), 100);
                 }
                 
-                // Update modal title
                 const modalTitle = document.querySelector('#commentModal .modal-header h3');
                 if (modalTitle) {
                     modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${quantity}`;
                 }
                 
-                // Show existing comments
                 if (dom.existingCommentsDisplay) {
                     if (existingComments.length > 0) {
                         dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
@@ -1592,7 +1566,6 @@
                 
                 if (!data) return;
                 
-                // Initialize arrays if not exist
                 if (!state.materialComments[data.materialCode]) {
                     state.materialComments[data.materialCode] = {};
                 }
@@ -1600,7 +1573,6 @@
                     state.materialComments[data.materialCode][data.division] = [];
                 }
                 
-                // Save comment
                 if (comment) {
                     state.materialComments[data.materialCode][data.division].push(comment);
                     state.commentCounter++;
@@ -1609,26 +1581,21 @@
                     UiService.showToast('ℹ️ No comment added (skipped)');
                 }
                 
-                // Update finalData with comment info
                 const commentCount = state.materialComments[data.materialCode][data.division].length;
                 if (state.finalData[data.rowIndex]) {
                     state.finalData[data.rowIndex].comment_count = commentCount;
                     state.finalData[data.rowIndex].comments = state.materialComments[data.materialCode][data.division];
                 }
                 
-                // Re-render final table
                 this.renderFinalTable();
                 
-                // Check if all quantities have comments
                 const existingComments = state.materialComments[data.materialCode][data.division] || [];
                 const totalQty = data.quantity;
                 
                 if (existingComments.length >= totalQty) {
-                    // All done - close modal
                     UiService.showToast(`✅ All ${totalQty} notes added for ${data.materialName}!`);
                     this.closeCommentModal();
                 } else {
-                    // More comments needed - keep modal open
                     const remaining = totalQty - existingComments.length;
                     if (dom.commentInput) {
                         dom.commentInput.value = '';
@@ -1640,13 +1607,11 @@
                         dom.commentQuantityDisplay.textContent = `${totalQty} units (${existingComments.length} commented, ${remaining} remaining)`;
                     }
                     
-                    // Update modal title
                     const modalTitle = document.querySelector('#commentModal .modal-header h3');
                     if (modalTitle) {
                         modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${totalQty}`;
                     }
                     
-                    // Update existing comments display
                     if (dom.existingCommentsDisplay) {
                         dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
                             `<div style="font-size: 0.8rem; color: #28a745; padding: 2px 0;">✅ Note ${i+1}: ${c}</div>`
@@ -1660,11 +1625,8 @@
 
             // ★ NEW: Skip comment
             skipComment: function() {
-                const data = state.commentModalData;
-                if (data) {
-                    UiService.showToast('ℹ️ Comment skipped');
-                }
                 this.closeCommentModal();
+                UiService.showToast('ℹ️ Comment skipped');
             },
 
             // ★ NEW: Close comment modal
@@ -1722,208 +1684,176 @@
             },
 
             // ============================================================
-            // ★ TRANSPORT WEIGHT OPTIMIZATION FUNCTIONS
+            // ★ DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION
             // ============================================================
 
-            calculateTotalWeightMT() {
-                let totalWeightKG = 0;
-                
-                if (!state.finalData || state.finalData.length === 0) {
-                    return 0;
-                }
+            calculateDivisionWeights() {
+                const weights = {};
                 
                 for (const item of state.finalData) {
-                    let weightPerUnitKG = parseFloat(item.weight_per_unit_kg);
-                    if (!weightPerUnitKG || weightPerUnitKG === 0) {
-                        weightPerUnitKG = Utils.getMaterialWeightKG(item.material_code);
-                        item.weight_per_unit_kg = weightPerUnitKG;
+                    const division = item.division;
+                    if (!weights[division]) weights[division] = 0;
+                    
+                    let weightKG = parseFloat(item.weight_per_unit_kg);
+                    if (!weightKG || weightKG === 0) {
+                        weightKG = Utils.getMaterialWeightKG(item.material_code);
+                        item.weight_per_unit_kg = weightKG;
                     }
-                    const quantity = parseFloat(item.allotted_qty) || 0;
-                    totalWeightKG += quantity * weightPerUnitKG;
+                    const qty = parseFloat(item.allotted_qty) || 0;
+                    weights[division] += qty * weightKG;
                 }
                 
-                return Math.round((totalWeightKG / 1000) * 100) / 100;
+                return weights;
             },
 
-            updateWeightStatus() {
-                const transportSelect = dom.transportWeight;
-                if (!transportSelect) return;
+            updateDivisionTransportUI() {
+                const weights = this.calculateDivisionWeights();
+                state.divisionWeights = weights;
                 
-                const transportCapacityKG = parseFloat(transportSelect.value) || 0;
-                const totalWeightMT = this.calculateTotalWeightMT();
-                const totalWeightKG = totalWeightMT * 1000;
+                // Get unique divisions from finalData
+                const divisions = [...new Set(state.finalData.map(row => row.division))];
                 
-                state.transportCapacity = transportCapacityKG;
-                state.totalWeight = totalWeightKG;
-                
-                if (dom.currentWeightDisplay) {
-                    dom.currentWeightDisplay.textContent = totalWeightMT.toFixed(1) + ' MT';
-                }
-                
-                const utilization = transportCapacityKG > 0 ? (totalWeightKG / transportCapacityKG) * 100 : 0;
-                state.utilization = utilization;
-                
-                if (dom.utilizationDisplay) {
-                    dom.utilizationDisplay.textContent = utilization.toFixed(1) + '%';
-                    dom.utilizationDisplay.style.color = utilization >= 85 ? '#28a745' : utilization >= 50 ? '#ffc107' : '#dc3545';
-                }
-                
-                if (dom.weightProgressBar) {
-                    const pct = Math.min(utilization, 100);
-                    dom.weightProgressBar.style.width = pct + '%';
-                    dom.weightProgressBar.style.background = pct >= 85 ? '#28a745' : pct >= 50 ? '#ffc107' : '#dc3545';
-                }
-                
-                const statusMsg = dom.weightStatusMessage;
-                if (statusMsg) {
-                    let message = '';
-                    let bgColor = '#e9ecef';
-                    let textColor = '#6c757d';
-                    
-                    if (transportCapacityKG === 0) {
-                        message = '⚠️ Please select a truck capacity to calculate weight status.';
-                        bgColor = '#fff3cd';
-                        textColor = '#856404';
-                    } else if (utilization >= 85) {
-                        message = `✅ Excellent! Truck is optimally utilized (${utilization.toFixed(1)}%). Ready for dispatch.`;
-                        bgColor = '#d4edda';
-                        textColor = '#155724';
-                    } else if (utilization >= 50) {
-                        const shortfallMT = ((transportCapacityKG - totalWeightKG) / 1000).toFixed(1);
-                        message = `🟡 Partial load (${utilization.toFixed(1)}%). Shortfall: ${shortfallMT} MT. Consider adding more materials.`;
-                        bgColor = '#fff3cd';
-                        textColor = '#856404';
-                        this.showSuggestions(transportCapacityKG, totalWeightKG);
-                    } else {
-                        const shortfallMT = ((transportCapacityKG - totalWeightKG) / 1000).toFixed(1);
-                        message = `🔴 Low utilization (${utilization.toFixed(1)}%). Shortfall: ${shortfallMT} MT. Add more materials to avoid transport delay.`;
-                        bgColor = '#f8d7da';
-                        textColor = '#721c24';
-                        this.showSuggestions(transportCapacityKG, totalWeightKG);
-                    }
-                    
-                    statusMsg.style.background = bgColor;
-                    statusMsg.style.color = textColor;
-                    statusMsg.textContent = message;
-                }
-                
-                const showSection = state.finalData.length > 0;
-                UiService.showTransportSection(showSection);
-                
-                if (dom.suggestionContainer && transportCapacityKG > 0 && totalWeightKG > 0 && utilization < 85) {
-                    dom.suggestionContainer.style.display = 'block';
-                } else if (dom.suggestionContainer) {
-                    dom.suggestionContainer.style.display = 'none';
-                }
-            },
-
-            // ★ FIXED: Shows ALL critical materials from division stock data
-            showSuggestions(transportCapacityKG, currentWeightKG) {
-                const shortfall = transportCapacityKG - currentWeightKG;
-                const suggestionList = dom.suggestionList;
-                
-                if (shortfall <= 0 || !suggestionList) {
-                    if (suggestionList) suggestionList.innerHTML = '';
+                if (divisions.length === 0) {
+                    UiService.showTransportSection(false);
                     return;
                 }
                 
+                UiService.showTransportSection(true);
+                const container = dom.divisionTransportContainer;
+                if (!container) return;
+                
+                // Build transport UI for each division
+                let html = '';
+                
+                divisions.forEach((division, idx) => {
+                    const weightKG = weights[division] || 0;
+                    const weightMT = weightKG / 1000;
+                    const capacityKG = state.divisionTransport[division]?.capacity || 0;
+                    const utilization = capacityKG > 0 ? (weightKG / capacityKG) * 100 : 0;
+                    
+                    const statusColor = utilization >= 85 ? '#28a745' : utilization >= 50 ? '#ffc107' : '#dc3545';
+                    const statusIcon = utilization >= 85 ? '✅' : utilization >= 50 ? '🟡' : '🔴';
+                    const statusText = utilization >= 85 ? 'Optimized' : utilization >= 50 ? 'Partial' : 'Low';
+                    
+                    html += `
+                        <div class="division-transport-item" style="background: ${idx % 2 === 0 ? '#f8fafd' : 'white'}; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; border: 1px solid #eef2f6;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <strong style="color: #1a3c6e; font-size: 0.95rem;">${division}</strong>
+                                    <span style="font-size: 0.7rem; color: ${statusColor}; font-weight: 600;">
+                                        ${statusIcon} ${statusText} (${utilization.toFixed(1)}%)
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <div>
+                                        <label style="font-size: 0.7rem; color: #6c757d;">Truck Capacity</label>
+                                        <select class="division-transport-select" data-division="${division}" 
+                                                style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;"
+                                                onchange="AllotmentManager.onDivisionTransportChange('${division}', this.value)">
+                                            ${CONFIG.TRANSPORT_OPTIONS.map(opt => 
+                                                `<option value="${opt.value}" ${parseInt(opt.value) === capacityKG ? 'selected' : ''}>${opt.label}</option>`
+                                            ).join('')}
+                                        </select>
+                                    </div>
+                                    <div style="text-align: center; min-width: 70px;">
+                                        <div style="font-size: 0.7rem; color: #6c757d;">Weight</div>
+                                        <div class="division-weight-display" style="font-weight: 700; font-size: 1rem; color: #1e2b3a;">
+                                            ${weightMT.toFixed(1)} MT
+                                        </div>
+                                    </div>
+                                    <div style="text-align: center; min-width: 60px;">
+                                        <div style="font-size: 0.7rem; color: #6c757d;">Utilization</div>
+                                        <div class="division-utilization-display" style="font-weight: 700; font-size: 1rem; color: ${statusColor};">
+                                            ${utilization.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 6px;">
+                                <div style="height: 8px; background: #eef2f6; border-radius: 4px; overflow: hidden;">
+                                    <div class="division-progress-fill" style="height: 100%; width: ${Math.min(utilization, 100)}%; background: ${statusColor}; border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: #6c757d; margin-top: 2px;">
+                                    <span>0%</span>
+                                    <span>85% (Target)</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                            <!-- ★ Division-wise suggestions -->
+                            <div class="division-suggestions" data-division="${division}" style="margin-top: 8px; display: none; background: #fffdf5; border-radius: 6px; padding: 8px; border: 1px dashed #ffc107;">
+                                <!-- Dynamic suggestions -->
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+                // Update stored capacities
+                divisions.forEach(division => {
+                    const select = document.querySelector(`.division-transport-select[data-division="${division}"]`);
+                    if (select) {
+                        const capacity = parseInt(select.value) || 0;
+                        if (!state.divisionTransport[division]) {
+                            state.divisionTransport[division] = { capacity: 0, weight: 0, utilization: 0 };
+                        }
+                        state.divisionTransport[division].capacity = capacity;
+                        state.divisionTransport[division].weight = weights[division] || 0;
+                        state.divisionTransport[division].utilization = capacity > 0 ? (weights[division] / capacity) * 100 : 0;
+                    }
+                });
+                
+                // Show suggestions for divisions with low utilization
+                divisions.forEach(division => {
+                    const capacity = state.divisionTransport[division]?.capacity || 0;
+                    const weight = weights[division] || 0;
+                    if (capacity > 0 && weight > 0 && (weight / capacity) < 0.85) {
+                        this.showDivisionSuggestions(division, capacity, weight);
+                    }
+                });
+            },
+
+            onDivisionTransportChange(division, value) {
+                const capacity = parseInt(value) || 0;
+                if (!state.divisionTransport[division]) {
+                    state.divisionTransport[division] = { capacity: 0, weight: 0, utilization: 0 };
+                }
+                state.divisionTransport[division].capacity = capacity;
+                this.updateDivisionTransportUI();
+            },
+
+            // ★ Division-wise suggestions
+            showDivisionSuggestions(division, capacityKG, currentWeightKG) {
+                const shortfall = capacityKG - currentWeightKG;
+                const suggestionContainer = document.querySelector(`.division-suggestions[data-division="${division}"]`);
+                if (!suggestionContainer || shortfall <= 0) {
+                    if (suggestionContainer) suggestionContainer.style.display = 'none';
+                    return;
+                }
+                
+                suggestionContainer.style.display = 'block';
                 let suggestionsHTML = '';
                 let totalSuggestions = 0;
                 
-                const activeDivision = state.selectedDivisions[0] || '';
-                const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
+                const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
+                const avgData = state.avgDataCache[plantCode] || {};
+                const divisionStock = state.stockDataCache?.filter(item => String(item.plant) === plantCode) || [];
+                const divisionMaterials = state.divisionMaterials[division] || [];
                 
-                // --- SECTION 1: Increase existing allotment quantities ---
-                if (state.finalData.length > 0) {
-                    let hasExistingSuggestions = false;
-                    let existingHTML = '';
-                    let remaining = shortfall;
-                    
-                    for (const item of state.finalData) {
-                        let weightPerUnitKG = parseFloat(item.weight_per_unit_kg);
-                        if (!weightPerUnitKG || weightPerUnitKG === 0) {
-                            weightPerUnitKG = Utils.getMaterialWeightKG(item.material_code);
-                            item.weight_per_unit_kg = weightPerUnitKG;
-                        }
-                        
-                        if (weightPerUnitKG > 0 && remaining > 0) {
-                            const maxAdditional = Math.floor(remaining / weightPerUnitKG);
-                            if (maxAdditional > 0) {
-                                const currentQty = parseFloat(item.allotted_qty) || 0;
-                                const suggestedQty = currentQty + maxAdditional;
-                                const weightAdded = maxAdditional * weightPerUnitKG;
-                                const weightAddedMT = weightAdded / 1000;
-                                remaining -= weightAdded;
-                                
-                                existingHTML += `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eef2f6;">
-                                        <div>
-                                            <strong>${item.material_name || item.material_code}</strong>
-                                            <span style="font-size: 0.8rem; color: #6c757d;">(${item.unit || 'NOS'})</span>
-                                            <br>
-                                            <span style="font-size: 0.65rem; color: #28a745;">
-                                                Current: ${currentQty} → ${suggestedQty}
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 15px;">
-                                            <span style="font-size: 0.75rem; color: #6c757d;">
-                                                +${weightAddedMT.toFixed(2)} MT
-                                            </span>
-                                            <button class="btn-add-item" style="padding: 2px 10px; font-size: 0.7rem; background: linear-gradient(135deg, #28a745, #20c997);" 
-                                                    onclick="AllotmentManager.applySuggestion('${item.material_code}', ${suggestedQty})">
-                                                Apply
-                                            </button>
-                                        </div>
-                                    </div>
-                                `;
-                                hasExistingSuggestions = true;
-                                totalSuggestions++;
-                                
-                                if (remaining <= 0) break;
-                            }
-                        }
-                    }
-                    
-                    if (hasExistingSuggestions) {
-                        suggestionsHTML += `
-                            <div style="padding: 6px 10px; background: #d4edda; border-radius: 4px; margin-bottom: 8px; font-weight: 600; font-size: 0.8rem; color: #155724;">
-                                📦 Increase existing allotment quantities
-                            </div>
-                            ${existingHTML}
-                        `;
-                    }
-                }
-                
-                // --- SECTION 2: Critical Materials from ALL stock data ---
-                const allStockData = state.stockDataCache || [];
-                const divisionStock = allStockData.filter(item => String(item.plant) === activePlantCode);
-                const criticalMaterials = [];
-                let remainingShortfall = shortfall;
-                
-                const avgData = state.avgDataCache[activePlantCode] || {};
-                const divisionMaterials = state.divisionMaterials[activeDivision] || [];
-                
-                // Collect all material codes from both sources
+                // Get all material codes
                 const allMaterialCodes = new Set();
+                divisionStock.forEach(item => { if (item.material_code) allMaterialCodes.add(item.material_code); });
+                divisionMaterials.forEach(mat => { if (mat.material_code) allMaterialCodes.add(mat.material_code); });
                 
-                for (const item of divisionStock) {
-                    const code = item.material_code;
-                    if (code) allMaterialCodes.add(code);
-                }
-                
-                for (const mat of divisionMaterials) {
-                    const code = mat.material_code;
-                    if (code) allMaterialCodes.add(code);
-                }
+                const criticalMaterials = [];
+                let remaining = shortfall;
                 
                 for (const code of allMaterialCodes) {
-                    const stock = this.getStockForMaterial(code, activePlantCode);
+                    const stock = this.getStockForMaterial(code, plantCode);
                     const inTransit = this.getTransitForMaterial(code);
                     const virtualStock = stock + inTransit;
+                    const monthlyAvg = avgData[code]?.[plantCode]?.monthly_avg || 0;
                     
-                    const monthlyAvg = avgData[code]?.[activePlantCode]?.monthly_avg || 0;
-                    
-                    // ★ Critical = Virtual Stock <= Monthly Avg
                     if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
                         const weightKG = Utils.getMaterialWeightKG(code) || 0;
                         if (weightKG > 0) {
@@ -1934,18 +1864,13 @@
                                 suggestedQty = Math.ceil(suggestedQty);
                             }
                             
-                            const existsInFinal = state.finalData.some(f => f.material_code === code);
-                            const materialName = Utils.getMaterialName(code) || code;
-                            const unit = Utils.getMaterialUnit(code) || 'NOS';
-                            
+                            const existsInFinal = state.finalData.some(f => f.material_code === code && f.division === division);
                             if (suggestedQty > 0 && !existsInFinal) {
                                 criticalMaterials.push({
                                     material_code: code,
-                                    material_name: materialName,
-                                    unit: unit,
+                                    material_name: Utils.getMaterialName(code) || code,
+                                    unit: Utils.getMaterialUnit(code) || 'NOS',
                                     weight_per_unit_kg: weightKG,
-                                    virtual_stock: virtualStock,
-                                    monthly_avg: monthlyAvg,
                                     suggested_qty: suggestedQty,
                                     weight_added: suggestedQty * weightKG
                                 });
@@ -1957,107 +1882,89 @@
                 // Sort by weight (lighter first for better filling)
                 criticalMaterials.sort((a, b) => a.weight_per_unit_kg - b.weight_per_unit_kg);
                 
-                if (criticalMaterials.length > 0) {
-                    let criticalHTML = '';
-                    let remaining = remainingShortfall;
-                    let criticalCount = 0;
+                let remainingShortfall = shortfall;
+                for (const mat of criticalMaterials) {
+                    let qtyToAdd = mat.suggested_qty;
+                    let weightToAdd = mat.weight_added;
                     
-                    for (const mat of criticalMaterials) {
-                        let qtyToAdd = mat.suggested_qty;
-                        let weightToAdd = mat.weight_added;
-                        
-                        if (weightToAdd > remaining) {
-                            const maxQty = Math.floor(remaining / mat.weight_per_unit_kg);
-                            if (maxQty <= 0) continue;
-                            qtyToAdd = maxQty;
-                            weightToAdd = maxQty * mat.weight_per_unit_kg;
-                        }
-                        
-                        remaining -= weightToAdd;
-                        criticalCount++;
-                        
-                        criticalHTML += `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eef2f6; background: #fffdf5;">
-                                <div>
-                                    <strong>${mat.material_name}</strong>
-                                    <span style="font-size: 0.8rem; color: #6c757d;">(${mat.unit})</span>
-                                    <br>
-                                    <span style="font-size: 0.65rem; color: #856404;">
-                                        Virtual: ${mat.virtual_stock.toFixed(2)} | Avg: ${mat.monthly_avg.toFixed(2)}
-                                    </span>
-                                    <span style="font-size: 0.65rem; color: #28a745; display: block;">
-                                        Add ${qtyToAdd} units → Editable in table
-                                    </span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <span style="font-size: 0.75rem; color: #6c757d;">
-                                        +${(weightToAdd/1000).toFixed(2)} MT
-                                    </span>
-                                    <button class="btn-add-item" style="padding: 2px 10px; font-size: 0.7rem; background: linear-gradient(135deg, #ffc107, #fd7e14);" 
-                                            onclick="AllotmentManager.applyCriticalSuggestion('${mat.material_code}', ${qtyToAdd})">
-                                        Add
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        totalSuggestions++;
-                        
-                        if (remaining <= 0) break;
+                    if (weightToAdd > remainingShortfall) {
+                        const maxQty = Math.floor(remainingShortfall / mat.weight_per_unit_kg);
+                        if (maxQty <= 0) continue;
+                        qtyToAdd = maxQty;
+                        weightToAdd = maxQty * mat.weight_per_unit_kg;
                     }
                     
-                    if (criticalHTML) {
-                        suggestionsHTML += `
-                            <div style="padding: 6px 10px; background: #fff3cd; border-radius: 4px; margin: 8px 0; font-weight: 600; font-size: 0.8rem; color: #856404;">
-                                ⚠️ Critical Materials (Virtual Stock &lt; Monthly Avg)
+                    remainingShortfall -= weightToAdd;
+                    totalSuggestions++;
+                    
+                    suggestionsHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid #eef2f6;">
+                            <div style="font-size: 0.75rem;">
+                                <strong>${mat.material_name}</strong>
+                                <span style="color: #6c757d;">(${mat.unit})</span>
+                                <span style="color: #28a745; font-size: 0.65rem;"> Add ${qtyToAdd} units</span>
                             </div>
-                            ${criticalHTML}
-                        `;
-                    }
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 0.7rem; color: #6c757d;">+${(weightToAdd/1000).toFixed(2)} MT</span>
+                                <button class="btn-add-item" style="padding: 2px 10px; font-size: 0.6rem; background: linear-gradient(135deg, #ffc107, #fd7e14);" 
+                                        onclick="AllotmentManager.applyDivisionSuggestion('${division}','${mat.material_code}', ${qtyToAdd})">
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (remainingShortfall <= 0) break;
                 }
                 
                 if (totalSuggestions === 0) {
                     suggestionsHTML = `
-                        <div style="text-align: center; padding: 20px; color: #6c757d;">
-                            <i class="bi bi-info-circle"></i> 
-                            No additional materials available to fill the truck.
-                            <br>Try adding new materials or selecting a smaller truck.
+                        <div style="text-align: center; padding: 10px; color: #6c757d; font-size: 0.75rem;">
+                            No additional materials available to fill this truck.
                         </div>
                     `;
                 }
                 
-                suggestionList.innerHTML = suggestionsHTML;
+                suggestionContainer.innerHTML = `
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #856404; margin-bottom: 4px;">
+                        💡 Suggestions to fill ${((capacityKG - currentWeightKG) / 1000).toFixed(1)} MT shortfall:
+                    </div>
+                    ${suggestionsHTML}
+                    ${totalSuggestions > 0 ? `
+                        <div style="margin-top: 6px; text-align: right;">
+                            <button class="btn-add-item" style="padding: 2px 12px; font-size: 0.65rem;" onclick="AllotmentManager.applyAllDivisionSuggestions('${division}')">
+                                Apply All
+                            </button>
+                        </div>
+                    ` : ''}
+                `;
             },
 
-            // ★ Apply critical material suggestion - goes to Final Allotment (editable)
-            applyCriticalSuggestion: function(materialCode, suggestedQty) {
-                const activeDivision = state.selectedDivisions[0] || '';
-                
-                // Check if already in final
-                const exists = state.finalData.some(f => f.material_code === materialCode);
+            // ★ Apply division suggestion
+            applyDivisionSuggestion: function(division, materialCode, suggestedQty) {
+                const exists = state.finalData.some(f => f.material_code === materialCode && f.division === division);
                 
                 if (exists) {
-                    // Update existing - add to current quantity
-                    const item = state.finalData.find(f => f.material_code === materialCode);
+                    const item = state.finalData.find(f => f.material_code === materialCode && f.division === division);
                     if (item) {
                         item.allotted_qty = (parseFloat(item.allotted_qty) || 0) + suggestedQty;
                         UiService.showToast(`✅ Updated ${item.material_name || materialCode} to ${item.allotted_qty} units`);
                     }
                 } else {
-                    // Add new - quantity is editable in Final Allotment table
                     const materialName = Utils.getMaterialName(materialCode) || materialCode;
                     const unit = Utils.getMaterialUnit(materialCode) || 'NOS';
                     const weightKG = Utils.getMaterialWeightKG(materialCode) || 0;
                     
                     state.finalData.push({
                         sno: state.finalData.length + 1,
-                        division: activeDivision,
+                        division: division,
                         material_code: materialCode,
                         material_name: materialName,
                         unit: unit,
                         weight_per_unit_kg: weightKG,
                         suggested_qty: suggestedQty,
                         allotted_qty: suggestedQty,
-                        sto_no: state.stoCache[activeDivision] || '',
+                        sto_no: state.stoCache[division] || '',
                         virtual_stock: 0,
                         monthly_avg: 0,
                         zonal_stock: 0,
@@ -2065,43 +1972,31 @@
                         comment_count: 0,
                         comments: []
                     });
-                    UiService.showToast(`✅ Added ${suggestedQty} units of ${materialName} (edit in table)`);
+                    UiService.showToast(`✅ Added ${suggestedQty} units of ${materialName} to ${division}`);
                 }
                 
-                // Re-render the Final Allotment table with editable quantities
                 this.renderFinalTable();
-                this.updateWeightStatus();
+                this.updateDivisionTransportUI();
             },
 
-            // ★ Apply existing material suggestion (increases quantity)
-            applySuggestion(materialCode, suggestedQty) {
-                const item = state.finalData.find(f => f.material_code === materialCode);
-                if (item) {
-                    item.allotted_qty = suggestedQty;
-                    this.renderFinalTable();
-                    this.updateWeightStatus();
-                    UiService.showToast(`✅ Updated ${item.material_name || materialCode} to ${suggestedQty} units`);
-                }
-            },
-
-            // ★ Apply all suggestions
-            applyAllSuggestions() {
-                const suggestionItems = dom.suggestionList?.querySelectorAll('.btn-add-item') || [];
-                if (suggestionItems.length === 0) {
+            // ★ Apply all division suggestions
+            applyAllDivisionSuggestions: function(division) {
+                const buttons = document.querySelectorAll(`.division-suggestions[data-division="${division}"] .btn-add-item`);
+                if (buttons.length === 0) {
                     UiService.showToast('No suggestions to apply.', true);
                     return;
                 }
                 
-                suggestionItems.forEach(btn => {
+                buttons.forEach(btn => {
                     btn.click();
                 });
                 
-                UiService.showToast(`✅ Applied all ${suggestionItems.length} suggestions!`);
+                UiService.showToast(`✅ Applied all suggestions for ${division}!`);
             },
 
-            // ------------------------------------------------------------
+            // ============================================================
             // GENERATE LETTER
-            // ------------------------------------------------------------
+            // ============================================================
             generateDraftLetter() {
                 if (state.finalData.length === 0) {
                     UiService.showToast('No final allotment data to generate draft!', true);
@@ -2214,8 +2109,9 @@
                 const uniqueRegions = Utils.getUniqueRegions(divisionKeys, state.divisionRegionMap);
                 const regionsList = uniqueRegions.join(', ');
 
-                const totalWeightMT = this.calculateTotalWeightMT();
-                const weightDisplay = totalWeightMT > 0 ? totalWeightMT.toFixed(1) + ' MT' : '0 MT';
+                // ★ Calculate division-wise weights
+                const weights = this.calculateDivisionWeights();
+                const totalWeightMT = Object.values(weights).reduce((sum, w) => sum + (w / 1000), 0);
 
                 let tableRowsHTML = '';
                 Object.keys(materials).forEach((code, idx) => {
@@ -2240,6 +2136,28 @@
                     `;
                 });
 
+                // ★ Division-wise weight summary row
+                const weightSummaryCols = divisionKeys.map(div => {
+                    const weightMT = (weights[div] || 0) / 1000;
+                    const capacity = state.divisionTransport[div]?.capacity || 0;
+                    const util = capacity > 0 ? (weights[div] / capacity) * 100 : 0;
+                    const statusIcon = util >= 85 ? '✅' : util >= 50 ? '🟡' : '🔴';
+                    return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 7px; font-weight: 600;">
+                        ${weightMT.toFixed(1)} MT
+                        ${capacity > 0 ? `<br><span style="font-size: 6px; color: ${util >= 85 ? '#28a745' : util >= 50 ? '#ffc107' : '#dc3545'};">${statusIcon} ${util.toFixed(0)}%</span>` : ''}
+                    </td>`;
+                }).join('');
+
+                const weightSummaryHTML = `
+                    <tr>
+                        <td colspan="4" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Total Transport Weight</td>
+                        ${weightSummaryCols}
+                        <td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">
+                            ${totalWeightMT.toFixed(1)} MT
+                        </td>
+                    </tr>
+                `;
+
                 let stoRowHTML = '';
                 if (divisionKeys.length > 0) {
                     stoRowHTML = `
@@ -2254,31 +2172,16 @@
                     `;
                 }
 
-                const weightSummaryHTML = `
-                    <tr>
-                        <td colspan="4" style="border: 1px solid #000; padding: 2px 4px; text-align: left; font-weight: 700; font-size: 8px;">Total Transport Weight</td>
-                        <td colspan="${divisionKeys.length + 1}" style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-weight: 700; font-size: 8px;">
-                            ${totalWeightMT > 0 ? totalWeightMT.toFixed(1) + ' MT (Approx)' : '0 MT'}
-                        </td>
-                    </tr>
-                `;
-
-                // ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
-                // ★ UPDATED: Grouped comments display in letter
-                // ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
+                // ★ Grouped comments display
                 let commentsHTML = '';
                 let noteCounter = 1;
-
-                // Build grouped comments from state.materialComments
                 const groupedComments = {};
 
                 for (const [materialCode, divisions] of Object.entries(state.materialComments)) {
                     for (const [division, comments] of Object.entries(divisions)) {
                         if (!comments || comments.length === 0) continue;
-                        
                         const key = `${materialCode}|${division}`;
                         const materialName = Utils.getMaterialName(materialCode) || materialCode;
-                        
                         if (!groupedComments[key]) {
                             groupedComments[key] = {
                                 materialCode: materialCode,
@@ -2291,14 +2194,12 @@
                     }
                 }
 
-                // Find quantities from finalData
                 for (const key of Object.keys(groupedComments)) {
                     const [materialCode, division] = key.split('|');
                     const row = state.finalData.find(f => f.material_code === materialCode && f.division === division);
                     groupedComments[key].quantity = row ? parseFloat(row.allotted_qty) || 0 : 0;
                 }
 
-                // Generate HTML for each group
                 const commentGroups = Object.values(groupedComments);
 
                 commentGroups.forEach((group) => {
@@ -2306,34 +2207,27 @@
                     const qty = group.quantity;
                     const materialName = group.materialName;
                     const division = group.division;
-                    const materialCode = group.materialCode;
                     
                     if (comments.length === 0) return;
                     
-                    // Determine note range
                     const startNote = noteCounter;
                     const endNote = noteCounter + comments.length - 1;
                     const noteRange = comments.length === 1 ? `Note ${startNote}` : `Note ${startNote}-${endNote}`;
                     noteCounter += comments.length;
                     
-                    // Format comment text
                     let commentText = '';
                     if (comments.length === 1) {
                         commentText = comments[0];
                     } else {
-                        // Check if all comments start with "For " or similar pattern
                         const allSamePrefix = comments.every(c => c.startsWith('For '));
                         if (allSamePrefix) {
-                            // Remove "For " from each, join with commas
                             const items = comments.map(c => c.replace(/^For\s+/, ''));
                             commentText = `For ${items.join(', ')}`;
                         } else {
-                            // Different comments - join with semicolons
                             commentText = comments.join('; ');
                         }
                     }
                     
-                    // Build HTML with grouped format
                     commentsHTML += `
                         <p style="font-size: 8px; margin: 2px 0; font-style: italic; color: #333;">
                             <strong>${noteRange}:</strong> ${commentText} 
@@ -2344,7 +2238,6 @@
                     `;
                 });
 
-                // Wrap in container if there are comments
                 if (commentsHTML) {
                     commentsHTML = `
                         <div style="margin-top: 6px; padding: 4px 8px; background: #f8fafd; border-left: 3px solid #28a745; border-radius: 3px;">
@@ -2433,7 +2326,6 @@
                                 </tfoot>
                             </table>
 
-                            <!-- ★ NEW: Grouped comments section -->
                             ${commentsHTML}
 
                             <div style="margin-top: 6px; text-align: right;">
@@ -2597,11 +2489,6 @@
                         memoNo = 'SZ/Allotment/E-12/' + String(Math.floor(Math.random() * 9000) + 1000);
                     }
 
-                    const transportWeight = parseInt(dom.transportWeight?.value) || 0;
-                    const totalWeightMT = this.calculateTotalWeightMT();
-                    const totalWeightKG = Math.round(totalWeightMT * 1000);
-                    const utilization = transportWeight > 0 ? Math.round((totalWeightKG / transportWeight) * 100) : 0;
-
                     const materialsWithNames = state.materialRows.map(m => {
                         const name = m.material_name || Utils.getMaterialName(m.material_code) || m.material_code;
                         return {
@@ -2611,7 +2498,16 @@
                         };
                     });
 
-                    // ★ NEW: Include multiple comments in allotments data
+                    // ★ Include division-wise transport data
+                    const divisionTransportData = {};
+                    for (const [division, data] of Object.entries(state.divisionTransport)) {
+                        divisionTransportData[division] = {
+                            capacity: data.capacity || 0,
+                            weight: state.divisionWeights[division] || 0,
+                            utilization: data.utilization || 0
+                        };
+                    }
+
                     const allotmentsWithComments = state.finalData.map(f => {
                         const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
                         const comments = state.materialComments[f.material_code]?.[f.division] || [];
@@ -2632,9 +2528,7 @@
                         allotments: allotmentsWithComments,
                         sto_numbers: state.stoCache,
                         status: status,
-                        transport_weight: transportWeight,
-                        total_weight_kg: totalWeightKG,
-                        utilization_percent: utilization,
+                        division_transport: divisionTransportData,
                         material_comments: state.materialComments,
                         comment_counter: state.commentCounter,
                         created_by: state.user.username,
@@ -2711,11 +2605,6 @@
                     const allotmentNo = dom.allotmentNo.value || Utils.generateAllotmentNo();
                     const memoNo = dom.memoNo.value || `SZ/Allotment/E-12/${Math.floor(Math.random() * 9000 + 1000)}`;
 
-                    const transportWeight = parseInt(dom.transportWeight?.value) || 0;
-                    const totalWeightMT = this.calculateTotalWeightMT();
-                    const totalWeightKG = Math.round(totalWeightMT * 1000);
-                    const utilization = transportWeight > 0 ? Math.round((totalWeightKG / transportWeight) * 100) : 0;
-
                     const materialsWithNames = state.materialRows.map(m => {
                         const name = m.material_name || Utils.getMaterialName(m.material_code) || m.material_code;
                         return {
@@ -2724,6 +2613,15 @@
                             unit: m.unit || 'NOS'
                         };
                     });
+
+                    const divisionTransportData = {};
+                    for (const [division, data] of Object.entries(state.divisionTransport)) {
+                        divisionTransportData[division] = {
+                            capacity: data.capacity || 0,
+                            weight: state.divisionWeights[division] || 0,
+                            utilization: data.utilization || 0
+                        };
+                    }
 
                     const allotmentsWithComments = state.finalData.map(f => {
                         const name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
@@ -2746,9 +2644,7 @@
                         sto_numbers: state.stoCache,
                         status: 'Rejected',
                         rejection_reason: reason || 'No reason provided',
-                        transport_weight: transportWeight,
-                        total_weight_kg: totalWeightKG,
-                        utilization_percent: utilization,
+                        division_transport: divisionTransportData,
                         material_comments: state.materialComments,
                         comment_counter: state.commentCounter,
                         rejected_by: state.user.username,
@@ -2806,7 +2702,6 @@
                     pendingAllotments.forEach((item, idx) => {
                         const date = item.created_date ? new Date(item.created_date).toLocaleDateString('en-IN') : 'N/A';
                         const divisions = item.divisions?.join(', ') || 'N/A';
-                        const weight = item.total_weight_kg ? `${item.total_weight_kg} kg` : 'N/A';
                         const commentCount = item.material_comments ? 
                             Object.values(item.material_comments).reduce((sum, divs) => {
                                 return sum + Object.values(divs).reduce((s, c) => s + c.length, 0);
@@ -2815,7 +2710,6 @@
                         message += `   Created By: ${item.created_by_name || item.created_by || 'Unknown'}\n`;
                         message += `   Date: ${date}\n`;
                         message += `   Divisions: ${divisions}\n`;
-                        message += `   Weight: ${weight}\n`;
                         message += `   Comments: ${commentCount}\n\n`;
                     });
 
@@ -2862,10 +2756,6 @@
                     dom.allotmentDate.value = allotment.allotment_date || new Date().toISOString().split('T')[0];
                 }
 
-                if (allotment.transport_weight && dom.transportWeight) {
-                    dom.transportWeight.value = allotment.transport_weight;
-                }
-
                 state.currentAllotmentId = allotment._id || allotment.id || null;
 
                 const divisions = allotment.divisions || [];
@@ -2880,7 +2770,18 @@
                 });
                 this.onDivisionSelect();
 
-                // ★ NEW: Load multiple comments from allotment data
+                // ★ Load division transport data
+                if (allotment.division_transport) {
+                    state.divisionTransport = {};
+                    for (const [division, data] of Object.entries(allotment.division_transport)) {
+                        state.divisionTransport[division] = {
+                            capacity: data.capacity || 0,
+                            weight: data.weight || 0,
+                            utilization: data.utilization || 0
+                        };
+                    }
+                }
+
                 state.finalData = (allotment.allotments || []).map(f => ({
                     ...f,
                     comment_count: f.comment_count || 0,
@@ -2888,11 +2789,9 @@
                 }));
                 state.stoCache = allotment.sto_numbers || {};
 
-                // ★ NEW: Restore materialComments from saved data
                 if (allotment.material_comments) {
                     state.materialComments = allotment.material_comments;
                 } else {
-                    // Rebuild from finalData comments
                     state.materialComments = {};
                     state.finalData.forEach(f => {
                         if (f.comments && f.comments.length > 0) {
@@ -2904,7 +2803,6 @@
                     });
                 }
 
-                // ★ NEW: Restore comment counter
                 state.commentCounter = allotment.comment_counter || 0;
 
                 if (state.finalData.length === 0) {
@@ -2940,7 +2838,7 @@
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
-                this.updateWeightStatus();
+                this.updateDivisionTransportUI();
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
                 if (dom.finalContainer) dom.finalContainer.style.display = 'block';
                 UiService.updateFinalBadge();
@@ -2959,7 +2857,6 @@
                 if (dom.allotmentDate) {
                     dom.allotmentDate.value = new Date().toISOString().split('T')[0];
                 }
-                if (dom.transportWeight) dom.transportWeight.value = '0';
 
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 state.selectedDivisions = [];
@@ -2988,9 +2885,10 @@
                 state.selectedSuggestedRows = [];
                 state.currentAllotmentId = null;
                 state.divisionMaterials = {};
-                // ★ NEW: Clear comments
                 state.materialComments = {};
                 state.commentCounter = 0;
+                state.divisionTransport = {};
+                state.divisionWeights = {};
 
                 if (dom.suggestedContainer) dom.suggestedContainer.style.display = 'none';
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'block';
@@ -3033,9 +2931,11 @@
                 state.stoCache = {};
                 state.materialComments = {};
                 state.commentCounter = 0;
+                state.divisionTransport = {};
+                state.divisionWeights = {};
                 this.renderFinalTable();
                 this.updateSuggestedTable();
-                this.updateWeightStatus();
+                this.updateDivisionTransportUI();
                 UiService.updateFinalBadge();
                 UiService.showTransportSection(false);
                 UiService.showToast('🗑️ Final Allotment cleared');
@@ -3066,10 +2966,6 @@
                 }
 
                 tbody.innerHTML = history.map((item, idx) => {
-                    const weightDisplay = item.total_weight_kg ? `${item.total_weight_kg} kg` : '-';
-                    const utilizationDisplay = item.utilization_percent ? `${item.utilization_percent}%` : '-';
-                    
-                    // ★ NEW: Show comment count
                     let totalComments = 0;
                     if (item.material_comments) {
                         for (const [matCode, divisions] of Object.entries(item.material_comments)) {
@@ -3094,8 +2990,7 @@
                         </td>
                         <td>${item.created_by_name || item.created_by || '-'}</td>
                         <td style="font-size: 0.7rem; color: #6c757d;">
-                            ${weightDisplay}
-                            ${item.utilization_percent ? `<br>${utilizationDisplay}` : ''}
+                            ${item.division_transport ? Object.keys(item.division_transport).length + ' divisions' : '-'}
                         </td>
                         <td>
                             <button class="btn-action view" onclick="AllotmentManager.viewHistoryAllotment('${item.allotment_no}')">
@@ -3153,10 +3048,10 @@
                 const sheetData = [
                     ['BULK ALLOTMENT REPORT'],
                     ['Generated on:', new Date().toLocaleString()],
-                    ['Total Weight:', `${this.calculateTotalWeightMT().toFixed(1)} MT`],
+                    ['Divisions:', state.selectedDivisions.join(', ')],
                     ['Comments:', Object.keys(state.materialComments).length > 0 ? 'Yes' : 'No'],
                     [],
-                    ['#', 'Material Code', 'Material Name', 'UOM', 'Weight/Unit (KG)', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No', 'Comments (Notes)']
+                    ['#', 'Material Code', 'Material Name', 'UOM', 'Weight/Unit (KG)', 'Virtual Stock', 'Monthly Avg', 'Zonal Stock', 'Suggested', 'Division', 'Allotted', 'STO No', 'Truck Capacity (MT)', 'Weight (MT)', 'Utilization', 'Comments (Notes)']
                 ];
 
                 data.forEach((row) => {
@@ -3164,6 +3059,10 @@
                     const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
                     const comments = row.comments || state.materialComments[row.material_code]?.[row.division] || [];
                     const commentText = comments.map((c, i) => `Note ${i+1}: ${c}`).join('; ');
+                    
+                    const divTransport = state.divisionTransport[row.division] || {};
+                    const weightMT = (state.divisionWeights[row.division] || 0) / 1000;
+                    const utilization = divTransport.capacity > 0 ? ((state.divisionWeights[row.division] || 0) / divTransport.capacity) * 100 : 0;
                     
                     sheetData.push([
                         row.sno,
@@ -3178,6 +3077,9 @@
                         row.division,
                         row.allotted_qty || row.suggested_qty,
                         state.stoCache[row.division] || '',
+                        divTransport.capacity ? (divTransport.capacity / 1000).toFixed(1) : '-',
+                        weightMT.toFixed(1),
+                        utilization.toFixed(1) + '%',
                         commentText
                     ]);
                 });
@@ -3393,7 +3295,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-clipboard-check"></i> Bulk Allotment System</h1>
-        <p>Multi-Division Allotment with Auto-Suggested Quantities & Transport Optimization</p>
+        <p>Multi-Division Allotment with Auto-Suggested Quantities & Division-wise Transport Optimization</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -3631,7 +3533,7 @@
 </div>
 
 <!-- ================================================================
-     TAB 2: FINAL ALLOTMENT (WITH TRANSPORT SECTION)
+     TAB 2: FINAL ALLOTMENT (WITH DIVISION-WISE TRANSPORT)
      ================================================================ -->
 <div class="tab-content" id="tab-step2">
     <div class="content-card">
@@ -3673,86 +3575,9 @@
                 </table>
             </div>
             
-            <!-- ★ TRANSPORT WEIGHT OPTIMIZATION SECTION -->
-            <div id="transportSection" style="display: none; background: #f8fafd; border-radius: 12px; padding: 20px; margin-top: 20px; border: 2px solid #667eea;">
-                <div class="section-title" style="margin-bottom: 15px;">
-                    <i class="bi bi-truck" style="color: #28a745; font-size: 1.5rem;"></i>
-                    <h3 style="margin: 0;">🚚 Transport Weight Optimization</h3>
-                    <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;">
-                        <i class="bi bi-info-circle"></i> Select truck capacity to optimize load
-                    </span>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label><i class="bi bi-truck"></i> Available Transport Capacity</label>
-                        <select id="transportWeight" class="form-control" style="font-size: 1.1rem; font-weight: 600;" onchange="AllotmentManager.updateWeightStatus()">
-                            <option value="0">-- Select Truck Capacity --</option>
-                            <option value="3000">3 MT</option>
-                            <option value="4000">4 MT</option>
-                            <option value="5000">5 MT</option>
-                            <option value="6000">6 MT</option>
-                            <option value="7000">7 MT</option>
-                            <option value="8000">8 MT</option>
-                            <option value="9000">9 MT</option>
-                            <option value="10000">10 MT</option>
-                            <option value="11000">11 MT</option>
-                            <option value="12000">12 MT</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="bi bi-calculator"></i> Current Total Weight</label>
-                        <div id="currentWeightDisplay" style="font-size: 1.3rem; font-weight: 700; color: #1e2b3a;">
-                            0 MT
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="bi bi-pie-chart"></i> Utilization</label>
-                        <div id="utilizationDisplay" style="font-size: 1.3rem; font-weight: 700; color: #dc3545;">
-                            0%
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Progress Bar -->
-                <div style="margin-top: 15px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #6c757d; margin-bottom: 4px;">
-                        <span>0%</span>
-                        <span>50%</span>
-                        <span>85%</span>
-                        <span>100%</span>
-                    </div>
-                    <div style="height: 12px; background: #eef2f6; border-radius: 10px; overflow: hidden; position: relative;">
-                        <div id="weightProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #dc3545, #ffc107, #28a745); border-radius: 10px; transition: width 0.5s ease;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.7rem;">
-                        <span style="color: #dc3545;">🔴 Low</span>
-                        <span style="color: #ffc107;">🟡 Partial</span>
-                        <span style="color: #28a745;">🟢 Ready</span>
-                    </div>
-                </div>
-                
-                <!-- Status Message -->
-                <div id="weightStatusMessage" style="margin-top: 15px; padding: 12px 16px; border-radius: 8px; font-weight: 500; background: #e9ecef; color: #6c757d;">
-                    Please select a truck capacity to calculate weight status.
-                </div>
-                
-                <!-- Suggestions -->
-                <div id="suggestionContainer" style="display: none; margin-top: 15px;">
-                    <h4 style="font-size: 0.95rem; margin-bottom: 10px;">
-                        <i class="bi bi-lightbulb" style="color: #ffc107;"></i> 
-                        Suggested Additions to Fill Truck
-                    </h4>
-                    <div id="suggestionList" style="background: white; border-radius: 8px; padding: 10px; border: 1px solid #eef2f6; max-height: 200px; overflow-y: auto;">
-                        <!-- Dynamic suggestions -->
-                    </div>
-                    <div style="margin-top: 10px; text-align: right;">
-                        <button type="button" class="btn-add-item" onclick="AllotmentManager.applyAllSuggestions()" 
-                                style="background: linear-gradient(135deg, #28a745, #20c997);">
-                            <i class="bi bi-check-all"></i> Apply All Suggestions
-                        </button>
-                    </div>
-                </div>
+            <!-- ★ DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION SECTION -->
+            <div id="divisionTransportContainer" style="display: none; margin-top: 20px;">
+                <!-- Dynamic per-division transport cards -->
             </div>
             
             <div class="form-actions" style="margin-top: 20px;">
@@ -3889,7 +3714,7 @@
                         <th style="width: 80px;">Total Allotted</th>
                         <th style="width: 100px;">Status</th>
                         <th style="width: 80px;">Created By</th>
-                        <th style="width: 100px;">Weight</th>
+                        <th style="width: 100px;">Transport</th>
                         <th style="width: 80px;">Action</th>
                     </tr>
                 </thead>
@@ -3920,7 +3745,7 @@
     </div>
 </div>
 
-<!-- ★ NEW: COMMENT MODAL - Multiple Comments Support -->
+<!-- ★ COMMENT MODAL -->
 <div class="modal-overlay" id="commentModal">
     <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
@@ -3947,10 +3772,7 @@
                 <div id="commentQuantityDisplay" style="background: #f8fafd; padding: 8px 12px; border-radius: 8px;"></div>
             </div>
             
-            <!-- Existing comments display -->
-            <div id="existingCommentsDisplay" style="margin-bottom: 12px; display: none; background: #d4edda; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #28a745;">
-                <!-- Dynamic -->
-            </div>
+            <div id="existingCommentsDisplay" style="margin-bottom: 12px; display: none; background: #d4edda; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #28a745;"></div>
             
             <div style="margin-bottom: 10px;">
                 <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 5px;">
@@ -4366,7 +4188,7 @@
         font-weight: 600;
     }
 
-    /* Frozen Header - Materials Table */
+    /* Frozen Headers */
     .requisition-table {
         width: 100%;
         border-collapse: collapse;
@@ -4401,7 +4223,6 @@
         width: 100%;
     }
 
-    /* Frozen Header - Suggested Table */
     .data-table {
         width: 100%;
         border-collapse: collapse;
@@ -4575,21 +4396,36 @@
         color: #721c24;
     }
 
-    /* Transport section styles */
-    #transportSection {
-        animation: fadeIn 0.5s ease;
+    /* Division Transport Styles */
+    .division-transport-item {
+        animation: fadeIn 0.3s ease;
+        transition: all 0.3s ease;
+    }
+    .division-transport-item:hover {
+        border-color: #667eea;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .division-transport-select {
+        cursor: pointer;
+        background: white;
+        transition: all 0.2s;
+    }
+    .division-transport-select:hover {
+        border-color: #667eea;
+    }
+    .division-progress-fill {
+        transition: width 0.5s ease;
+    }
+    .division-suggestions {
+        animation: fadeIn 0.4s ease;
     }
     
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
+        from { opacity: 0; transform: translateY(-5px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    
-    #weightProgressBar {
-        transition: width 0.5s ease;
-    }
 
-    /* ★ Comment Modal styles */
+    /* Comment Modal */
     #commentModal .modal-content {
         max-width: 550px;
     }
@@ -4651,6 +4487,9 @@
         #commentModal .modal-content {
             width: 98%;
         }
+        .division-transport-item {
+            padding: 10px !important;
+        }
     }
 
     @media (max-width: 576px) {
@@ -4681,6 +4520,13 @@
         .modal-content {
             width: 98%;
         }
+        .division-transport-item div {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .division-transport-item select {
+            width: 100%;
+        }
     }
 
     @media print {
@@ -4696,7 +4542,8 @@
         .btn-add-item,
         .btn-remove-row,
         .role-banner,
-        .modal-overlay {
+        .modal-overlay,
+        #divisionTransportContainer {
             display: none !important;
         }
         .content-card {
