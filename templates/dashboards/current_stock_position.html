@@ -183,6 +183,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">All Items</div>
+                <div style="font-size:0.6rem;color:#6c757d;">Show all stock items</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -191,7 +192,8 @@
                 <i class="bi bi-exclamation-triangle-fill"></i>
             </div>
             <div class="status-card-info">
-                <div class="status-card-label">Critical Stock</div>
+                <div class="status-card-label">Critical</div>
+                <div style="font-size:0.6rem;color:#6c757d;">Virtual ≤ Reorder Level</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -200,7 +202,8 @@
                 <i class="bi bi-check-circle-fill"></i>
             </div>
             <div class="status-card-info">
-                <div class="status-card-label">Normal Stock</div>
+                <div class="status-card-label">Normal</div>
+                <div style="font-size:0.6rem;color:#6c757d;">Virtual > Reorder Level</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -210,6 +213,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">In-Transit</div>
+                <div style="font-size:0.6rem;color:#6c757d;">Has pending transit</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -291,7 +295,20 @@
 <script>
     /**
      * ================================================================
-     * CURRENT STOCK POSITION - COMPLETE FIXED VERSION
+     * CURRENT STOCK POSITION - COMPLETE FILTER LOGIC
+     * ================================================================
+     * 
+     * FILTER HIERARCHY (Priority from Highest to Lowest):
+     * 1. REGION - Affects Division dropdown options
+     * 2. DIVISION - Filters by selected divisions
+     * 3. ZONE - Overrides Region + Division for Siliguri Zone
+     * 4. MATERIAL GROUP - Shows ALL divisions for selected group
+     * 5. MATERIAL - Shows specific material across filtered data
+     * 6. STATUS - Filters by Critical/Normal/In-Transit
+     * 7. SORT BY - Orders the results
+     * 
+     * KEY BEHAVIOR: When Material Group is selected, it shows 
+     * data across ALL DIVISIONS regardless of region/division filters.
      * ================================================================
      */
 
@@ -360,7 +377,9 @@
         selectedRegions: [],
         selectedDivisions: [],
         statusFilter: 'all',
-        allRawData: []
+        allRawData: [],
+        selectedGroup: 'all',
+        selectedMaterial: 'all'
     };
 
     // ================================================================
@@ -460,7 +479,6 @@
             if (el && t) { t.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 5000); }
         },
         
-        // ★ FIXED: Show ONLY unique materials with status breakdown
         renderTable: (data) => {
             const tb = Ui.dom.table;
             const countEl = Ui.dom.resultCount;
@@ -469,46 +487,22 @@
             if (!data?.length) {
                 const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
                 tb.innerHTML = `<tr><td colspan="13" class="text-center">No ${names[State.statusFilter] || 'items'} found matching your filters</td></tr>`;
-                if (countEl) countEl.textContent = '0 items';
+                if (countEl) countEl.textContent = '0 records';
                 return;
             }
             
-            // ★ Get unique materials by material_code
-            const uniqueMap = new Map();
-            data.forEach(item => {
-                const code = item.material_code;
-                if (!uniqueMap.has(code)) {
-                    uniqueMap.set(code, {
-                        material_code: code,
-                        material_name: item.material_name || code,
-                        status: item.status,
-                        status_class: item.status_class,
-                        has_transit: item.has_transit,
-                        transit_qty: item.transit_qty || 0,
-                        current_stock: item.current_stock,
-                        virtual_stock: item.virtual_stock,
-                        unit: item.unit || 'Units',
-                        division_name: item.division_name,
-                        material_group: item.material_group,
-                        monthly_avg: item.monthly_avg,
-                        reorder_level: item.reorder_level,
-                        stock_months: item.stock_months,
-                        sl: item.sl
-                    });
-                }
-            });
+            // ★ Get unique material count
+            const uniqueCodes = new Set(data.map(item => item.material_code));
+            const uniqueCount = uniqueCodes.size;
             
-            const uniqueData = Array.from(uniqueMap.values());
-            const uniqueCount = uniqueData.length;
-            
-            // ★ Count unique materials by status
-            const criticalCount = uniqueData.filter(item => item.status === 'Critical').length;
-            const normalCount = uniqueData.filter(item => item.status === 'Normal').length;
-            const transitCount = uniqueData.filter(item => item.has_transit).length;
+            // Count by status
+            const criticalCount = data.filter(item => item.status === 'Critical').length;
+            const normalCount = data.filter(item => item.status === 'Normal').length;
+            const transitCount = data.filter(item => item.has_transit).length;
             const transitTotal = data.reduce((sum, item) => sum + (item.transit_qty || 0), 0);
             
-            // ★ Render unique materials only
-            tb.innerHTML = uniqueData.map((item, index) => `
+            // ★ Render ALL records (division-wise)
+            tb.innerHTML = data.map((item, index) => `
                 <tr>
                     <td class="col-sno">${index + 1}</td>
                     <td class="col-mat-code"><code>${Utils.sanitize(item.material_code)}</code></td>
@@ -528,17 +522,36 @@
                 </tr>
             `).join('');
             
-            // ★ Show ONLY unique materials count
+            // ★ Update count display
             if (countEl) {
-                countEl.textContent = `${uniqueCount} unique materials`;
+                const group = State.selectedGroup;
+                const divCount = new Set(data.map(item => item.division_name)).size;
+                let displayText = `${data.length} records`;
+                if (uniqueCount > 0) displayText += ` (${uniqueCount} unique materials`;
+                if (divCount > 0 && data.length > 1) displayText += `, ${divCount} divisions`;
+                displayText += `)`;
+                countEl.textContent = displayText;
             }
             
-            // ★ Build message: Total unique materials first, then breakdown
-            let msg = `✅ ${uniqueCount} unique materials`;
+            // ★ Guidance message based on filters
+            let msg = `✅ ${data.length} stock records`;
+            if (uniqueCount > 0) msg += ` (${uniqueCount} unique materials)`;
+            
+            if (State.selectedGroup !== 'all') {
+                msg += ` for group "${State.selectedGroup}"`;
+            }
+            if (State.selectedMaterial !== 'all') {
+                msg += ` for material "${State.selectedMaterial}"`;
+            }
+            if (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length) {
+                msg += ` in ${State.selectedDivisions.length} divisions`;
+            }
+            
             if (criticalCount > 0) msg += `, ${criticalCount} critical`;
             if (normalCount > 0) msg += `, ${normalCount} normal`;
             if (transitCount > 0) msg += `, ${transitCount} with in-transit`;
             if (transitTotal > 0) msg += ` (${Math.round(transitTotal)} units on the way)`;
+            
             Ui.showGuidance(msg);
         },
         
@@ -576,7 +589,7 @@
     };
 
     // ================================================================
-    // 6. STOCK MANAGER
+    // 6. STOCK MANAGER - COMPLETE FILTER LOGIC
     // ================================================================
     const Manager = {
         async init() {
@@ -617,7 +630,7 @@
         
         async loadMaterials() {
             try {
-                const group = Ui.dom.group?.value;
+                const group = Ui.dom.group?.value || 'all';
                 const materials = await Api.getMaterials(group);
                 const filtered = materials.filter(m => !Utils.isExcluded(m.material_group));
                 const sel = Ui.dom.material;
@@ -714,7 +727,9 @@
             this.applyFilters();
         },
         
-        // ★ Main filter function
+        // ================================================================
+        // ★ COMPLETE FILTER LOGIC - applyFilters()
+        // ================================================================
         applyFilters() {
             if (!State.allRawData || State.allRawData.length === 0) {
                 this.loadStockData();
@@ -723,11 +738,15 @@
             
             let filtered = [...State.allRawData];
             
-            // Region Filter
+            // ============================================================
+            // FILTER 1: REGION (Affects Division dropdown)
+            // ============================================================
             let allowedDivisions = [];
             if (State.selectedRegions.length === 0 || State.selectedRegions.length === CONFIG.ALL_REGIONS.length) {
+                // If no regions selected or all regions selected → show all divisions
                 allowedDivisions = CONFIG.ALL_DIVISIONS;
             } else {
+                // Show only divisions belonging to selected regions
                 const unique = new Set();
                 State.selectedRegions.forEach(region => {
                     if (CONFIG.REGION_DIVISIONS[region]) {
@@ -738,32 +757,59 @@
             }
             filtered = filtered.filter(item => allowedDivisions.includes(item.division_name));
             
-            // Division Filter
+            // ============================================================
+            // FILTER 2: DIVISION
+            // ============================================================
+            // If specific divisions are selected (not all), filter by them
             if (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length) {
                 filtered = filtered.filter(item => State.selectedDivisions.includes(item.division_name));
             }
             
-            // Zone Filter
+            // ============================================================
+            // FILTER 3: ZONE (Overrides Region + Division)
+            // ============================================================
             const zone = Ui.dom.zone?.value || 'all';
             if (zone === 'siliguri') {
-                const zoneDivs = ['darjeeling', 'kalimpong', 'jalpaiguri', 'coochbehar', 'alipurduar', 'siliguri_zone']
-                    .flatMap(r => CONFIG.REGION_DIVISIONS[r] || []);
+                // Siliguri Zone includes all except Cord Road
+                const zoneDivs = [
+                    'darjeeling', 'kalimpong', 'jalpaiguri', 
+                    'coochbehar', 'alipurduar', 'siliguri_zone'
+                ].flatMap(r => CONFIG.REGION_DIVISIONS[r] || []);
                 filtered = filtered.filter(item => zoneDivs.includes(item.division_name));
             }
             
-            // Material Group Filter
+            // ============================================================
+            // FILTER 4: MATERIAL GROUP ★ CRITICAL
+            // Shows ALL divisions for selected group
+            // ============================================================
             const group = Ui.dom.group?.value || 'all';
+            State.selectedGroup = group;
+            
             if (group !== 'all') {
-                filtered = filtered.filter(item => item.material_group === group);
+                // Get all material codes in this group
+                const groupMaterialCodes = new Set();
+                State.allRawData.forEach(item => {
+                    if (item.material_group === group) {
+                        groupMaterialCodes.add(item.material_code);
+                    }
+                });
+                // Show ALL records for these material codes (across ALL divisions)
+                filtered = filtered.filter(item => groupMaterialCodes.has(item.material_code));
             }
             
-            // Material Filter
+            // ============================================================
+            // FILTER 5: MATERIAL (Specific)
+            // ============================================================
             const material = Ui.dom.material?.value || 'all';
+            State.selectedMaterial = material;
+            
             if (material !== 'all') {
                 filtered = filtered.filter(item => String(item.material_code) === String(material));
             }
             
-            // Status Filter
+            // ============================================================
+            // FILTER 6: STATUS (Card Selection)
+            // ============================================================
             if (State.statusFilter === 'critical') {
                 filtered = filtered.filter(item => item.status === 'Critical');
             } else if (State.statusFilter === 'normal') {
@@ -771,8 +817,11 @@
             } else if (State.statusFilter === 'in_transit') {
                 filtered = filtered.filter(item => item.has_transit);
             }
+            // 'all' - no filter
             
-            // Sort Filter
+            // ============================================================
+            // FILTER 7: SORT BY
+            // ============================================================
             const sortBy = Ui.dom.sort?.value || 'material_code';
             const sortMap = {
                 'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
@@ -781,10 +830,10 @@
                 'current_stock_desc': (a, b) => (b.current_stock || 0) - (a.current_stock || 0),
                 'virtual_stock_asc': (a, b) => (a.virtual_stock || 0) - (b.virtual_stock || 0),
                 'virtual_stock_desc': (a, b) => (b.virtual_stock || 0) - (a.virtual_stock || 0),
-                'stock_months_asc': (a, b) => parseFloat(a.stock_months) - parseFloat(b.stock_months),
-                'stock_months_desc': (a, b) => parseFloat(b.stock_months) - parseFloat(a.stock_months),
-                'monthly_avg_asc': (a, b) => a.monthly_avg - b.monthly_avg,
-                'monthly_avg_desc': (a, b) => b.monthly_avg - a.monthly_avg,
+                'stock_months_asc': (a, b) => parseFloat(a.stock_months || 0) - parseFloat(b.stock_months || 0),
+                'stock_months_desc': (a, b) => parseFloat(b.stock_months || 0) - parseFloat(a.stock_months || 0),
+                'monthly_avg_asc': (a, b) => (a.monthly_avg || 0) - (b.monthly_avg || 0),
+                'monthly_avg_desc': (a, b) => (b.monthly_avg || 0) - (a.monthly_avg || 0),
                 'status': (a, b) => {
                     if (a.status === 'Critical' && b.status !== 'Critical') return -1;
                     if (a.status !== 'Critical' && b.status === 'Critical') return 1;
@@ -931,6 +980,7 @@
         },
         
         async onMaterialGroupChange() {
+            const group = Ui.dom.group?.value || 'all';
             await this.loadMaterials();
             this.loadStockData();
         },
