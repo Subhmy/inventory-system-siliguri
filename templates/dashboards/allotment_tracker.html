@@ -1,4 +1,4 @@
-<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v12.1 (Manager-only View) -->
+<!-- allotment_tracker.html - Rebalance: Source locked, Destination editable -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -11,6 +11,31 @@
 <script>
     (function() {
         'use strict';
+
+        // ============================================================
+        // REBALANCE MODE – Parse URL parameters first
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const isRebalance = urlParams.get('rebalance') === 'true';
+        const transferCount = parseInt(urlParams.get('count')) || 0;
+
+        let rebalanceTransfers = [];
+        if (isRebalance && transferCount > 0) {
+            for (let i = 1; i <= transferCount; i++) {
+                const material = urlParams.get('material' + i);
+                const from = urlParams.get('from' + i);
+                const to = urlParams.get('to' + i);
+                const qty = parseFloat(urlParams.get('qty' + i));
+                const name = urlParams.get('name' + i) || material;
+                if (material && from && to && qty > 0) {
+                    rebalanceTransfers.push({ material, from, to, qty, name });
+                }
+            }
+        }
+        const isRebalanceActive = isRebalance && rebalanceTransfers.length > 0;
+
+        window._rebalanceMode = isRebalanceActive;
+        window._rebalanceTransfers = rebalanceTransfers;
 
         // ============================================================
         // CONFIGURATION
@@ -101,7 +126,17 @@
             divisionWeights: {},
             materialComments: {},
             commentModalData: null,
-            commentCounter: 0
+            commentCounter: 0,
+            // Rebalance mode state
+            rebalanceMode: window._rebalanceMode,
+            rebalanceTransfers: window._rebalanceTransfers,
+            rebalanceSurplusPlants: [],
+            rebalanceDeficitPlants: [],
+            rebalanceLockedDivisions: [],
+            rebalanceProcessed: false,
+            rebalanceUnlocked: false,
+            selectedDeficitPlants: [],
+            orphanedTransfers: []
         };
 
         // ============================================================
@@ -151,7 +186,13 @@
                 commentDivisionDisplay: '#commentDivisionDisplay',
                 commentQuantityDisplay: '#commentQuantityDisplay',
                 commentInput: '#commentInput',
-                existingCommentsDisplay: '#existingCommentsDisplay'
+                existingCommentsDisplay: '#existingCommentsDisplay',
+                rebalanceBanner: '#rebalanceBanner',
+                unlockBtn: '#unlockBtn',
+                unlockConfirmModal: '#unlockConfirmModal',
+                unlockConfirmMessage: '#unlockConfirmMessage',
+                unlockConfirmYes: '#unlockConfirmYes',
+                unlockConfirmCancel: '#unlockConfirmCancel'
             };
 
             for (const [key, selector] of Object.entries(selectors)) {
@@ -347,6 +388,33 @@
                     }
                 }
                 return codes;
+            },
+
+            getPlantFromDivision: (divisionName) => {
+                return CONFIG.DIVISION_PLANT_MAP[divisionName] || null;
+            },
+
+            getDivisionFromPlant: (plantCode) => {
+                for (const [name, code] of Object.entries(CONFIG.DIVISION_PLANT_MAP)) {
+                    if (code === plantCode) return name;
+                }
+                return plantCode;
+            },
+
+            cleanRebalanceURL: function() {
+                const url = new URL(window.location);
+                const params = url.searchParams;
+                const keysToRemove = ['rebalance', 'count'];
+                for (let i = 1; i <= 20; i++) {
+                    keysToRemove.push('material' + i);
+                    keysToRemove.push('from' + i);
+                    keysToRemove.push('to' + i);
+                    keysToRemove.push('qty' + i);
+                    keysToRemove.push('name' + i);
+                }
+                keysToRemove.forEach(key => params.delete(key));
+                const newUrl = url.toString();
+                window.history.replaceState({}, '', newUrl);
             }
         };
 
@@ -634,7 +702,7 @@
                 UiService.loadColumnPreferences();
 
                 await this.loadMaterials();
-                
+
                 try {
                     await this.loadDivisionMapping();
                     await this.loadStockData();
@@ -650,6 +718,404 @@
                 this.setupBulkPaste();
                 UiService.updateDivisionDisplay();
                 UiService.showTransportSection(false);
+
+                if (state.rebalanceMode && state.rebalanceTransfers.length > 0) {
+                    this.handleRebalanceMode();
+                }
+            },
+
+            // ============================================================
+            // ★ REBALANCE MODE HANDLER
+            // ============================================================
+            handleRebalanceMode: function() {
+                if (state.rebalanceUnlocked) return;
+
+                const transfers = state.rebalanceTransfers;
+                if (!transfers || transfers.length === 0) return;
+
+                // Extract surplus and deficit plants
+                const surplusPlants = [...new Set(transfers.map(t => t.from))];
+                const deficitPlants = [...new Set(transfers.map(t => t.to))];
+
+                state.rebalanceSurplusPlants = surplusPlants;
+                state.rebalanceDeficitPlants = deficitPlants;
+                state.selectedDeficitPlants = [...deficitPlants];
+
+                // Show banner with unlock button
+                const banner = dom.rebalanceBanner;
+                if (banner) {
+                    banner.style.display = 'block';
+                    banner.style.backgroundColor = '#d4edda';
+                    banner.style.borderColor = '#b7e4c7';
+                    banner.style.color = '#155724';
+                    banner.innerHTML = `
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Rebalancing Mode:</strong> ${transfers.length} transfer(s) loaded.
+                        <strong style="color:#28a745;">Source divisions (🔒) are locked.</strong>
+                        <strong style="color:#dc3545;">Destination divisions</strong> can be changed below.
+                        <button id="unlockBtn" class="btn-unlock" style="margin-left: 15px; padding: 4px 14px; background: #ffc107; border: none; border-radius: 20px; color: #1e2b3a; font-weight: 600; cursor: pointer;">
+                            <i class="bi bi-unlock"></i> Unlock All
+                        </button>
+                    `;
+                    document.getElementById('unlockBtn').addEventListener('click', function() {
+                        AllotmentManager.showUnlockConfirmation();
+                    });
+                }
+
+                // Build the division grid with proper locked/selectable states
+                this.buildRebalanceDivisionGrid(surplusPlants, deficitPlants);
+
+                // Auto-add materials to final allotment
+                this.buildFinalDataFromTransfers(transfers);
+
+                // Render and switch to step 2
+                this.renderFinalTable();
+                this.updateDivisionTransportUI();
+                if (dom.finalEmpty) dom.finalEmpty.style.display = 'none';
+                if (dom.finalContainer) dom.finalContainer.style.display = 'block';
+                UiService.updateFinalBadge();
+                UiService.showTransportSection(true);
+
+                state.rebalanceLockedDivisions = surplusPlants;
+                state.rebalanceProcessed = true;
+                UiService.switchTab('step2');
+                UiService.showToast(`✅ ${transfers.length} rebalancing transfer(s) loaded. Source divisions locked.`);
+            },
+
+            // ============================================================
+            // ★ BUILD REBALANCE DIVISION GRID
+            // ============================================================
+            buildRebalanceDivisionGrid: function(surplusPlants, deficitPlants) {
+                const grid = dom.divisionGrid;
+                if (!grid) return;
+
+                grid.innerHTML = '';
+
+                const allDivs = CONFIG.ALL_DIVISIONS.slice().sort();
+
+                allDivs.forEach(divName => {
+                    const plantCode = CONFIG.DIVISION_PLANT_MAP[divName] || '';
+                    const isSurplus = surplusPlants.includes(plantCode);
+                    const isDeficit = deficitPlants.includes(plantCode);
+                    const isSelected = isSurplus || isDeficit;
+
+                    const label = document.createElement('label');
+                    label.className = 'division-checkbox';
+
+                    let checkboxHTML = `<input type="checkbox" value="${divName}" `;
+                    checkboxHTML += isSelected ? 'checked ' : '';
+                    checkboxHTML += isSurplus ? 'disabled ' : '';
+                    checkboxHTML += `onchange="AllotmentManager.onRebalanceDivisionToggle('${divName}', this.checked)">`;
+
+                    let labelText = divName;
+                    if (isSurplus) {
+                        labelText += ' <span style="color:#dc3545; font-size:0.7rem;">🔒 Source</span>';
+                    } else if (isDeficit) {
+                        labelText += ' <span style="color:#ffc107; font-size:0.7rem;">📥 Dest.</span>';
+                    } else {
+                        labelText += ' <span style="color:#6c757d; font-size:0.7rem;">(available)</span>';
+                    }
+
+                    label.innerHTML = checkboxHTML + `<span>${labelText}</span>`;
+
+                    if (isSurplus) {
+                        label.style.opacity = '0.8';
+                        label.style.cursor = 'default';
+                    } else if (isDeficit) {
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                    } else {
+                        label.style.opacity = '0.6';
+                        label.style.cursor = 'pointer';
+                    }
+
+                    grid.appendChild(label);
+                });
+
+                // Update selected divisions display
+                state.selectedDivisions = allDivs.filter(div => {
+                    const plant = CONFIG.DIVISION_PLANT_MAP[div] || '';
+                    return surplusPlants.includes(plant) || deficitPlants.includes(plant);
+                });
+                UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
+            },
+
+            // ============================================================
+            // ★ ON REBALANCE DIVISION TOGGLE
+            // ============================================================
+            onRebalanceDivisionToggle: function(divisionName, isChecked) {
+                if (state.rebalanceUnlocked) return;
+
+                const plantCode = CONFIG.DIVISION_PLANT_MAP[divisionName] || '';
+                if (!plantCode) return;
+
+                // Check if this is a surplus division (locked)
+                if (state.rebalanceSurplusPlants.includes(plantCode)) {
+                    UiService.showToast('Source division is locked and cannot be changed.', true);
+                    // Re-check the checkbox
+                    const checkboxes = dom.divisionGrid.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(cb => {
+                        if (cb.value === divisionName) {
+                            cb.checked = true;
+                        }
+                    });
+                    return;
+                }
+
+                // Toggle deficit division
+                if (isChecked) {
+                    if (!state.selectedDeficitPlants.includes(plantCode)) {
+                        state.selectedDeficitPlants.push(plantCode);
+                        this.addTransfersForDeficit(plantCode);
+                    }
+                } else {
+                    state.selectedDeficitPlants = state.selectedDeficitPlants.filter(p => p !== plantCode);
+                    this.removeTransfersForDeficit(plantCode);
+                }
+
+                // Update the grid UI
+                this.updateRebalanceGridUI();
+                // Rebuild final data
+                this.rebuildFinalDataFromDeficits();
+                // Re-render
+                this.renderFinalTable();
+                this.updateDivisionTransportUI();
+                UiService.updateFinalBadge();
+                UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
+            },
+
+            // ============================================================
+            // ★ ADD TRANSFERS FOR DEFICIT
+            // ============================================================
+            addTransfersForDeficit: function(plantCode) {
+                const transfers = state.rebalanceTransfers;
+                const deficitDivision = Utils.getDivisionFromPlant(plantCode);
+
+                transfers.forEach(t => {
+                    if (t.to === plantCode) {
+                        const exists = state.finalData.some(f =>
+                            f.material_code === t.material &&
+                            f.division === deficitDivision
+                        );
+                        if (!exists) {
+                            const materialName = t.name || Utils.getMaterialName(t.material) || t.material;
+                            const unit = Utils.getMaterialUnit(t.material) || 'NOS';
+                            const weightKG = Utils.getMaterialWeightKG(t.material) || 0;
+
+                            state.finalData.push({
+                                sno: state.finalData.length + 1,
+                                division: deficitDivision,
+                                material_code: t.material,
+                                material_name: materialName,
+                                unit: unit,
+                                weight_per_unit_kg: weightKG,
+                                suggested_qty: t.qty,
+                                allotted_qty: t.qty,
+                                sto_no: '',
+                                virtual_stock: 0,
+                                monthly_avg: 0,
+                                zonal_stock: 0,
+                                status: 'Critical',
+                                comment_count: 0,
+                                comments: []
+                            });
+                        }
+                    }
+                });
+            },
+
+            // ============================================================
+            // ★ REMOVE TRANSFERS FOR DEFICIT
+            // ============================================================
+            removeTransfersForDeficit: function(plantCode) {
+                const deficitDivision = Utils.getDivisionFromPlant(plantCode);
+                state.finalData = state.finalData.filter(f => f.division !== deficitDivision);
+            },
+
+            // ============================================================
+            // ★ REBUILD FINAL DATA FROM DEFICITS
+            // ============================================================
+            rebuildFinalDataFromDeficits: function() {
+                const deficitDivisions = state.selectedDeficitPlants.map(p => Utils.getDivisionFromPlant(p));
+                state.finalData = state.finalData.filter(f => deficitDivisions.includes(f.division));
+
+                state.selectedDeficitPlants.forEach(plant => {
+                    this.addTransfersForDeficit(plant);
+                });
+
+                const seen = new Set();
+                state.finalData = state.finalData.filter(f => {
+                    const key = f.material_code + '|' + f.division;
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+            },
+
+            // ============================================================
+            // ★ BUILD FINAL DATA FROM TRANSFERS
+            // ============================================================
+            buildFinalDataFromTransfers: function(transfers) {
+                state.finalData = [];
+                const deficitPlants = state.selectedDeficitPlants;
+
+                transfers.forEach(t => {
+                    if (deficitPlants.includes(t.to)) {
+                        const deficitDivision = Utils.getDivisionFromPlant(t.to);
+                        const materialName = t.name || Utils.getMaterialName(t.material) || t.material;
+                        const unit = Utils.getMaterialUnit(t.material) || 'NOS';
+                        const weightKG = Utils.getMaterialWeightKG(t.material) || 0;
+
+                        state.finalData.push({
+                            sno: state.finalData.length + 1,
+                            division: deficitDivision,
+                            material_code: t.material,
+                            material_name: materialName,
+                            unit: unit,
+                            weight_per_unit_kg: weightKG,
+                            suggested_qty: t.qty,
+                            allotted_qty: t.qty,
+                            sto_no: '',
+                            virtual_stock: 0,
+                            monthly_avg: 0,
+                            zonal_stock: 0,
+                            status: 'Critical',
+                            comment_count: 0,
+                            comments: []
+                        });
+                    }
+                });
+            },
+
+            // ============================================================
+            // ★ UPDATE REBALANCE GRID UI
+            // ============================================================
+            updateRebalanceGridUI: function() {
+                const grid = dom.divisionGrid;
+                if (!grid) return;
+
+                const surplusPlants = state.rebalanceSurplusPlants;
+                const deficitPlants = state.selectedDeficitPlants;
+
+                const checkboxes = grid.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    const divName = cb.value;
+                    const plantCode = CONFIG.DIVISION_PLANT_MAP[divName] || '';
+                    const isSurplus = surplusPlants.includes(plantCode);
+                    const isDeficit = deficitPlants.includes(plantCode);
+
+                    cb.checked = isSurplus || isDeficit;
+                    cb.disabled = isSurplus;
+
+                    const label = cb.parentElement;
+                    if (isSurplus) {
+                        label.style.opacity = '0.8';
+                        label.style.cursor = 'default';
+                    } else if (isDeficit) {
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                    } else {
+                        label.style.opacity = '0.6';
+                        label.style.cursor = 'pointer';
+                    }
+                });
+
+                const selectedDivs = CONFIG.ALL_DIVISIONS.filter(div => {
+                    const plant = CONFIG.DIVISION_PLANT_MAP[div] || '';
+                    return surplusPlants.includes(plant) || deficitPlants.includes(plant);
+                });
+                state.selectedDivisions = selectedDivs;
+                UiService.updateSelectedCount();
+                UiService.updateDivisionDisplay();
+            },
+
+            // ============================================================
+            // ★ UNLOCK CONFIRMATION
+            // ============================================================
+            showUnlockConfirmation: function() {
+                const modal = dom.unlockConfirmModal;
+                if (!modal) {
+                    if (confirm('⚠️ Unlock Divisions?\n\nYou are about to remove all rebalancing restrictions.\n- Divisions will become editable.\n- You can add/remove materials and change quantities.\n- The existing transfers will be kept as a starting point.\n\nAre you sure you want to continue?')) {
+                        this.unlockDivisions();
+                    }
+                    return;
+                }
+
+                const message = dom.unlockConfirmMessage;
+                if (message) {
+                    message.innerHTML = `
+                        <p style="margin-bottom: 10px;"><strong>⚠️ Unlock Divisions?</strong></p>
+                        <p style="margin-bottom: 8px;">You are about to remove all rebalancing restrictions:</p>
+                        <ul style="margin-left: 20px; margin-bottom: 12px; text-align: left;">
+                            <li>Divisions will become editable.</li>
+                            <li>You can add/remove materials and change quantities.</li>
+                            <li>The existing transfers will be kept as a starting point.</li>
+                        </ul>
+                        <p style="color: #856404;"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone for this session.</p>
+                    `;
+                }
+                modal.style.display = 'flex';
+
+                const yesBtn = dom.unlockConfirmYes;
+                const noBtn = dom.unlockConfirmCancel;
+                if (yesBtn) {
+                    yesBtn.onclick = () => {
+                        modal.style.display = 'none';
+                        this.unlockDivisions();
+                    };
+                }
+                if (noBtn) {
+                    noBtn.onclick = () => {
+                        modal.style.display = 'none';
+                    };
+                }
+            },
+
+            // ============================================================
+            // ★ UNLOCK DIVISIONS
+            // ============================================================
+            unlockDivisions: function() {
+                state.rebalanceMode = false;
+                state.rebalanceUnlocked = true;
+                state.rebalanceLockedDivisions = [];
+
+                const banner = dom.rebalanceBanner;
+                if (banner) {
+                    banner.style.backgroundColor = '#cce5ff';
+                    banner.style.borderColor = '#b8daff';
+                    banner.style.color = '#004085';
+                    banner.innerHTML = `
+                        <i class="bi bi-check-circle"></i>
+                        <strong>Rebalancing Mode Disabled</strong> – Divisions are now editable.
+                        You can modify transfers as needed.
+                    `;
+                }
+
+                // Enable all division checkboxes
+                const checkboxes = dom.divisionGrid.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.disabled = false;
+                    cb.parentElement.style.opacity = '1';
+                    cb.parentElement.style.cursor = 'pointer';
+                    const span = cb.parentElement.querySelector('span');
+                    if (span) {
+                        span.innerHTML = span.innerHTML.replace(/<span style="color:[^"]*; font-size:0\.7rem;">.*?<\/span>/, '');
+                    }
+                });
+
+                this.renderFinalTable();
+                this.updateDivisionTransportUI();
+
+                const bulkInput = dom.bulkPasteInput;
+                if (bulkInput) {
+                    bulkInput.disabled = false;
+                    bulkInput.placeholder = 'Paste 9-digit material codes from Excel...';
+                }
+
+                Utils.cleanRebalanceURL();
+                UiService.showToast('🔓 Divisions unlocked. You can now edit freely.');
             },
 
             // ------------------------------------------------------------
@@ -663,7 +1129,7 @@
                     ]);
                     state.stockDataCache = stockData;
                     state.transitDataCache = transitData;
-                    
+
                     const transitMap = {};
                     if (transitData) {
                         transitData.forEach(item => {
@@ -672,7 +1138,7 @@
                         });
                     }
                     state.transitMapCache = transitMap;
-                    
+
                     console.log('✅ Stock data cached:', stockData.length, 'items');
                     return true;
                 } catch (error) {
@@ -716,6 +1182,12 @@
                 const input = dom.bulkPasteInput;
                 if (!input) return;
 
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    input.disabled = true;
+                    input.placeholder = 'Disabled in Rebalancing Mode';
+                    return;
+                }
+
                 input.addEventListener('paste', (e) => {
                     setTimeout(() => {
                         this.processBulkPaste();
@@ -731,6 +1203,11 @@
             },
 
             processBulkPaste() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Bulk paste is disabled in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const input = dom.bulkPasteInput;
                 if (!input) return;
 
@@ -769,12 +1246,12 @@
                         const materialName = Utils.getMaterialName(code);
                         const unit = Utils.getMaterialUnit(code);
                         const weightKG = Utils.getMaterialWeightKG(code);
-                        
+
                         const stock = this.getStockForMaterial(code, activePlantCode);
                         const inTransit = this.getTransitForMaterial(code);
                         const virtualStock = stock + inTransit;
                         const zonalStock = this.getZonalStock(code);
-                        
+
                         state.divisionMaterials[activeDivision].push({
                             material_code: code,
                             material_name: materialName || code,
@@ -811,26 +1288,26 @@
                 try {
                     const avgData = await ApiService.getMonthlyAvg([plantCode]);
                     state.avgDataCache[plantCode] = avgData;
-                    
+
                     const activeDivision = state.selectedDivisions[0];
                     if (activeDivision && state.divisionMaterials[activeDivision]) {
                         const materials = state.divisionMaterials[activeDivision];
                         for (const material of materials) {
                             const monthlyAvg = avgData[material.material_code]?.[plantCode]?.monthly_avg || 0;
                             material.monthly_avg = monthlyAvg;
-                            
+
                             const virtualStock = material.stock + (material.in_transit || 0);
                             material.virtual_stock = virtualStock;
-                            
+
                             const isCritical = virtualStock <= monthlyAvg && monthlyAvg > 0;
                             material.is_critical = isCritical;
                             material.suggested_qty = isCritical ? Utils.calculateSuggestedQty(virtualStock, monthlyAvg) : 0;
                         }
                     }
-                    
+
                     this.updateMaterialsTable();
                     this.updateSuggestedTable();
-                    
+
                 } catch (error) {
                     console.error('Error fetching averages:', error);
                 }
@@ -872,7 +1349,7 @@
                     const isCritical = m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
                     const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(virtualStock, m.monthly_avg) : 0);
                     const displayName = m.material_name || m.material_code || 'Unknown';
-                    
+
                     return `
                         <tr>
                             <td style="text-align: center;">${index + 1}</td>
@@ -912,7 +1389,7 @@
                 if (dom.totalMaterials) {
                     dom.totalMaterials.textContent = materials.length;
                 }
-                
+
                 const criticalCount = materials.filter(m => {
                     const virtualStock = m.virtual_stock || (m.stock + (m.in_transit || 0));
                     return m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
@@ -924,17 +1401,22 @@
             // REMOVE MATERIAL FROM DIVISION
             // ------------------------------------------------------------
             removeMaterialRowFromDivision(materialCode) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot remove materials in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (state.selectedDivisions.length === 0) return;
-                
+
                 const activeDivision = state.selectedDivisions[0];
                 if (state.divisionMaterials[activeDivision]) {
                     state.divisionMaterials[activeDivision] = state.divisionMaterials[activeDivision].filter(
                         m => m.material_code !== materialCode
                     );
                 }
-                
+
                 state.finalData = state.finalData.filter(f => f.material_code !== materialCode);
-                
+
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
                 this.renderFinalTable();
@@ -946,6 +1428,11 @@
             // ADD MATERIAL ROW
             // ------------------------------------------------------------
             addMaterialRow() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot add materials in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (state.selectedDivisions.length === 0) {
                     UiService.showToast('Please select at least one division first!', true);
                     return;
@@ -974,7 +1461,7 @@
                     const inTransit = this.getTransitForMaterial(code);
                     const virtualStock = stock + inTransit;
                     const zonalStock = this.getZonalStock(code);
-                    
+
                     state.divisionMaterials[activeDivision].push({
                         material_code: code,
                         material_name: materialName,
@@ -988,7 +1475,7 @@
                         suggested_qty: 0,
                         is_critical: false
                     });
-                    
+
                     this.updateMaterialsTable();
                     this.fetchAndUpdateAverages(activePlantCode);
                     UiService.showToast('✅ Material added successfully!');
@@ -998,13 +1485,17 @@
             },
 
             addMultipleRows() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot add materials in Rebalancing Mode.', true);
+                    return;
+                }
                 for (let i = 0; i < 5; i++) {
                     this.addMaterialRow();
                 }
             },
 
             // ------------------------------------------------------------
-            // DIVISION MANAGEMENT
+            // DIVISION MANAGEMENT (non-rebalance)
             // ------------------------------------------------------------
             loadDivisions() {
                 if (!dom.divisionGrid) return;
@@ -1023,11 +1514,16 @@
             },
 
             onDivisionSelect() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Divisions are locked in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const checkboxes = dom.divisionGrid.querySelectorAll('input[type="checkbox"]:checked');
                 state.selectedDivisions = Array.from(checkboxes).map(cb => cb.value);
                 UiService.updateSelectedCount();
                 UiService.updateDivisionDisplay();
-                
+
                 if (state.selectedDivisions.length > 0) {
                     const activeDivision = state.selectedDivisions[0];
                     if (!state.divisionMaterials[activeDivision]) {
@@ -1038,17 +1534,25 @@
                         this.fetchAndUpdateAverages(activePlantCode);
                     }
                 }
-                
+
                 this.updateMaterialsTable();
                 this.updateSuggestedTable();
             },
 
             selectAllDivisions() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Divisions are locked in Rebalancing Mode.', true);
+                    return;
+                }
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
                 this.onDivisionSelect();
             },
 
             deselectAllDivisions() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Divisions are locked in Rebalancing Mode.', true);
+                    return;
+                }
                 dom.divisionGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
                 this.onDivisionSelect();
             },
@@ -1057,6 +1561,11 @@
             // AUTO-SUGGEST CRITICAL
             // ------------------------------------------------------------
             async autoSuggestFromCritical() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Auto-suggest is disabled in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (state.selectedDivisions.length === 0) {
                     UiService.showToast('Please select at least one division first!', true);
                     return;
@@ -1067,7 +1576,7 @@
                 try {
                     const activeDivision = state.selectedDivisions[0] || '';
                     const activePlantCode = CONFIG.DIVISION_PLANT_MAP[activeDivision];
-                    
+
                     if (!activePlantCode) {
                         UiService.hideLoading();
                         return;
@@ -1086,7 +1595,7 @@
                     }
 
                     const divisionStock = stockData.filter(item => String(item.plant) === activePlantCode);
-                    
+
                     if (!state.divisionMaterials[activeDivision]) {
                         state.divisionMaterials[activeDivision] = [];
                     }
@@ -1112,9 +1621,9 @@
                                 const unit = Utils.getMaterialUnit(code) || 'NOS';
                                 const weightKG = Utils.getMaterialWeightKG(code) || 0;
                                 const zonalStock = this.getZonalStock(code);
-                                
+
                                 const suggestedQty = Utils.calculateSuggestedQty(virtualStock, monthlyAvg);
-                                
+
                                 state.divisionMaterials[activeDivision].push({
                                     material_code: code,
                                     material_name: materialName,
@@ -1167,7 +1676,7 @@
                     const virtualStock = m.virtual_stock || (m.stock + (m.in_transit || 0));
                     const isCritical = m.is_critical || (virtualStock <= m.monthly_avg && m.monthly_avg > 0);
                     const suggestedQty = m.suggested_qty || (isCritical ? Utils.calculateSuggestedQty(virtualStock, m.monthly_avg) : 0);
-                    
+
                     const isInFinal = state.finalData.some(f =>
                         f.material_code === m.material_code &&
                         f.division === activeDivision
@@ -1233,6 +1742,11 @@
             },
 
             onSuggestedSelect(idx, checked) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot modify selections in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (checked) {
                     if (!state.selectedSuggestedRows.includes(idx)) {
                         state.selectedSuggestedRows.push(idx);
@@ -1267,6 +1781,11 @@
             },
 
             toggleAllSuggested() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot modify selections in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const checkboxes = dom.suggestedBody.querySelectorAll('.suggested-checkbox:not([disabled])');
                 const selectAll = dom.selectAllSuggested;
                 if (!selectAll) return;
@@ -1300,6 +1819,11 @@
             // ADD TO FINAL
             // ------------------------------------------------------------
             addSelectedToFinal() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot add items in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const checkboxes = dom.suggestedBody.querySelectorAll('.suggested-checkbox:checked');
 
                 if (checkboxes.length === 0) {
@@ -1329,7 +1853,7 @@
                     if (!exists) {
                         const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
                         const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
-                        
+
                         state.finalData.push({
                             sno: state.finalData.length + 1,
                             division: row.division,
@@ -1377,7 +1901,7 @@
             },
 
             // ------------------------------------------------------------
-            // FINAL TABLE - WITH MULTIPLE COMMENT SUPPORT
+            // FINAL TABLE
             // ------------------------------------------------------------
             renderFinalTable() {
                 const tbody = dom.finalBody;
@@ -1398,21 +1922,25 @@
                     row.sno = idx + 1;
                 });
 
+                const isLocked = state.rebalanceMode && !state.rebalanceUnlocked;
+
                 tbody.innerHTML = state.finalData.map((row, idx) => {
                     const isFirstForDivision = state.finalData.findIndex(r => r.division === row.division) === idx;
                     const displayName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
-                    
+
                     const commentCount = row.comment_count || 0;
                     const hasComments = commentCount > 0;
                     const comments = row.comments || [];
                     const commentTooltip = hasComments ? comments.map((c, i) => `Note ${i+1}: ${c}`).join('\n') : '';
-                    
-                    const commentIndicator = hasComments ? 
+
+                    const commentIndicator = hasComments ?
                         `<span style="color: #28a745; font-size: 0.6rem; margin-left: 4px; cursor: pointer;" 
                                title="${commentTooltip}" 
                                onclick="AllotmentManager.viewComments(${idx})">
                             <i class="bi bi-chat-fill"></i> ${commentCount} Note${commentCount > 1 ? 's' : ''}
                         </span>` : '';
+
+                    const isDisabled = isLocked ? 'disabled' : '';
 
                     return `
                         <tr>
@@ -1429,7 +1957,8 @@
                                        style="width: 80px; text-align: center; font-weight: 700;"
                                        onchange="AllotmentManager.onAllottedChange(${idx}, this.value)"
                                        oninput="AllotmentManager.onAllottedChange(${idx}, this.value)"
-                                       onkeydown="if(event.key==='Enter'){event.preventDefault();AllotmentManager.onAllottedEnter(${idx}, event);}">
+                                       onkeydown="if(event.key==='Enter'){event.preventDefault();AllotmentManager.onAllottedEnter(${idx}, event);}"
+                                       ${isDisabled}>
                             </td>
                             <td>
                                 ${isFirstForDivision ? `
@@ -1440,7 +1969,8 @@
                                            pattern="[0-9]{10}"
                                            data-division="${row.division}"
                                            onchange="AllotmentManager.updateDivisionSTO('${row.division}', this.value)"
-                                           oninput="AllotmentManager.validateSTOInput(this)">
+                                           oninput="AllotmentManager.validateSTOInput(this)"
+                                           ${isDisabled}>
                                 ` : ''}
                             </td>
                         </tr>
@@ -1451,9 +1981,14 @@
             },
 
             onAllottedChange: function(rowIndex, newValue) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot change quantities in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const qty = parseFloat(newValue);
                 if (isNaN(qty) || qty < 0) return;
-                
+
                 if (state.finalData[rowIndex]) {
                     state.finalData[rowIndex].allotted_qty = qty;
                     this.updateDivisionTransportUI();
@@ -1461,11 +1996,16 @@
             },
 
             onAllottedEnter: function(rowIndex, event) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot add comments in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     const qty = parseFloat(event.target.value);
                     if (isNaN(qty) || qty < 0) return;
-                    
+
                     if (state.finalData[rowIndex]) {
                         state.finalData[rowIndex].allotted_qty = qty;
                         this.updateDivisionTransportUI();
@@ -1476,27 +2016,32 @@
             },
 
             openCommentModal: function(rowIndex, item) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Comments are disabled in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const materialName = item.material_name || Utils.getMaterialName(item.material_code) || item.material_code;
                 const materialCode = item.material_code;
                 const division = item.division;
                 const quantity = parseFloat(item.allotted_qty) || 0;
-                
+
                 if (!state.materialComments[materialCode]) {
                     state.materialComments[materialCode] = {};
                 }
                 if (!state.materialComments[materialCode][division]) {
                     state.materialComments[materialCode][division] = [];
                 }
-                
+
                 const existingComments = state.materialComments[materialCode][division] || [];
                 const remaining = quantity - existingComments.length;
-                
+
                 if (remaining <= 0) {
                     UiService.showToast('✅ All quantities have comments!');
                     this.closeCommentModal();
                     return;
                 }
-                
+
                 state.commentModalData = {
                     rowIndex: rowIndex,
                     materialCode: materialCode,
@@ -1506,7 +2051,7 @@
                     commentNumber: existingComments.length + 1,
                     remaining: remaining
                 };
-                
+
                 if (dom.commentMaterialDisplay) {
                     dom.commentMaterialDisplay.textContent = `${materialCode} - ${materialName}`;
                 }
@@ -1521,15 +2066,15 @@
                     dom.commentInput.placeholder = `Enter Note ${existingComments.length + 1} (e.g., For Connection X)`;
                     setTimeout(() => dom.commentInput.focus(), 100);
                 }
-                
+
                 const modalTitle = document.querySelector('#commentModal .modal-header h3');
                 if (modalTitle) {
                     modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${quantity}`;
                 }
-                
+
                 if (dom.existingCommentsDisplay) {
                     if (existingComments.length > 0) {
-                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
+                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) =>
                             `<div style="font-size: 0.8rem; color: #28a745; padding: 2px 0;">✅ Note ${i+1}: ${c}</div>`
                         ).join('');
                         dom.existingCommentsDisplay.style.display = 'block';
@@ -1537,7 +2082,7 @@
                         dom.existingCommentsDisplay.style.display = 'none';
                     }
                 }
-                
+
                 if (dom.commentModal) {
                     dom.commentModal.style.display = 'flex';
                 }
@@ -1546,16 +2091,16 @@
             saveComment: function() {
                 const comment = dom.commentInput ? dom.commentInput.value.trim() : '';
                 const data = state.commentModalData;
-                
+
                 if (!data) return;
-                
+
                 if (!state.materialComments[data.materialCode]) {
                     state.materialComments[data.materialCode] = {};
                 }
                 if (!state.materialComments[data.materialCode][data.division]) {
                     state.materialComments[data.materialCode][data.division] = [];
                 }
-                
+
                 if (comment) {
                     state.materialComments[data.materialCode][data.division].push(comment);
                     state.commentCounter++;
@@ -1563,18 +2108,18 @@
                 } else {
                     UiService.showToast('ℹ️ No comment added (skipped)');
                 }
-                
+
                 const commentCount = state.materialComments[data.materialCode][data.division].length;
                 if (state.finalData[data.rowIndex]) {
                     state.finalData[data.rowIndex].comment_count = commentCount;
                     state.finalData[data.rowIndex].comments = state.materialComments[data.materialCode][data.division];
                 }
-                
+
                 this.renderFinalTable();
-                
+
                 const existingComments = state.materialComments[data.materialCode][data.division] || [];
                 const totalQty = data.quantity;
-                
+
                 if (existingComments.length >= totalQty) {
                     UiService.showToast(`✅ All ${totalQty} notes added for ${data.materialName}!`);
                     this.closeCommentModal();
@@ -1585,23 +2130,23 @@
                         dom.commentInput.placeholder = `Enter Note ${existingComments.length + 1} (${remaining} remaining)`;
                         dom.commentInput.focus();
                     }
-                    
+
                     if (dom.commentQuantityDisplay) {
                         dom.commentQuantityDisplay.textContent = `${totalQty} units (${existingComments.length} commented, ${remaining} remaining)`;
                     }
-                    
+
                     const modalTitle = document.querySelector('#commentModal .modal-header h3');
                     if (modalTitle) {
                         modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Add Note ${existingComments.length + 1} of ${totalQty}`;
                     }
-                    
+
                     if (dom.existingCommentsDisplay) {
-                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) => 
+                        dom.existingCommentsDisplay.innerHTML = existingComments.map((c, i) =>
                             `<div style="font-size: 0.8rem; color: #28a745; padding: 2px 0;">✅ Note ${i+1}: ${c}</div>`
                         ).join('');
                         dom.existingCommentsDisplay.style.display = 'block';
                     }
-                    
+
                     UiService.showToast(`📝 ${remaining} more note(s) remaining for this item`);
                 }
             },
@@ -1621,15 +2166,15 @@
             viewComments: function(rowIndex) {
                 const row = state.finalData[rowIndex];
                 if (!row) return;
-                
+
                 const materialName = row.material_name || Utils.getMaterialName(row.material_code) || row.material_code;
                 const comments = row.comments || [];
-                
+
                 if (comments.length === 0) {
                     UiService.showToast('No comments for this item');
                     return;
                 }
-                
+
                 const commentText = comments.map((c, i) => `Note ${i+1}: ${c}`).join('\n');
                 alert(`📝 Comments for ${materialName} (${row.division}):\n\n${commentText}`);
             },
@@ -1643,6 +2188,11 @@
             },
 
             updateDivisionSTO(division, value) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot modify STO in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const sto = value.trim();
                 if (sto === '' || Utils.validateSTO(sto)) {
                     state.stoCache[division] = sto;
@@ -1666,14 +2216,13 @@
             // ============================================================
             // DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION
             // ============================================================
-
             calculateDivisionWeights() {
                 const weights = {};
-                
+
                 for (const item of state.finalData) {
                     const division = item.division;
                     if (!weights[division]) weights[division] = 0;
-                    
+
                     let weightKG = parseFloat(item.weight_per_unit_kg);
                     if (!weightKG || weightKG === 0) {
                         weightKG = Utils.getMaterialWeightKG(item.material_code);
@@ -1682,37 +2231,41 @@
                     const qty = parseFloat(item.allotted_qty) || 0;
                     weights[division] += qty * weightKG;
                 }
-                
+
                 return weights;
             },
 
             updateDivisionTransportUI() {
                 const weights = this.calculateDivisionWeights();
                 state.divisionWeights = weights;
-                
+
                 const divisions = [...new Set(state.finalData.map(row => row.division))];
-                
+
                 if (divisions.length === 0) {
                     UiService.showTransportSection(false);
                     return;
                 }
-                
+
                 UiService.showTransportSection(true);
                 const container = dom.divisionTransportContainer;
                 if (!container) return;
-                
+
+                const isLocked = state.rebalanceMode && !state.rebalanceUnlocked;
+
                 let html = '';
-                
+
                 divisions.forEach((division, idx) => {
                     const weightKG = weights[division] || 0;
                     const weightMT = weightKG / 1000;
                     const capacityKG = state.divisionTransport[division]?.capacity || 0;
                     const utilization = capacityKG > 0 ? (weightKG / capacityKG) * 100 : 0;
-                    
+
                     const statusColor = utilization >= 85 ? '#28a745' : utilization >= 50 ? '#ffc107' : '#dc3545';
                     const statusIcon = utilization >= 85 ? '✅' : utilization >= 50 ? '🟡' : '🔴';
                     const statusText = utilization >= 85 ? 'Optimized' : utilization >= 50 ? 'Partial' : 'Low';
-                    
+
+                    const selectDisabled = isLocked ? 'disabled' : '';
+
                     html += `
                         <div class="division-transport-item" style="background: ${idx % 2 === 0 ? '#f8fafd' : 'white'}; border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; border: 1px solid #eef2f6;">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -1727,7 +2280,8 @@
                                         <label style="font-size: 0.7rem; color: #6c757d;">Truck Capacity</label>
                                         <select class="division-transport-select" data-division="${division}" 
                                                 style="padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.85rem;"
-                                                onchange="AllotmentManager.onDivisionTransportChange('${division}', this.value)">
+                                                onchange="AllotmentManager.onDivisionTransportChange('${division}', this.value)"
+                                                ${selectDisabled}>
                                             ${CONFIG.TRANSPORT_OPTIONS.map(opt => 
                                                 `<option value="${opt.value}" ${parseInt(opt.value) === capacityKG ? 'selected' : ''}>${opt.label}</option>`
                                             ).join('')}
@@ -1762,9 +2316,9 @@
                         </div>
                     `;
                 });
-                
+
                 container.innerHTML = html;
-                
+
                 divisions.forEach(division => {
                     const select = document.querySelector(`.division-transport-select[data-division="${division}"]`);
                     if (select) {
@@ -1777,17 +2331,24 @@
                         state.divisionTransport[division].utilization = capacity > 0 ? (weights[division] / capacity) * 100 : 0;
                     }
                 });
-                
-                divisions.forEach(division => {
-                    const capacity = state.divisionTransport[division]?.capacity || 0;
-                    const weight = weights[division] || 0;
-                    if (capacity > 0 && weight > 0 && (weight / capacity) < 0.85) {
-                        this.showDivisionSuggestions(division, capacity, weight);
-                    }
-                });
+
+                if (!isLocked) {
+                    divisions.forEach(division => {
+                        const capacity = state.divisionTransport[division]?.capacity || 0;
+                        const weight = weights[division] || 0;
+                        if (capacity > 0 && weight > 0 && (weight / capacity) < 0.85) {
+                            this.showDivisionSuggestions(division, capacity, weight);
+                        }
+                    });
+                }
             },
 
             onDivisionTransportChange(division, value) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot change transport in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const capacity = parseInt(value) || 0;
                 if (!state.divisionTransport[division]) {
                     state.divisionTransport[division] = { capacity: 0, weight: 0, utilization: 0 };
@@ -1797,35 +2358,37 @@
             },
 
             showDivisionSuggestions(division, capacityKG, currentWeightKG) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) return;
+
                 const shortfall = capacityKG - currentWeightKG;
                 const suggestionContainer = document.querySelector(`.division-suggestions[data-division="${division}"]`);
                 if (!suggestionContainer || shortfall <= 0) {
                     if (suggestionContainer) suggestionContainer.style.display = 'none';
                     return;
                 }
-                
+
                 suggestionContainer.style.display = 'block';
                 let suggestionsHTML = '';
                 let totalSuggestions = 0;
-                
+
                 const plantCode = CONFIG.DIVISION_PLANT_MAP[division];
                 const avgData = state.avgDataCache[plantCode] || {};
                 const divisionStock = state.stockDataCache?.filter(item => String(item.plant) === plantCode) || [];
                 const divisionMaterials = state.divisionMaterials[division] || [];
-                
+
                 const allMaterialCodes = new Set();
                 divisionStock.forEach(item => { if (item.material_code) allMaterialCodes.add(item.material_code); });
                 divisionMaterials.forEach(mat => { if (mat.material_code) allMaterialCodes.add(mat.material_code); });
-                
+
                 const criticalMaterials = [];
                 let remaining = shortfall;
-                
+
                 for (const code of allMaterialCodes) {
                     const stock = this.getStockForMaterial(code, plantCode);
                     const inTransit = this.getTransitForMaterial(code);
                     const virtualStock = stock + inTransit;
                     const monthlyAvg = avgData[code]?.[plantCode]?.monthly_avg || 0;
-                    
+
                     if (virtualStock <= monthlyAvg && monthlyAvg > 0) {
                         const weightKG = Utils.getMaterialWeightKG(code) || 0;
                         if (weightKG > 0) {
@@ -1835,7 +2398,7 @@
                             } else {
                                 suggestedQty = Math.ceil(suggestedQty);
                             }
-                            
+
                             const existsInFinal = state.finalData.some(f => f.material_code === code && f.division === division);
                             if (suggestedQty > 0 && !existsInFinal) {
                                 criticalMaterials.push({
@@ -1850,24 +2413,24 @@
                         }
                     }
                 }
-                
+
                 criticalMaterials.sort((a, b) => a.weight_per_unit_kg - b.weight_per_unit_kg);
-                
+
                 let remainingShortfall = shortfall;
                 for (const mat of criticalMaterials) {
                     let qtyToAdd = mat.suggested_qty;
                     let weightToAdd = mat.weight_added;
-                    
+
                     if (weightToAdd > remainingShortfall) {
                         const maxQty = Math.floor(remainingShortfall / mat.weight_per_unit_kg);
                         if (maxQty <= 0) continue;
                         qtyToAdd = maxQty;
                         weightToAdd = maxQty * mat.weight_per_unit_kg;
                     }
-                    
+
                     remainingShortfall -= weightToAdd;
                     totalSuggestions++;
-                    
+
                     suggestionsHTML += `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid #eef2f6;">
                             <div style="font-size: 0.75rem;">
@@ -1884,10 +2447,10 @@
                             </div>
                         </div>
                     `;
-                    
+
                     if (remainingShortfall <= 0) break;
                 }
-                
+
                 if (totalSuggestions === 0) {
                     suggestionsHTML = `
                         <div style="text-align: center; padding: 10px; color: #6c757d; font-size: 0.75rem;">
@@ -1895,7 +2458,7 @@
                         </div>
                     `;
                 }
-                
+
                 suggestionContainer.innerHTML = `
                     <div style="font-size: 0.75rem; font-weight: 600; color: #856404; margin-bottom: 4px;">
                         💡 Suggestions to fill ${((capacityKG - currentWeightKG) / 1000).toFixed(1)} MT shortfall:
@@ -1912,8 +2475,13 @@
             },
 
             applyDivisionSuggestion: function(division, materialCode, suggestedQty) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot apply suggestions in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const exists = state.finalData.some(f => f.material_code === materialCode && f.division === division);
-                
+
                 if (exists) {
                     const item = state.finalData.find(f => f.material_code === materialCode && f.division === division);
                     if (item) {
@@ -1924,7 +2492,7 @@
                     const materialName = Utils.getMaterialName(materialCode) || materialCode;
                     const unit = Utils.getMaterialUnit(materialCode) || 'NOS';
                     const weightKG = Utils.getMaterialWeightKG(materialCode) || 0;
-                    
+
                     state.finalData.push({
                         sno: state.finalData.length + 1,
                         division: division,
@@ -1944,22 +2512,27 @@
                     });
                     UiService.showToast(`✅ Added ${suggestedQty} units of ${materialName} to ${division}`);
                 }
-                
+
                 this.renderFinalTable();
                 this.updateDivisionTransportUI();
             },
 
             applyAllDivisionSuggestions: function(division) {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot apply suggestions in Rebalancing Mode.', true);
+                    return;
+                }
+
                 const buttons = document.querySelectorAll(`.division-suggestions[data-division="${division}"] .btn-add-item`);
                 if (buttons.length === 0) {
                     UiService.showToast('No suggestions to apply.', true);
                     return;
                 }
-                
+
                 buttons.forEach(btn => {
                     btn.click();
                 });
-                
+
                 UiService.showToast(`✅ Applied all suggestions for ${division}!`);
             },
 
@@ -2169,14 +2742,14 @@
                     const qty = group.quantity;
                     const materialName = group.materialName;
                     const division = group.division;
-                    
+
                     if (comments.length === 0) return;
-                    
+
                     const startNote = noteCounter;
                     const endNote = noteCounter + comments.length - 1;
                     const noteRange = comments.length === 1 ? `Note ${startNote}` : `Note ${startNote}-${endNote}`;
                     noteCounter += comments.length;
-                    
+
                     let commentText = '';
                     if (comments.length === 1) {
                         commentText = comments[0];
@@ -2189,7 +2762,7 @@
                             commentText = comments.join('; ');
                         }
                     }
-                    
+
                     commentsHTML += `
                         <p style="font-size: 8px; margin: 2px 0; font-style: italic; color: #333;">
                             <strong>${noteRange}:</strong> ${commentText} 
@@ -2416,6 +2989,24 @@
             // SAVE TO DATABASE
             // ------------------------------------------------------------
             async saveAllotmentToDB(status) {
+                // Validation for locked rebalance mode
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    const plantToDivision = {};
+                    for (const [name, code] of Object.entries(CONFIG.DIVISION_PLANT_MAP)) {
+                        plantToDivision[code] = name;
+                    }
+
+                    const lockedDivisions = state.rebalanceLockedDivisions.map(code => plantToDivision[code] || code);
+                    const selectedDivs = state.selectedDivisions;
+
+                    const allLockedStillSelected = lockedDivisions.every(div => selectedDivs.includes(div));
+
+                    if (!allLockedStillSelected) {
+                        UiService.showToast('❌ Rebalancing error: Source divisions have been changed. Please reload.', true);
+                        return;
+                    }
+                }
+
                 UiService.showLoading();
 
                 try {
@@ -2663,7 +3254,7 @@
                     pendingAllotments.forEach((item, idx) => {
                         const date = item.created_date ? new Date(item.created_date).toLocaleDateString('en-IN') : 'N/A';
                         const divisions = item.divisions?.join(', ') || 'N/A';
-                        const commentCount = item.material_comments ? 
+                        const commentCount = item.material_comments ?
                             Object.values(item.material_comments).reduce((sum, divs) => {
                                 return sum + Object.values(divs).reduce((s, c) => s + c.length, 0);
                             }, 0) : 0;
@@ -2742,10 +3333,8 @@
                     }
                 }
 
-                // Ensure material names are resolved
                 const allotmentData = (allotment.allotments || []).map(f => {
                     let name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
-                    // If name is still code, try to get from cache
                     if (name === f.material_code) {
                         const cachedName = state.materialNameCache[f.material_code];
                         if (cachedName) name = cachedName;
@@ -2862,6 +3451,12 @@
                 state.divisionTransport = {};
                 state.divisionWeights = {};
 
+                state.rebalanceLockedDivisions = [];
+                state.rebalanceProcessed = false;
+                state.rebalanceUnlocked = false;
+                state.selectedDeficitPlants = [];
+                state.orphanedTransfers = [];
+
                 if (dom.suggestedContainer) dom.suggestedContainer.style.display = 'none';
                 if (dom.finalEmpty) dom.finalEmpty.style.display = 'block';
                 if (dom.finalContainer) dom.finalContainer.style.display = 'none';
@@ -2877,6 +3472,8 @@
                 if (dom.readyForFinal) dom.readyForFinal.textContent = '0';
                 UiService.updateFinalBadge();
                 UiService.showTransportSection(false);
+
+                if (dom.rebalanceBanner) dom.rebalanceBanner.style.display = 'none';
             },
 
             clearAllotment() {
@@ -2898,6 +3495,11 @@
             },
 
             clearFinalData() {
+                if (state.rebalanceMode && !state.rebalanceUnlocked) {
+                    UiService.showToast('Cannot clear data in Rebalancing Mode.', true);
+                    return;
+                }
+
                 if (!confirm('Clear all items from Final Allotment?')) return;
                 state.finalData = [];
                 state.stoCache = {};
@@ -2914,7 +3516,7 @@
             },
 
             // ============================================================
-            // ★★★ FIXED: HISTORY VIEW MODAL (Manager-only) ★★★
+            // HISTORY VIEW MODAL (Manager-only)
             // ============================================================
             async loadHistory() {
                 try {
@@ -2947,12 +3549,10 @@
                         }
                     }
                     const commentDisplay = totalComments > 0 ? `📝 ${totalComments}` : '';
-                    
-                    // Store full allotment data in data attribute for View button
+
                     const allotmentData = JSON.stringify(item).replace(/"/g, '&quot;');
-                    
-                    // ★ MANAGER-ONLY VIEW BUTTON ★
-                    const viewButton = state.isManager ? 
+
+                    const viewButton = state.isManager ?
                         `<button class="btn-action view" onclick="AllotmentManager.viewHistoryAllotment('${item.allotment_no}')">
                             <i class="bi bi-eye"></i> View
                         </button>` : '';
@@ -2989,7 +3589,6 @@
             },
 
             viewHistoryAllotment: function(allotmentNo) {
-                // Only managers can call this
                 if (!state.isManager) {
                     UiService.showToast('Access denied. Only Managers can view allotment details.', true);
                     return;
@@ -2997,7 +3596,7 @@
 
                 const tbody = dom.historyBody;
                 if (!tbody) return;
-                
+
                 const rows = tbody.querySelectorAll('tr');
                 for (const row of rows) {
                     const td = row.querySelector('td:nth-child(2)');
@@ -3020,7 +3619,6 @@
             },
 
             fetchAndShowAllotmentDetail: async function(allotmentNo) {
-                // Only managers can call this
                 if (!state.isManager) {
                     UiService.showToast('Access denied. Only Managers can view allotment details.', true);
                     return;
@@ -3048,9 +3646,7 @@
                 UiService.hideLoading();
             },
 
-            // ★★★ FIXED: buildAllotmentDetailHTML - Properly aligned table ★★★
             showAllotmentDetailModal: function(allotment) {
-                // Only managers can call this
                 if (!state.isManager) {
                     UiService.showToast('Access denied. Only Managers can view allotment details.', true);
                     return;
@@ -3091,7 +3687,7 @@
                         </div>
                     </div>
                 `;
-                
+
                 const existing = document.getElementById('allotmentDetailModal');
                 if (existing) existing.remove();
                 document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -3101,10 +3697,8 @@
             },
 
             buildAllotmentDetailHTML: function(allotment) {
-                // This is only called by managers, but safe to keep
                 let html = '';
 
-                // --- Header Info ---
                 html += `
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-bottom:20px; background:#f8fafd; padding:15px; border-radius:10px; border:1px solid #eef2f6;">
                         <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Allotment No</label><div style="font-weight:700; font-size:1rem; color:#1a3c6e;">${allotment.allotment_no || 'N/A'}</div></div>
@@ -3119,7 +3713,6 @@
                     </div>
                 `;
 
-                // --- Divisions ---
                 const divisions = allotment.divisions || [];
                 html += `
                     <div style="margin-bottom:16px;">
@@ -3133,18 +3726,14 @@
                     </div>
                 `;
 
-                // --- Materials Table ---
                 const materials = allotment.materials || [];
                 const allotments = allotment.allotments || [];
                 const stoNumbers = allotment.sto_numbers || {};
 
-                // Build a map of material_code -> name, unit
                 const materialMap = {};
                 materials.forEach(m => {
                     const code = m.material_code;
-                    // Prefer name from allotment, else from materialMap, else fallback to code
                     let name = m.material_name || Utils.getMaterialName(code) || code;
-                    // If name is still code, try to get from cached material list
                     if (name === code) {
                         const cached = state.materialNameCache[code];
                         if (cached) name = cached;
@@ -3152,7 +3741,6 @@
                     materialMap[code] = { name: name, unit: m.unit || 'NOS' };
                 });
 
-                // Also include any materials from allotments not in materials list
                 allotments.forEach(a => {
                     if (!materialMap[a.material_code]) {
                         const name = a.material_name || Utils.getMaterialName(a.material_code) || a.material_code;
@@ -3160,7 +3748,6 @@
                     }
                 });
 
-                // Group allotments by material_code
                 const groupedAllotments = {};
                 allotments.forEach(a => {
                     if (!groupedAllotments[a.material_code]) {
@@ -3169,7 +3756,6 @@
                     groupedAllotments[a.material_code].push(a);
                 });
 
-                // Get all unique division names from allotments, sorted
                 const allDivisions = [...new Set(allotments.map(a => a.division))].sort();
                 const divisionSTOs = {};
                 allDivisions.forEach(div => {
@@ -3228,7 +3814,6 @@
                         `;
                     });
 
-                    // STO row
                     html += `
                         <tr>
                             <td colspan="4" style="padding:4px 8px; border:1px solid #eef2f6; text-align:right; font-weight:700; background:#f8fafd;">STO Numbers</td>
@@ -3237,7 +3822,6 @@
                         </tr>
                     `;
 
-                    // Weight row if available
                     if (allotment.total_weight_kg || allotment.transport_weight) {
                         const totalWeightMT = (allotment.total_weight_kg || 0) / 1000;
                         const capacityMT = (allotment.transport_weight || 0) / 1000;
@@ -3265,7 +3849,6 @@
                     `;
                 }
 
-                // --- Comments ---
                 const comments = allotment.material_comments || {};
                 const commentKeys = Object.keys(comments);
                 let hasComments = false;
@@ -3307,7 +3890,6 @@
             },
 
             printAllotmentDetail: function(allotmentNo) {
-                // Only managers can call this
                 if (!state.isManager) {
                     UiService.showToast('Access denied. Only Managers can print allotment details.', true);
                     return;
@@ -3315,16 +3897,16 @@
 
                 const modal = document.getElementById('allotmentDetailModal');
                 if (!modal) return;
-                
+
                 const content = modal.querySelector('.modal-body');
                 if (!content) return;
-                
+
                 const printWindow = window.open('', '_blank', 'width=1000,height=800');
                 if (!printWindow) {
                     UiService.showToast('Please allow popups for printing.', true);
                     return;
                 }
-                
+
                 printWindow.document.write(`
                     <html>
                         <head>
@@ -3403,11 +3985,11 @@
                     const weightKG = row.weight_per_unit_kg || Utils.getMaterialWeightKG(row.material_code) || 0;
                     const comments = row.comments || state.materialComments[row.material_code]?.[row.division] || [];
                     const commentText = comments.map((c, i) => `Note ${i+1}: ${c}`).join('; ');
-                    
+
                     const divTransport = state.divisionTransport[row.division] || {};
                     const weightMT = (state.divisionWeights[row.division] || 0) / 1000;
                     const utilization = divTransport.capacity > 0 ? ((state.divisionWeights[row.division] || 0) / divTransport.capacity) * 100 : 0;
-                    
+
                     sheetData.push([
                         row.sno,
                         row.material_code,
@@ -3448,7 +4030,7 @@
                     if (data && data.length > 0) {
                         state.allMaterials = data;
                         console.log('✅ Materials loaded:', data.length, 'items');
-                        
+
                         state.materialNameCache = {};
                         state.materialUnitCache = {};
                         state.materialWeightCache = {};
@@ -3555,7 +4137,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE (unchanged from original)
+     HTML STRUCTURE
      ================================================================ -->
 
 <!-- Back Navigation -->
@@ -3575,7 +4157,6 @@
             <span>Refresh</span>
         </button>
         
-        <!-- Column Toggle -->
         <div class="column-toggle-wrapper" style="position: relative; display: inline-block;">
             <button onclick="UiService.toggleColumnMenu()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #6c757d, #495057); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(108, 117, 125, 0.5)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
                 <i class="bi bi-layout-three-columns"></i>
@@ -3647,6 +4228,11 @@
     </div>
 </div>
 
+<!-- Rebalance Banner -->
+<div id="rebalanceBanner" style="display: none; background: #d4edda; color: #155724; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b7e4c7;">
+    <i class="bi bi-info-circle"></i> <strong>Rebalancing Mode:</strong> Source divisions are locked. Destination divisions can be changed below.
+</div>
+
 <!-- Role Banner -->
 <div class="role-banner {% if user and (user.role == 'admin' or user.role == 'manager') %}role-manager{% else %}role-user{% endif %}">
     <i class="bi {% if user and (user.role == 'admin' or user.role == 'manager') %}bi-shield-check{% else %}bi-eye{% endif %}"></i>
@@ -3716,7 +4302,6 @@
             </span>
         </div>
         
-        <!-- Current Division Display -->
         <div style="background: #f8fafd; border-radius: 10px; padding: 12px 16px; margin-bottom: 15px; border: 1px solid #eef2f6;">
             <span style="font-weight: 600; font-size: 0.9rem;">
                 <i class="bi bi-info-circle" style="color: #667eea;"></i> 
@@ -3727,7 +4312,6 @@
             </span>
         </div>
         
-        <!-- Header Info -->
         <div class="form-row">
             <div class="form-group">
                 <label><i class="bi bi-hash"></i> Allotment No.</label>
@@ -3743,7 +4327,6 @@
             </div>
         </div>
         
-        <!-- Division Selection -->
         <div class="form-group" style="margin-bottom: 15px;">
             <label><i class="bi bi-building"></i> Select Divisions <span class="required">*</span></label>
             <div class="division-select-container">
@@ -3765,7 +4348,6 @@
             </div>
         </div>
         
-        <!-- Materials -->
         <div style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                 <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-list"></i> Materials</h4>
@@ -3782,7 +4364,6 @@
                 </div>
             </div>
             
-            <!-- Bulk Paste Input -->
             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
                     <input type="text" id="bulkPasteInput" class="form-control" 
@@ -3825,7 +4406,6 @@
             </div>
         </div>
         
-        <!-- Suggested Allotment Table -->
         <div style="margin-top: 25px; display: none;" id="suggestedTableContainer">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                 <h4 style="margin: 0; font-size: 1rem;"><i class="bi bi-table"></i> Suggested Allotment</h4>
@@ -3862,7 +4442,6 @@
             </div>
         </div>
         
-        <!-- Actions -->
         <div class="form-actions" style="margin-top: 25px;">
             <button type="button" class="btn-cancel" onclick="AllotmentManager.clearAllotment()">
                 <i class="bi bi-x-circle"></i> Clear All
@@ -3877,7 +4456,7 @@
 </div>
 
 <!-- ================================================================
-     TAB 2: FINAL ALLOTMENT (WITH DIVISION-WISE TRANSPORT)
+     TAB 2: FINAL ALLOTMENT
      ================================================================ -->
 <div class="tab-content" id="tab-step2">
     <div class="content-card">
@@ -3919,10 +4498,7 @@
                 </table>
             </div>
             
-            <!-- DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION SECTION -->
-            <div id="divisionTransportContainer" style="display: none; margin-top: 20px;">
-                <!-- Dynamic per-division transport cards -->
-            </div>
+            <div id="divisionTransportContainer" style="display: none; margin-top: 20px;"></div>
             
             <div class="form-actions" style="margin-top: 20px;">
                 <button type="button" class="btn-cancel" onclick="UiService.switchTab('step1')">
@@ -4071,8 +4647,36 @@
 </div>
 
 <!-- ================================================================
-     CONFIRMATION MODAL
+     MODALS
      ================================================================ -->
+
+<!-- Unlock Confirmation Modal -->
+<div class="modal-overlay" id="unlockConfirmModal" style="display: none;">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header" style="background: #ffc107; color: #1e2b3a;">
+            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                <i class="bi bi-unlock"></i> Unlock Divisions?
+            </h3>
+            <button class="modal-close" onclick="document.getElementById('unlockConfirmModal').style.display='none'" style="color:#1e2b3a;">&times;</button>
+        </div>
+        <div class="modal-body" id="unlockConfirmMessage">
+            <p style="margin-bottom: 10px;"><strong>⚠️ Unlock Divisions?</strong></p>
+            <p style="margin-bottom: 8px;">You are about to remove all rebalancing restrictions:</p>
+            <ul style="margin-left: 20px; margin-bottom: 12px; text-align: left;">
+                <li>Divisions will become editable.</li>
+                <li>You can add/remove materials and change quantities.</li>
+                <li>The existing transfers will be kept as a starting point.</li>
+            </ul>
+            <p style="color: #856404;"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone for this session.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="unlockConfirmCancel">Cancel</button>
+            <button class="btn-submit" id="unlockConfirmYes" style="background: #ffc107; color: #1e2b3a;">Unlock</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Modal -->
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
@@ -4089,7 +4693,7 @@
     </div>
 </div>
 
-<!-- COMMENT MODAL -->
+<!-- Comment Modal -->
 <div class="modal-overlay" id="commentModal">
     <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
@@ -4115,9 +4719,7 @@
                 </label>
                 <div id="commentQuantityDisplay" style="background: #f8fafd; padding: 8px 12px; border-radius: 8px;"></div>
             </div>
-            
             <div id="existingCommentsDisplay" style="margin-bottom: 12px; display: none; background: #d4edda; padding: 8px 12px; border-radius: 8px; border-left: 3px solid #28a745;"></div>
-            
             <div style="margin-bottom: 10px;">
                 <label style="font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 5px;">
                     <i class="bi bi-chat-dots"></i> Comment / Note:
@@ -4150,7 +4752,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- ================================================================
-     CSS STYLES (unchanged - same as original)
+     CSS STYLES
      ================================================================ -->
 <style>
     .welcome-banner {
@@ -4532,7 +5134,6 @@
         font-weight: 600;
     }
 
-    /* Frozen Headers */
     .requisition-table {
         width: 100%;
         border-collapse: collapse;
@@ -4762,7 +5363,7 @@
     .division-suggestions {
         animation: fadeIn 0.4s ease;
     }
-    
+
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-5px); }
         to { opacity: 1; transform: translateY(0); }
@@ -4785,6 +5386,20 @@
     }
     #existingCommentsDisplay {
         font-size: 0.85rem;
+    }
+
+    .btn-unlock {
+        background: #ffc107;
+        border: none;
+        border-radius: 20px;
+        color: #1e2b3a;
+        font-weight: 600;
+        padding: 4px 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-unlock:hover {
+        background: #e0a800;
     }
 
     @media (max-width: 768px) {

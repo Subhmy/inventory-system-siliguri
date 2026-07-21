@@ -17,7 +17,7 @@
     <button onclick="refreshCard('stock')" class="btn-refresh-stock">
       <i class="bi bi-box-seam"></i> Stock
     </button>
-    <button onclick="refreshCard('rebalance')" class="btn-refresh-transit" style="background: linear-gradient(135deg, #6f42c1, #5a32a3); color:white;">
+    <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
       <i class="bi bi-arrow-left-right"></i> Rebalance
     </button>
   </div>
@@ -80,7 +80,6 @@
 
 <!-- 5 Static Cards -->
 <div class="inventory-grid">
-  <!-- Card 1: Current Stock Level -->
   <div class="inventory-card" onclick="navigateTo('{{ url_for('main.current_stock_position') }}')">
     <div class="card-header-green">
       <div><i class="bi bi-box-seam"></i> <span class="card-badge">Stock</span></div>
@@ -96,7 +95,6 @@
     </div>
   </div>
 
-  <!-- Card 2: Critical Stock Items -->
   <div class="inventory-card" onclick="navigateTo('{{ url_for('main.current_stock_position') }}?filter=critical')">
     <div class="card-header-red">
       <div><i class="bi bi-exclamation-triangle-fill"></i> <span class="card-badge">Alert</span></div>
@@ -112,7 +110,6 @@
     </div>
   </div>
 
-  <!-- Card 3: Material in Transit -->
   <div class="inventory-card" onclick="navigateTo('{{ url_for('main.material_in_transit') }}')">
     <div class="card-header-teal">
       <div><i class="bi bi-truck"></i> <span class="card-badge">Transit</span></div>
@@ -128,7 +125,6 @@
     </div>
   </div>
 
-  <!-- Card 4: Consumption Analysis -->
   <div class="inventory-card" onclick="navigateTo('{{ url_for('main.consumption_analysis') }}')">
     <div class="card-header-blue">
       <div><i class="bi bi-graph-up"></i> <span class="card-badge">Consumption</span></div>
@@ -144,7 +140,6 @@
     </div>
   </div>
 
-  <!-- Card 5: Allotment Tracker -->
   <div class="inventory-card" onclick="navigateTo('{{ url_for('main.allotment_tracker') }}')">
     <div class="card-header-purple">
       <div><i class="bi bi-clipboard-check"></i> <span class="card-badge">Allotment</span></div>
@@ -162,41 +157,84 @@
 </div>
 
 <!-- ================================================================
-     NEW: Material Rebalancing Opportunities Table
-     Replaces the old "Top Consumed Materials"
+     REBALANCING TABLE – WITH SELECTION & TRANSFER BUTTON
      ================================================================ -->
 <div class="rebalance-section">
-  <div class="section-title">
-    <i class="bi bi-arrow-left-right" style="color: #6f42c1;"></i>
-    <h2>Material Rebalancing Opportunities</h2>
-    <span class="chart-timestamp" id="rebalanceTimestamp">
-      <i class="bi bi-clock"></i> Updated: —
-    </span>
-    <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
-      <i class="bi bi-arrow-repeat"></i> Refresh
-    </button>
+  <div class="section-header">
+    <div class="title-area">
+      <i class="bi bi-arrow-left-right" style="color: #6f42c1;"></i>
+      <h2>Material Rebalancing Opportunities</h2>
+      <span class="record-count" id="recordCount">0 records</span>
+    </div>
+    <div class="toolbar">
+      <div class="filter-group">
+        <div class="search-wrapper">
+          <input type="text" id="searchInput" placeholder="Search by Code or Name..." class="search-input" 
+                 oninput="applyFilters()" list="materialSuggestions" autocomplete="off">
+          <span class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none;">&times;</span>
+          <datalist id="materialSuggestions"></datalist>
+        </div>
+        <select id="regionFilter" class="filter-select" onchange="applyFilters()">
+          <option value="all">All Regions</option>
+        </select>
+        <select id="divisionFilter" class="filter-select" onchange="applyFilters()">
+          <option value="all">All Divisions</option>
+        </select>
+      </div>
+      <div class="action-toolbar">
+        <button class="btn-transfer-selected" onclick="transferSelected()" id="transferSelectedBtn">
+          <i class="bi bi-send"></i> Transfer Selected
+        </button>
+        <div class="best-fit-toggle">
+          <span class="toggle-label">Best Fit</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="bestFitToggle" onchange="toggleBestFit()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
+          <i class="bi bi-arrow-repeat"></i>
+        </button>
+      </div>
+    </div>
   </div>
-  <div class="rebalance-table-container">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Material Code</th>
-          <th>Material Name</th>
-          <th>Surplus Division</th>
-          <th>Surplus Qty</th>
-          <th>Deficit Division</th>
-          <th>Deficit Qty</th>
-          <th>Suggested Transfer</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="rebalanceTableBody">
-        <tr><td colspan="9" class="text-center">Loading…</td></tr>
-      </tbody>
-    </table>
-    <div class="rebalance-footnote">
-      <span><i class="bi bi-info-circle"></i> Surplus = Stock - Monthly Avg Consumption (per division). Deficit = Monthly Avg Consumption - Stock.</span>
+
+  <div class="table-container">
+    <div class="table-wrapper">
+      <table class="data-table" id="rebalanceTable">
+        <thead>
+          <tr>
+            <th style="width: 30px;">
+              <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()" title="Select All on this page">
+            </th>
+            <th class="sortable" data-sort="sno" onclick="sortTable('sno')">#</th>
+            <th class="sortable" data-sort="surplus" onclick="sortTable('surplus')">Surplus Division</th>
+            <th class="sortable" data-sort="code" onclick="sortTable('code')">Material Code</th>
+            <th class="sortable" data-sort="name" onclick="sortTable('name')">Material Name</th>
+            <th class="sortable" data-sort="surplusQty" onclick="sortTable('surplusQty')">Surplus Qty</th>
+            <th class="sortable" data-sort="deficit" onclick="sortTable('deficit')">Deficit Division</th>
+            <th class="sortable" data-sort="deficitQty" onclick="sortTable('deficitQty')">Deficit Qty</th>
+            <th class="sortable" data-sort="transfer" onclick="sortTable('transfer')">Transfer</th>
+            <th class="sortable" data-sort="type" onclick="sortTable('type')">Type</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="rebalanceTableBody">
+          <tr><td colspan="11" class="text-center loading-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" id="paginationBar">
+      <div class="pagination-info">
+        Showing <span id="pageStart">0</span> – <span id="pageEnd">0</span> of <span id="totalRecords">0</span>
+      </div>
+      <div class="pagination-controls">
+        <button class="page-btn" onclick="changePage('prev')" id="prevBtn"><i class="bi bi-chevron-left"></i></button>
+        <span class="page-numbers" id="pageNumbers"></span>
+        <button class="page-btn" onclick="changePage('next')" id="nextBtn"><i class="bi bi-chevron-right"></i></button>
+      </div>
     </div>
   </div>
 </div>
@@ -206,22 +244,37 @@
     'use strict';
 
     // ======================== CONFIG =========================
-    const DIVISION_PLANT_MAP = {
-      'Siliguri Town Division': '3412',
-      'Kurseong Division': '3413',
-      'Darjeeling Division': '3414',
-      'Sub-Urban Division': '3415',
-      'Kalimpong Division': '3471',
-      'Jalpaiguri Division': '3422',
-      'Mal Division': '3427',
-      'Coochbehar Division': '3444',
-      'Mathabhanga Division': '3445',
-      'Dinhata Division': '3446',
-      'Alipurduar Division': '3453'
+    const DIVISION_PLANTS = ['3412', '3413', '3414', '3415', '3422', '3427', '3444', '3445', '3446', '3453', '3471'];
+    
+    const PLANT_TO_DIVISION = {
+      '3412': 'Siliguri Town Division',
+      '3413': 'Kurseong Division',
+      '3414': 'Darjeeling Division',
+      '3415': 'Sub-Urban Division',
+      '3422': 'Jalpaiguri Division',
+      '3427': 'Mal Division',
+      '3444': 'Coochbehar Division',
+      '3445': 'Mathabhanga Division',
+      '3446': 'Dinhata Division',
+      '3453': 'Alipurduar Division',
+      '3471': 'Kalimpong Division'
     };
-    const PLANT_TO_DIVISION = Object.fromEntries(
-      Object.entries(DIVISION_PLANT_MAP).map(([name, code]) => [code, name])
-    );
+
+    const REGION_MAP = {
+      '3412': 'Darjeeling',
+      '3413': 'Darjeeling',
+      '3414': 'Darjeeling',
+      '3415': 'Darjeeling',
+      '3471': 'Kalimpong',
+      '3422': 'Jalpaiguri',
+      '3427': 'Jalpaiguri',
+      '3444': 'Coochbehar',
+      '3445': 'Coochbehar',
+      '3446': 'Coochbehar',
+      '3453': 'Alipurduar'
+    };
+
+    const REGION_NAMES = ['Darjeeling', 'Kalimpong', 'Jalpaiguri', 'Coochbehar', 'Alipurduar'];
 
     // ======================== STATE =========================
     const state = {
@@ -230,7 +283,13 @@
       transitSummary: null,
       consumptionOverview: null,
       allotments: [],
-      rebalanceData: [], // will store computed rebalance opportunities
+      rebalanceData: [],
+      filteredData: [],
+      currentPage: 1,
+      pageSize: 25,
+      sortField: 'surplus',
+      sortAsc: true,
+      bestFit: false,
       versions: {
         stock: 0,
         critical: 0,
@@ -245,7 +304,6 @@
     // ======================== DOM REFS ======================
     const $ = (id) => document.getElementById(id);
     const els = {
-      // KPI
       totalItemsHeader: $('totalItemsHeader'),
       criticalItemsHeader: $('criticalItemsHeader'),
       transitItemsHeader: $('transitItemsHeader'),
@@ -253,9 +311,22 @@
       lastUpdatedHeader: $('lastUpdatedHeader'),
       globalLastUpdated: $('globalLastUpdated'),
       currentDate: $('currentDate'),
-      // Rebalance table
       rebalanceTableBody: $('rebalanceTableBody'),
-      rebalanceTimestamp: $('rebalanceTimestamp')
+      recordCount: $('recordCount'),
+      searchInput: $('searchInput'),
+      searchClear: $('searchClear'),
+      divisionFilter: $('divisionFilter'),
+      regionFilter: $('regionFilter'),
+      bestFitToggle: $('bestFitToggle'),
+      pageStart: $('pageStart'),
+      pageEnd: $('pageEnd'),
+      totalRecords: $('totalRecords'),
+      pageNumbers: $('pageNumbers'),
+      prevBtn: $('prevBtn'),
+      nextBtn: $('nextBtn'),
+      materialSuggestions: $('materialSuggestions'),
+      selectAllCheckbox: $('selectAllCheckbox'),
+      transferSelectedBtn: $('transferSelectedBtn')
     };
 
     // ======================== HELPERS =======================
@@ -269,6 +340,10 @@
 
     function roundUp(v) { return v && !isNaN(v) ? Math.ceil(v) : 0; }
 
+    function getRegion(plant) {
+      return REGION_MAP[plant] || 'Unknown';
+    }
+
     function updateGlobalTimestamp() {
       const now = getFullTimestamp();
       if (els.globalLastUpdated) els.globalLastUpdated.textContent = now;
@@ -277,6 +352,61 @@
     }
 
     function navigateTo(url) {
+      window.location.href = url;
+    }
+
+    // ======================== SEARCH HELPERS =================
+    function clearSearch() {
+      if (els.searchInput) {
+        els.searchInput.value = '';
+        if (els.searchClear) els.searchClear.style.display = 'none';
+        applyFilters();
+        els.searchInput.focus();
+      }
+    }
+
+    // ======================== SELECTION HELPERS =================
+    function toggleAllCheckboxes() {
+      const checked = els.selectAllCheckbox?.checked || false;
+      document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = checked;
+      });
+    }
+
+    function getSelectedItems() {
+      const selected = [];
+      document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+        const idx = parseInt(cb.dataset.index);
+        const item = state.filteredData[idx];
+        if (item) selected.push(item);
+      });
+      return selected;
+    }
+
+    function transferSelected() {
+      const selected = getSelectedItems();
+      if (!selected.length) {
+        alert('Please select at least one rebalancing opportunity to transfer.');
+        return;
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      selected.forEach((item, i) => {
+        // For each selected item, add material, from, to, qty as arrays
+        // Use indices to keep them grouped
+        const idx = i + 1;
+        params.append(`material${idx}`, item.material_code);
+        params.append(`from${idx}`, item.surplus_plant);
+        params.append(`to${idx}`, item.deficit_plant);
+        params.append(`qty${idx}`, item.transfer_qty);
+        params.append(`name${idx}`, item.material_name);
+      });
+      params.append('count', selected.length);
+      params.append('rebalance', 'true'); // flag to indicate rebalancing transfer
+
+      // Navigate to Allotment Tracker with parameters
+      const url = "{{ url_for('main.allotment_tracker') }}?" + params.toString();
       window.location.href = url;
     }
 
@@ -347,22 +477,29 @@
 
     // ======================== REBALANCE LOGIC =================
     function computeRebalance() {
-      // 1. Build per-material, per-plant stock and monthly avg
       const materialPlantMap = {};
+      
       state.stockData.forEach(item => {
         const code = item.material_code;
         const plant = item.plant;
         if (!code || !plant) return;
+        if (plant === '3400' || plant === '3600') return;
+        if (!DIVISION_PLANTS.includes(plant)) return;
+        
         if (!materialPlantMap[code]) materialPlantMap[code] = {};
         if (!materialPlantMap[code][plant]) materialPlantMap[code][plant] = { stock: 0, monthly_avg: 0 };
         materialPlantMap[code][plant].stock += parseFloat(item.current_stock) || 0;
+        if (!materialPlantMap[code]._name) {
+          materialPlantMap[code]._name = item.material_description || code;
+        }
       });
 
-      // 2. Populate monthly averages from state.monthlyAvg
-      // state.monthlyAvg structure: { material_code: { plant: { monthly_avg: x } } }
       for (const [code, plants] of Object.entries(state.monthlyAvg)) {
         if (!materialPlantMap[code]) materialPlantMap[code] = {};
         for (const [plant, data] of Object.entries(plants)) {
+          if (plant === '3400' || plant === '3600') continue;
+          if (!DIVISION_PLANTS.includes(plant)) continue;
+          
           if (!materialPlantMap[code][plant]) {
             materialPlantMap[code][plant] = { stock: 0, monthly_avg: 0 };
           }
@@ -370,53 +507,367 @@
         }
       }
 
-      // 3. For each material, find surplus and deficit divisions
       const opportunities = [];
+
       for (const [code, plants] of Object.entries(materialPlantMap)) {
-        // Compute surplus (stock - avg) and deficit (avg - stock) for each plant
+        if (Object.keys(plants).length === 0) continue;
+
+        const materialName = plants._name || code;
+        delete plants._name;
+
         const surplusList = [];
         const deficitList = [];
+
         for (const [plant, data] of Object.entries(plants)) {
           const stock = data.stock || 0;
           const avg = data.monthly_avg || 0;
-          const diff = stock - avg;
-          if (diff > 0) {
+          const twoMonthAvg = avg * 2;
+          const diff = stock - twoMonthAvg;
+
+          if (diff > 0.5) {
             surplusList.push({ plant, surplus: diff });
-          } else if (diff < 0) {
+          } else if (diff < -0.5) {
             deficitList.push({ plant, deficit: -diff });
           }
         }
-        // If there is at least one surplus and one deficit
+
         if (surplusList.length > 0 && deficitList.length > 0) {
-          // Sort surplus descending, deficit descending
           surplusList.sort((a, b) => b.surplus - a.surplus);
           deficitList.sort((a, b) => b.deficit - a.deficit);
+
           const surplusItem = surplusList[0];
           const deficitItem = deficitList[0];
-          const transferQty = Math.min(surplusItem.surplus, deficitItem.deficit);
-          if (transferQty > 0) {
-            // Get material name from first stock item
-            const materialName = state.stockData.find(item => item.material_code === code)?.material_description || code;
+          let transferQty = Math.min(surplusItem.surplus, deficitItem.deficit);
+          transferQty = Math.ceil(transferQty);
+          const surplusQty = Math.ceil(surplusItem.surplus);
+          const deficitQty = Math.ceil(deficitItem.deficit);
+
+          if (transferQty > 0 && surplusQty > 0 && deficitQty > 0) {
+            const surplusRegion = getRegion(surplusItem.plant);
+            const deficitRegion = getRegion(deficitItem.plant);
             opportunities.push({
               material_code: code,
               material_name: materialName,
-              surplus_division: PLANT_TO_DIVISION[surplusItem.plant] || surplusItem.plant,
-              surplus_qty: Math.round(surplusItem.surplus),
-              deficit_division: PLANT_TO_DIVISION[deficitItem.plant] || deficitItem.plant,
-              deficit_qty: Math.round(deficitItem.deficit),
-              transfer_qty: Math.round(transferQty)
+              surplus_plant: surplusItem.plant,
+              surplus_qty: surplusQty,
+              surplus_region: surplusRegion,
+              deficit_plant: deficitItem.plant,
+              deficit_qty: deficitQty,
+              deficit_region: deficitRegion,
+              transfer_qty: transferQty,
+              same_region: surplusRegion === deficitRegion && surplusRegion !== 'Unknown'
             });
           }
         }
       }
 
-      // Sort by transfer_qty descending
-      opportunities.sort((a, b) => b.transfer_qty - a.transfer_qty);
-      state.rebalanceData = opportunities.slice(0, 20); // show top 20
+      state.rebalanceData = opportunities;
       state.versions.rebalance++;
     }
 
-    // ======================== UI RENDERERS ==================
+    // ======================== POPULATE AUTO-COMPLETE =================
+    function populateSuggestions() {
+      const datalist = els.materialSuggestions;
+      if (!datalist) return;
+      const items = new Set();
+      state.rebalanceData.forEach(item => {
+        if (item.material_code) items.add(item.material_code);
+        if (item.material_name) items.add(item.material_name);
+      });
+      datalist.innerHTML = '';
+      items.forEach(val => {
+        if (val) {
+          const opt = document.createElement('option');
+          opt.value = val;
+          datalist.appendChild(opt);
+        }
+      });
+    }
+
+    // ======================== FILTER / SEARCH / SORT =================
+    function applyFilters() {
+      const searchTerm = (els.searchInput?.value || '').toLowerCase().trim();
+      const divisionFilter = els.divisionFilter?.value || 'all';
+      const regionFilter = els.regionFilter?.value || 'all';
+      const bestFit = state.bestFit;
+
+      if (els.searchClear) {
+        els.searchClear.style.display = searchTerm.length > 0 ? 'block' : 'none';
+      }
+
+      let filtered = state.rebalanceData.filter(item => {
+        const codeMatch = item.material_code.toLowerCase().includes(searchTerm);
+        const nameMatch = item.material_name.toLowerCase().includes(searchTerm);
+        const matchSearch = codeMatch || nameMatch;
+
+        const surplusDiv = PLANT_TO_DIVISION[item.surplus_plant] || item.surplus_plant;
+        const deficitDiv = PLANT_TO_DIVISION[item.deficit_plant] || item.deficit_plant;
+        const matchDivision = divisionFilter === 'all' || 
+                              surplusDiv === divisionFilter || 
+                              deficitDiv === divisionFilter;
+
+        const matchRegion = regionFilter === 'all' ||
+                            item.surplus_region === regionFilter ||
+                            item.deficit_region === regionFilter;
+
+        return matchSearch && matchDivision && matchRegion;
+      });
+
+      const selectedRegion = regionFilter;
+      const sortField = state.sortField;
+      const sortAsc = state.sortAsc;
+
+      const getSortValue = (item, field) => {
+        switch (field) {
+          case 'sno': return item._sno || 0;
+          case 'surplus': return PLANT_TO_DIVISION[item.surplus_plant] || item.surplus_plant;
+          case 'code': return item.material_code;
+          case 'name': return item.material_name;
+          case 'surplusQty': return item.surplus_qty;
+          case 'deficit': return PLANT_TO_DIVISION[item.deficit_plant] || item.deficit_plant;
+          case 'deficitQty': return item.deficit_qty;
+          case 'transfer': return item.transfer_qty;
+          case 'type': return item.same_region ? 0 : 1;
+          default: return '';
+        }
+      };
+
+      filtered.sort((a, b) => {
+        if (selectedRegion !== 'all') {
+          const aSurplusMatch = a.surplus_region === selectedRegion;
+          const bSurplusMatch = b.surplus_region === selectedRegion;
+          if (aSurplusMatch && !bSurplusMatch) return -1;
+          if (!aSurplusMatch && bSurplusMatch) return 1;
+        }
+
+        if (bestFit) {
+          if (a.same_region && !b.same_region) return -1;
+          if (!a.same_region && b.same_region) return 1;
+          return b.transfer_qty - a.transfer_qty;
+        }
+
+        const valA = getSortValue(a, sortField);
+        const valB = getSortValue(b, sortField);
+
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          const cmp = valA.localeCompare(valB);
+          return sortAsc ? cmp : -cmp;
+        }
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortAsc ? valA - valB : valB - valA;
+        }
+        return 0;
+      });
+
+      filtered.forEach((item, index) => { item._sno = index + 1; });
+
+      state.filteredData = filtered;
+      state.currentPage = 1;
+      renderTable();
+    }
+
+    function toggleBestFit() {
+      state.bestFit = els.bestFitToggle?.checked || false;
+      if (state.bestFit) {
+        state.sortField = 'bestfit';
+      } else {
+        state.sortField = 'surplus';
+        state.sortAsc = true;
+      }
+      applyFilters();
+      const label = document.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = state.bestFit ? 'Best Fit ON' : 'Best Fit';
+        label.style.color = state.bestFit ? '#28a745' : '#6c757d';
+      }
+      document.querySelectorAll('.sortable').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+    }
+
+    function sortTable(field) {
+      if (state.bestFit) {
+        state.bestFit = false;
+        if (els.bestFitToggle) els.bestFitToggle.checked = false;
+        const label = document.querySelector('.toggle-label');
+        if (label) {
+          label.textContent = 'Best Fit';
+          label.style.color = '#6c757d';
+        }
+      }
+
+      if (state.sortField === field) {
+        state.sortAsc = !state.sortAsc;
+      } else {
+        state.sortField = field;
+        state.sortAsc = true;
+      }
+
+      applyFilters();
+
+      document.querySelectorAll('.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === field) {
+          th.classList.add(state.sortAsc ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
+
+    // ======================== PAGINATION =================
+    function changePage(direction) {
+      const totalPages = Math.ceil(state.filteredData.length / state.pageSize);
+      if (direction === 'prev' && state.currentPage > 1) {
+        state.currentPage--;
+      } else if (direction === 'next' && state.currentPage < totalPages) {
+        state.currentPage++;
+      }
+      renderTable();
+    }
+
+    function goToPage(page) {
+      const totalPages = Math.ceil(state.filteredData.length / state.pageSize);
+      if (page >= 1 && page <= totalPages) {
+        state.currentPage = page;
+        renderTable();
+      }
+    }
+
+    // ======================== RENDER TABLE =================
+    function renderTable() {
+      const data = state.filteredData;
+      const total = data.length;
+      const pageSize = state.pageSize;
+      const page = state.currentPage;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      const start = (page - 1) * pageSize;
+      const end = Math.min(start + pageSize, total);
+      const pageData = data.slice(start, end);
+
+      const tbody = els.rebalanceTableBody;
+      if (!tbody) return;
+
+      if (!pageData.length) {
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center empty-state">
+          <i class="bi bi-check-circle-fill" style="font-size: 2rem; color: #28a745;"></i>
+          <h4>No rebalancing opportunities</h4>
+          <p>All divisions have optimal stock levels.</p>
+        </td></tr>`;
+        updatePagination(0, 0, 0, 1);
+        if (els.recordCount) els.recordCount.textContent = '0 records';
+        // Uncheck select all
+        if (els.selectAllCheckbox) els.selectAllCheckbox.checked = false;
+        return;
+      }
+
+      let html = '';
+      pageData.forEach((item, idx) => {
+        const rowNum = start + idx + 1;
+        const surplusName = PLANT_TO_DIVISION[item.surplus_plant] || item.surplus_plant;
+        const deficitName = PLANT_TO_DIVISION[item.deficit_plant] || item.deficit_plant;
+        const rowClass = idx % 2 === 0 ? 'even-row' : 'odd-row';
+        const globalIdx = start + idx; // index in filteredData
+        
+        const typeBadge = item.same_region ? 
+          '<span class="type-badge same-region"><i class="bi bi-check-circle-fill"></i> Same Region</span>' :
+          '<span class="type-badge cross-region"><i class="bi bi-arrow-right-circle"></i> Cross Region</span>';
+        
+        const regionInfo = item.same_region ? 
+          `${item.surplus_region} Region` :
+          `${item.surplus_region} → ${item.deficit_region}`;
+
+        html += `
+          <tr class="${rowClass}" title="${regionInfo}">
+            <td style="text-align: center;">
+              <input type="checkbox" class="row-checkbox" data-index="${globalIdx}" onchange="updateSelectAllState()">
+            </td>
+            <td class="text-center"><span class="row-number">${rowNum}</span></td>
+            <td><span class="division-badge surplus-badge"><i class="bi bi-building"></i> ${surplusName}</span></td>
+            <td><code class="material-code">${item.material_code}</code></td>
+            <td class="material-name-cell" title="${item.material_name}"><strong>${item.material_name}</strong></td>
+            <td class="text-center"><span class="qty-badge qty-surplus">+${item.surplus_qty.toLocaleString()}</span></td>
+            <td><span class="division-badge deficit-badge"><i class="bi bi-building"></i> ${deficitName}</span></td>
+            <td class="text-center"><span class="qty-badge qty-deficit">-${item.deficit_qty.toLocaleString()}</span></td>
+            <td class="text-center"><span class="transfer-badge">${item.transfer_qty.toLocaleString()}</span></td>
+            <td>${typeBadge}</td>
+            <td class="text-center">
+              <button class="btn-transfer" onclick="transferSingle('${item.material_code}','${item.surplus_plant}','${item.deficit_plant}','${item.transfer_qty}')">
+                <i class="bi bi-send"></i> Transfer
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+      updatePagination(start, end, total, totalPages);
+      if (els.recordCount) els.recordCount.textContent = `${total} record${total !== 1 ? 's' : ''}`;
+      // Reset select all state
+      if (els.selectAllCheckbox) els.selectAllCheckbox.checked = false;
+    }
+
+    function updateSelectAllState() {
+      const checkboxes = document.querySelectorAll('.row-checkbox');
+      const checked = document.querySelectorAll('.row-checkbox:checked');
+      if (els.selectAllCheckbox) {
+        els.selectAllCheckbox.checked = checkboxes.length > 0 && checked.length === checkboxes.length;
+      }
+    }
+
+    function transferSingle(material, fromPlant, toPlant, qty) {
+      const url = "{{ url_for('main.allotment_tracker') }}?material1=" + material + "&from1=" + fromPlant + "&to1=" + toPlant + "&qty1=" + qty + "&count=1&rebalance=true";
+      window.location.href = url;
+    }
+
+    // ======================== UPDATE SELECT ALL ON PAGE CHANGE =================
+    function updatePagination(start, end, total, totalPages) {
+      if (els.pageStart) els.pageStart.textContent = total ? start + 1 : 0;
+      if (els.pageEnd) els.pageEnd.textContent = end;
+      if (els.totalRecords) els.totalRecords.textContent = total;
+
+      if (els.pageNumbers) {
+        let html = '';
+        const current = state.currentPage;
+        const maxVisible = 5;
+        let startPage = Math.max(1, current - Math.floor(maxVisible / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        if (endPage - startPage < maxVisible - 1) {
+          startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+        for (let i = startPage; i <= endPage; i++) {
+          html += `<button class="page-num ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        els.pageNumbers.innerHTML = html;
+      }
+
+      if (els.prevBtn) els.prevBtn.disabled = state.currentPage <= 1;
+      if (els.nextBtn) els.nextBtn.disabled = state.currentPage >= totalPages;
+    }
+
+    // ======================== POPULATE FILTERS =================
+    function populateFilters() {
+      const divSelect = els.divisionFilter;
+      if (divSelect) {
+        divSelect.innerHTML = '<option value="all">All Divisions</option>';
+        const divisions = Object.values(PLANT_TO_DIVISION).sort();
+        divisions.forEach(div => {
+          const opt = document.createElement('option');
+          opt.value = div;
+          opt.textContent = div;
+          divSelect.appendChild(opt);
+        });
+      }
+
+      const regionSelect = els.regionFilter;
+      if (regionSelect) {
+        regionSelect.innerHTML = '<option value="all">All Regions</option>';
+        REGION_NAMES.sort().forEach(region => {
+          const opt = document.createElement('option');
+          opt.value = region;
+          opt.textContent = region + ' Region';
+          regionSelect.appendChild(opt);
+        });
+      }
+    }
+
+    // ======================== UI RENDERERS =================
     function renderKPIs() {
       const totalItems = state.stockData.length;
       const criticalCount = state.stockData.filter(item => item.is_critical).length;
@@ -427,39 +878,6 @@
       setText(els.criticalItemsHeader, criticalCount ? criticalCount.toLocaleString() : '—');
       setText(els.transitItemsHeader, transitCount ? transitCount.toLocaleString() : '—');
       setText(els.pendingAllotmentsHeader, pendingAllotments ? pendingAllotments.toLocaleString() : '—');
-    }
-
-    function renderRebalanceTable() {
-      const tbody = els.rebalanceTableBody;
-      if (!state.rebalanceData.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center">No rebalancing opportunities found. All divisions have balanced stock.</td></tr>`;
-        if (els.rebalanceTimestamp) {
-          els.rebalanceTimestamp.innerHTML = `<i class="bi bi-clock"></i> Updated: ${getTimestamp()}`;
-        }
-        return;
-      }
-
-      tbody.innerHTML = state.rebalanceData.map((item, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td><code>${item.material_code}</code></td>
-          <td><strong>${item.material_name}</strong></td>
-          <td><span class="badge bg-success">${item.surplus_division}</span></td>
-          <td><span class="badge bg-success">${item.surplus_qty.toLocaleString()}</span></td>
-          <td><span class="badge bg-danger">${item.deficit_division}</span></td>
-          <td><span class="badge bg-danger">${item.deficit_qty.toLocaleString()}</span></td>
-          <td><strong style="color: #6f42c1;">${item.transfer_qty.toLocaleString()}</strong></td>
-          <td>
-            <button class="btn-action" onclick="navigateTo('{{ url_for('main.allotment_tracker') }}?material=${item.material_code}')">
-              <i class="bi bi-send"></i> Transfer
-            </button>
-          </td>
-        </tr>
-      `).join('');
-
-      if (els.rebalanceTimestamp) {
-        els.rebalanceTimestamp.innerHTML = `<i class="bi bi-clock"></i> Updated: ${getTimestamp()}`;
-      }
     }
 
     function setText(el, value) {
@@ -477,18 +895,20 @@
       ]);
       computeRebalance();
       renderKPIs();
-      renderRebalanceTable();
+      populateFilters();
+      populateSuggestions();
+      applyFilters();
       updateGlobalTimestamp();
     }
 
-    // Refresh a specific card
     async function refreshCard(cardType) {
       switch (cardType) {
         case 'stock':
           await loadStockData();
           computeRebalance();
           renderKPIs();
-          renderRebalanceTable();
+          populateSuggestions();
+          applyFilters();
           break;
         case 'transit':
           await loadTransitSummary();
@@ -498,12 +918,13 @@
           await loadStockData();
           computeRebalance();
           renderKPIs();
-          renderRebalanceTable();
+          populateSuggestions();
+          applyFilters();
           break;
         case 'rebalance':
-          // Re-run rebalance with current data
           computeRebalance();
-          renderRebalanceTable();
+          populateSuggestions();
+          applyFilters();
           break;
         default:
           await refreshAll();
@@ -523,13 +944,23 @@
       window.refreshAll = refreshAll;
       window.refreshCard = refreshCard;
       window.navigateTo = navigateTo;
+      window.applyFilters = applyFilters;
+      window.sortTable = sortTable;
+      window.changePage = changePage;
+      window.goToPage = goToPage;
+      window.toggleBestFit = toggleBestFit;
+      window.clearSearch = clearSearch;
+      window.toggleAllCheckboxes = toggleAllCheckboxes;
+      window.transferSelected = transferSelected;
+      window.transferSingle = transferSingle;
+      window.updateSelectAllState = updateSelectAllState;
     });
 
   })();
 </script>
 
 <style>
-  /* === Global resets & layout === */
+  /* === Global === */
   .nav-actions {
     display: flex;
     justify-content: space-between;
@@ -605,7 +1036,7 @@
   }
   .last-updated { margin-left: 10px; color: #6c757d; font-size: 0.8rem; }
 
-  /* === KPI / Quick Stats === */
+  /* === KPI === */
   .quick-stats {
     display: flex;
     flex-wrap: wrap;
@@ -652,7 +1083,7 @@
     min-width: 30px;
   }
 
-  /* === Static Cards (5) === */
+  /* === Cards === */
   .inventory-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -720,9 +1151,7 @@
     opacity: 0.3;
     transition: opacity 0.3s;
   }
-  .inventory-card:hover .card-icon-large {
-    opacity: 0.6;
-  }
+  .inventory-card:hover .card-icon-large { opacity: 0.6; }
   .card-body-centered h3 {
     margin: 0 0 6px 0;
     font-size: 1.2rem;
@@ -748,83 +1177,421 @@
   .details-link { color: #667eea; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; }
   .details-link:hover { color: #764ba2; }
 
-  /* === Rebalance Table === */
+  /* ================================================================
+     REBALANCE TABLE
+     ================================================================ */
   .rebalance-section {
     margin-top: 40px;
   }
-  .section-title {
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .title-area {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 18px;
+  }
+  .title-area i { font-size: 1.8rem; }
+  .title-area h2 { font-size: 1.3rem; font-weight: 600; color: #1e2b3a; margin: 0; }
+  .record-count {
+    font-size: 0.8rem;
+    color: #6c757d;
+    background: #f0f2f5;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex-wrap: wrap;
   }
-  .section-title i { font-size: 1.5rem; }
-  .section-title h2 { font-size: 1.2rem; font-weight: 600; color: #1e2b3a; margin: 0; }
-  .chart-timestamp { margin-left: auto; font-size: 0.75rem; color: #6c757d; }
-  .btn-refresh-rebalance { margin-left: 10px; }
+  .filter-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
 
-  .rebalance-table-container {
+  /* Search wrapper */
+  .search-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .search-input {
+    padding: 6px 30px 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    min-width: 200px;
+    transition: border-color 0.2s;
+    background: #fff;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: #6f42c1;
+    box-shadow: 0 0 0 2px rgba(111,66,193,0.1);
+  }
+  .search-clear {
+    position: absolute;
+    right: 10px;
+    font-size: 1.1rem;
+    color: #6c757d;
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .search-clear:hover {
+    color: #dc3545;
+  }
+
+  .filter-select {
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    background: #fff;
+    cursor: pointer;
+  }
+  .filter-select:focus {
+    outline: none;
+    border-color: #6f42c1;
+  }
+
+  .action-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn-transfer-selected {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-transfer-selected:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+  }
+  .btn-transfer-selected:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .best-fit-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafd;
+    padding: 4px 14px 4px 18px;
+    border-radius: 30px;
+    border: 1px solid #eef2f6;
+  }
+  .toggle-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    transition: color 0.3s;
+  }
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    cursor: pointer;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ccc;
+    border-radius: 22px;
+    transition: 0.3s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  .toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+  }
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+  }
+
+  .table-container {
     background: #fff;
     border-radius: 16px;
-    padding: 18px 20px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
     border: 1px solid #eef2f6;
-    overflow-x: auto;
+    overflow: hidden;
   }
+  .table-wrapper {
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
   .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    min-width: 1050px;
   }
-  .data-table th {
+  .data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, #1a3c6e, #2a5a9a);
+    color: #fff;
+  }
+  .data-table thead th {
+    padding: 10px 12px;
     text-align: left;
-    padding: 10px 8px;
-    background: #f8fafd;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #495057;
-    border-bottom: 2px solid #e9ecef;
+    border: none;
+    white-space: nowrap;
   }
-  .data-table td {
-    padding: 8px 8px;
+  .data-table thead th i { margin-right: 4px; opacity: 0.7; }
+  .data-table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+  }
+  .data-table thead th.sortable::after {
+    content: '⇅';
+    font-size: 0.6rem;
+    margin-left: 4px;
+    opacity: 0.5;
+  }
+  .data-table thead th.sortable.sort-asc::after { content: '↑'; opacity: 1; }
+  .data-table thead th.sortable.sort-desc::after { content: '↓'; opacity: 1; }
+  .data-table thead th.sortable:hover { background: rgba(255,255,255,0.08); }
+
+  .data-table tbody td {
+    padding: 8px 12px;
     border-bottom: 1px solid #f0f2f5;
     color: #1e2b3a;
+    vertical-align: middle;
   }
-  .data-table tr:hover td { background: #f8fafd; }
-  .badge {
+  .data-table tbody tr.even-row { background: #fafcff; }
+  .data-table tbody tr.odd-row { background: #ffffff; }
+  .data-table tbody tr:hover { background: #f0f4ff; transition: background 0.15s; }
+
+  .row-number {
     display: inline-block;
+    min-width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    background: #eef2f6;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .division-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .surplus-badge {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #b7e4c7;
+  }
+  .surplus-badge i { color: #28a745; }
+  .deficit-badge {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  .deficit-badge i { color: #dc3545; }
+
+  .material-code {
+    background: #f0f2f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+  }
+  .material-name-cell {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .qty-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    min-width: 40px;
+  }
+  .qty-surplus {
+    background: #d4edda;
+    color: #155724;
+  }
+  .qty-deficit {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .transfer-badge {
+    display: inline-block;
+    padding: 2px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    color: #fff;
+    min-width: 50px;
+  }
+
+  .type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 2px 10px;
     border-radius: 20px;
     font-size: 0.65rem;
     font-weight: 600;
-    color: #fff;
+    white-space: nowrap;
   }
-  .badge.bg-success { background: #28a745; }
-  .badge.bg-danger { background: #dc3545; }
-  .badge.bg-secondary { background: #6c757d; }
-  .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
-  .btn-action {
-    background: #6f42c1;
+  .type-badge.same-region {
+    background: #d4edda;
+    color: #155724;
+  }
+  .type-badge.cross-region {
+    background: #fff3cd;
+    color: #856404;
+  }
+  .type-badge i { font-size: 0.6rem; }
+
+  .btn-transfer {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
     color: #fff;
     border: none;
-    padding: 4px 12px;
-    border-radius: 12px;
+    border-radius: 20px;
     font-size: 0.7rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
   }
-  .btn-action:hover { background: #5a32a3; }
-  .text-center { text-align: center; }
-  code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-  .rebalance-footnote {
-    margin-top: 10px;
+  .btn-transfer:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(111,66,193,0.35);
+  }
+
+  .row-checkbox {
+    accent-color: #6f42c1;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+  }
+
+  .empty-state, .loading-state {
+    padding: 40px 20px !important;
+    text-align: center;
+  }
+  .empty-state h4 { font-size: 1.1rem; margin: 8px 0 4px; color: #1e2b3a; }
+  .empty-state p { margin: 0; color: #6c757d; font-size: 0.9rem; }
+  .loading-state { color: #6c757d; }
+
+  /* === Pagination === */
+  .pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-top: 1px solid #eef2f6;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: #f8fafd;
+  }
+  .pagination-info {
     font-size: 0.8rem;
     color: #6c757d;
-    text-align: center;
+  }
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .page-btn {
+    padding: 4px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+  .page-btn:hover:not(:disabled) { background: #e9ecef; }
+  .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .page-num {
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .page-num:hover { background: #e9ecef; }
+  .page-num.active {
+    background: #6f42c1;
+    color: #fff;
+    border-color: #6f42c1;
   }
 
   /* === Responsive === */
@@ -842,10 +1609,16 @@
     .nav-actions { flex-direction: column; align-items: stretch; }
     .back-btn { justify-content: center; }
     .action-btn-group { justify-content: center; }
-    .data-table { font-size: 0.75rem; }
-    .data-table th, .data-table td { padding: 5px 4px; }
-    .section-title { flex-direction: column; align-items: flex-start; }
-    .chart-timestamp { margin-left: 0; }
+    .section-header { flex-direction: column; align-items: stretch; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .filter-group { flex-direction: column; }
+    .search-input { min-width: auto; }
+    .best-fit-toggle { justify-content: center; }
+    .pagination-bar { flex-direction: column; align-items: center; }
+    .data-table { font-size: 0.7rem; min-width: 850px; }
+    .data-table th, .data-table td { padding: 6px 8px; }
+    .division-badge { font-size: 0.65rem; padding: 2px 6px; }
+    .material-name-cell { max-width: 100px; }
   }
   @media (max-width: 480px) {
     .inventory-grid { grid-template-columns: 1fr; }
@@ -855,9 +1628,11 @@
     .action-btn-group button { font-size: 0.7rem; padding: 6px 12px; }
     .card-body-centered h3 { font-size: 1rem; }
     .card-icon-large { font-size: 2.5rem; }
-    .data-table { font-size: 0.65rem; }
-    .data-table th, .data-table td { padding: 4px 3px; }
-    .badge { font-size: 0.55rem; padding: 2px 6px; }
+    .data-table { font-size: 0.6rem; min-width: 700px; }
+    .data-table th, .data-table td { padding: 4px 4px; }
+    .qty-badge, .transfer-badge { font-size: 0.6rem; padding: 1px 6px; }
+    .btn-transfer { font-size: 0.55rem; padding: 2px 8px; }
+    .type-badge { font-size: 0.55rem; padding: 1px 6px; }
   }
 </style>
 {% endblock %}
