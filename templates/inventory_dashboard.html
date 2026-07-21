@@ -3,937 +3,861 @@
 {% block title %}Inventory Dashboard - IMS Siliguri{% endblock %}
 
 {% block content %}
+
 <!-- Back Navigation -->
-<div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-    <a href="{{ url_for('main.general_overview') }}" style="
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 24px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        text-decoration: none;
-        border-radius: 50px;
-        font-size: 1.1rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
-        onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" 
-        onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
-        <i class="bi bi-arrow-left-circle-fill" style="font-size: 1.3rem;"></i>
-        <span>Back to General Overview</span>
-    </a>
-    
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button onclick="refreshAllData()" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #17a2b8, #138496); color: white; border: none; border-radius: 50px; cursor: pointer;">
-            <i class="bi bi-arrow-repeat"></i>
-            <span>Refresh All</span>
-        </button>
-        <button onclick="refreshCard('stock')" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">
-            <i class="bi bi-box-seam"></i>
-            <span>Stock</span>
-        </button>
-        <button onclick="refreshCard('transit')" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #ffc107, #fd7e14); color: white; border: none; border-radius: 50px; cursor: pointer; font-size: 0.85rem;">
-            <i class="bi bi-truck"></i>
-            <span>Transit</span>
-        </button>
-    </div>
+<div class="nav-actions">
+  <a href="{{ url_for('main.general_overview') }}" class="back-btn">
+    <i class="bi bi-arrow-left-circle-fill"></i>
+    <span>Back to General Overview</span>
+  </a>
+  <div class="action-btn-group">
+    <button onclick="refreshAll()" class="btn-refresh-all">
+      <i class="bi bi-arrow-repeat"></i> Refresh All
+    </button>
+    <button onclick="refreshCard('stock')" class="btn-refresh-stock">
+      <i class="bi bi-box-seam"></i> Stock
+    </button>
+    <button onclick="refreshCard('rebalance')" class="btn-refresh-transit" style="background: linear-gradient(135deg, #6f42c1, #5a32a3); color:white;">
+      <i class="bi bi-arrow-left-right"></i> Rebalance
+    </button>
+  </div>
 </div>
 
 <!-- Welcome Banner -->
 <div class="welcome-banner">
-    <div class="welcome-text">
-        <h1><i class="bi bi-box-seam"></i> Inventory Management Dashboard</h1>
-        <p>Siliguri Zone - Stock, Consumption, Transit & Allotment Tracking</p>
-    </div>
-    <div class="date-badge">
-        <i class="bi bi-calendar3"></i>
-        <span id="currentDate"></span>
-        <span style="margin-left: 10px; font-size: 0.8rem; color: #6c757d;">
-            <i class="bi bi-clock"></i> 
-            <span id="globalLastUpdated">-</span>
-        </span>
-    </div>
+  <div class="welcome-text">
+    <h1><i class="bi bi-box-seam"></i> Inventory Management Dashboard</h1>
+    <p>Siliguri Zone – Stock, Consumption, Transit &amp; Allotment Tracking</p>
+  </div>
+  <div class="date-badge">
+    <i class="bi bi-calendar3"></i>
+    <span id="currentDate"></span>
+    <span class="last-updated">
+      <i class="bi bi-clock"></i>
+      <span id="globalLastUpdated">-</span>
+    </span>
+  </div>
 </div>
 
-<!-- Quick Stats Banner -->
-<div class="quick-stats">
-    <div class="quick-stat-item">
-        <i class="bi bi-box-seam" style="color: #667eea;"></i>
-        <span>Total Items: <strong id="totalItemsHeader">0</strong></span>
+<!-- Quick Stats (KPI) -->
+<div class="quick-stats" id="quickStats">
+  <div class="kpi-item">
+    <i class="bi bi-box-seam kpi-icon"></i>
+    <div class="kpi-content">
+      <span class="kpi-label">Total Items</span>
+      <strong class="kpi-value" id="totalItemsHeader">—</strong>
     </div>
-    <div class="quick-stat-item">
-        <i class="bi bi-exclamation-triangle" style="color: #dc3545;"></i>
-        <span>Critical: <strong id="criticalItemsHeader">0</strong></span>
+  </div>
+  <div class="kpi-item">
+    <i class="bi bi-exclamation-triangle kpi-icon critical-icon"></i>
+    <div class="kpi-content">
+      <span class="kpi-label">Critical</span>
+      <strong class="kpi-value" id="criticalItemsHeader">—</strong>
     </div>
-    <div class="quick-stat-item">
-        <i class="bi bi-truck" style="color: #ffc107;"></i>
-        <span>In Transit: <strong id="transitItemsHeader">0</strong></span>
+  </div>
+  <div class="kpi-item">
+    <i class="bi bi-truck kpi-icon transit-icon"></i>
+    <div class="kpi-content">
+      <span class="kpi-label">In Transit</span>
+      <strong class="kpi-value" id="transitItemsHeader">—</strong>
     </div>
-    <div class="quick-stat-item">
-        <i class="bi bi-clipboard-check" style="color: #6f42c1;"></i>
-        <span>Pending Allotments: <strong id="pendingAllotmentsHeader">0</strong></span>
+  </div>
+  <div class="kpi-item">
+    <i class="bi bi-clipboard-check kpi-icon allotment-icon"></i>
+    <div class="kpi-content">
+      <span class="kpi-label">Pending Allotments</span>
+      <strong class="kpi-value" id="pendingAllotmentsHeader">—</strong>
     </div>
-    <div class="quick-stat-item">
-        <i class="bi bi-clock-history" style="color: #17a2b8;"></i>
-        <span>Last Updated: <strong id="lastUpdatedHeader">-</strong></span>
+  </div>
+  <div class="kpi-item">
+    <i class="bi bi-clock-history kpi-icon update-icon"></i>
+    <div class="kpi-content">
+      <span class="kpi-label">Last Updated</span>
+      <strong class="kpi-value" id="lastUpdatedHeader">—</strong>
     </div>
+  </div>
 </div>
 
-<!-- 6 Card Grid -->
+<!-- 5 Static Cards -->
 <div class="inventory-grid">
-    <!-- Card 1: Current Stock Level -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}'">
-        <div class="card-header-green">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-box-seam"></i>
-                <span class="card-badge">Stock Summary</span>
-            </div>
-            <span class="card-timestamp" id="stockTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Current Stock Level</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Total Items</span>
-                    <span class="stat-value" id="totalItems">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Value</span>
-                    <span class="stat-value" id="totalValue">₹0 Cr</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Categories</span>
-                    <span class="stat-value" id="totalCategories">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Warehouses</span>
-                    <span class="stat-value" id="totalWarehouses">13</span>
-                </div>
-            </div>
-            <div class="trend-indicator positive" id="stockTrend">
-                <i class="bi bi-arrow-up"></i> Loading...
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+  <!-- Card 1: Current Stock Level -->
+  <div class="inventory-card" onclick="navigateTo('{{ url_for('main.current_stock_position') }}')">
+    <div class="card-header-green">
+      <div><i class="bi bi-box-seam"></i> <span class="card-badge">Stock</span></div>
     </div>
+    <div class="card-body card-body-centered">
+      <div class="card-icon-large"><i class="bi bi-box-seam"></i></div>
+      <h3>Current Stock Level</h3>
+      <p class="card-description">View all stock items and their status</p>
+    </div>
+    <div class="card-footer">
+      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+    </div>
+  </div>
 
-    <!-- Card 2: Critical Stock Items -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.current_stock_position') }}?filter=critical'">
-        <div class="card-header-red">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <span class="card-badge">Alert</span>
-            </div>
-            <span class="card-timestamp" id="criticalTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Critical Stock Items</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Low Stock</span>
-                    <span class="stat-value critical" id="lowStock">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Out of Stock</span>
-                    <span class="stat-value critical" id="outOfStock">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Below Reorder Level</span>
-                    <span class="stat-value critical" id="reorderNeeded">0</span>
-                </div>
-            </div>
-            <div class="trend-indicator negative" id="criticalTrend">
-                <i class="bi bi-arrow-up"></i> Loading...
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+  <!-- Card 2: Critical Stock Items -->
+  <div class="inventory-card" onclick="navigateTo('{{ url_for('main.current_stock_position') }}?filter=critical')">
+    <div class="card-header-red">
+      <div><i class="bi bi-exclamation-triangle-fill"></i> <span class="card-badge">Alert</span></div>
     </div>
+    <div class="card-body card-body-centered">
+      <div class="card-icon-large"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <h3>Critical Stock Items</h3>
+      <p class="card-description">Items with low or zero stock</p>
+    </div>
+    <div class="card-footer">
+      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+    </div>
+  </div>
 
-    <!-- Card 3: Material in Transit -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.material_in_transit') }}'">
-        <div class="card-header-teal">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-truck"></i>
-                <span class="card-badge">On the Way</span>
-            </div>
-            <span class="card-timestamp" id="transitTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Material in Transit</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Active Shipments</span>
-                    <span class="stat-value" id="activeShipments">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Quantity</span>
-                    <span class="stat-value" id="transitQuantity">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Value</span>
-                    <span class="stat-value" id="transitValue">₹0 Cr</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Delayed Shipments</span>
-                    <span class="stat-value critical" id="delayedShipments">0</span>
-                </div>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-label">On-Time Delivery Rate</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="ontimeRate" style="width: 0%;"></div>
-                </div>
-                <div class="progress-percent" id="ontimePercent">0%</div>
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+  <!-- Card 3: Material in Transit -->
+  <div class="inventory-card" onclick="navigateTo('{{ url_for('main.material_in_transit') }}')">
+    <div class="card-header-teal">
+      <div><i class="bi bi-truck"></i> <span class="card-badge">Transit</span></div>
     </div>
+    <div class="card-body card-body-centered">
+      <div class="card-icon-large"><i class="bi bi-truck"></i></div>
+      <h3>Material in Transit</h3>
+      <p class="card-description">Shipments currently on the way</p>
+    </div>
+    <div class="card-footer">
+      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+    </div>
+  </div>
 
-    <!-- Card 4: Incoming Material -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.allotment_tracker') }}'">
-        <div class="card-header-orange">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-arrow-down-circle"></i>
-                <span class="card-badge">Expected</span>
-            </div>
-            <span class="card-timestamp" id="incomingTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Incoming Material</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Expected Deliveries</span>
-                    <span class="stat-value" id="expectedDeliveries">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Quantity</span>
-                    <span class="stat-value" id="incomingQuantity">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Next Delivery</span>
-                    <span class="stat-value" id="nextDelivery">-</span>
-                </div>
-            </div>
-            <div class="trend-indicator positive" id="incomingTrend">
-                <i class="bi bi-calendar-check"></i> Loading...
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+  <!-- Card 4: Consumption Analysis -->
+  <div class="inventory-card" onclick="navigateTo('{{ url_for('main.consumption_analysis') }}')">
+    <div class="card-header-blue">
+      <div><i class="bi bi-graph-up"></i> <span class="card-badge">Consumption</span></div>
     </div>
+    <div class="card-body card-body-centered">
+      <div class="card-icon-large"><i class="bi bi-graph-up"></i></div>
+      <h3>Consumption Analysis</h3>
+      <p class="card-description">Monthly and annual consumption trends</p>
+    </div>
+    <div class="card-footer">
+      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+    </div>
+  </div>
 
-    <!-- Card 5: Consumption Analysis -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.consumption_analysis') }}'">
-        <div class="card-header-blue">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-graph-up"></i>
-                <span class="card-badge">Trends</span>
-            </div>
-            <span class="card-timestamp" id="consumptionTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Consumption Analysis</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Monthly Consumption</span>
-                    <span class="stat-value" id="monthlyConsumption">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Annual Consumption</span>
-                    <span class="stat-value" id="annualConsumption">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Top Consumed Item</span>
-                    <span class="stat-value" id="topItem">-</span>
-                </div>
-            </div>
-            <div class="trend-indicator positive" id="consumptionTrend">
-                <i class="bi bi-arrow-up"></i> Loading...
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+  <!-- Card 5: Allotment Tracker -->
+  <div class="inventory-card" onclick="navigateTo('{{ url_for('main.allotment_tracker') }}')">
+    <div class="card-header-purple">
+      <div><i class="bi bi-clipboard-check"></i> <span class="card-badge">Allotment</span></div>
     </div>
-
-    <!-- Card 6: Allotment Tracker - NOW CLICKABLE -->
-    <div class="inventory-card" onclick="window.location.href='{{ url_for('main.allotment_tracker') }}'">
-        <div class="card-header-purple">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="bi bi-clipboard-check"></i>
-                <span class="card-badge">Tracking</span>
-            </div>
-            <span class="card-timestamp" id="allotmentTimestamp">-</span>
-        </div>
-        <div class="card-body">
-            <h3>Allotment Tracker</h3>
-            <div class="stats-container">
-                <div class="stat-row">
-                    <span class="stat-label">Pending Allotments</span>
-                    <span class="stat-value warning" id="pendingAllotments">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Completed</span>
-                    <span class="stat-value" id="completedAllotments">0</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">This Month</span>
-                    <span class="stat-value" id="monthlyAllotments">0</span>
-                </div>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-label">Completion Rate</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="completionRate" style="width: 0%;"></div>
-                </div>
-                <div class="progress-percent" id="completionPercent">0%</div>
-            </div>
-        </div>
-        <div class="card-footer">
-            <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-            <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
-        </div>
+    <div class="card-body card-body-centered">
+      <div class="card-icon-large"><i class="bi bi-clipboard-check"></i></div>
+      <h3>Allotment Tracker</h3>
+      <p class="card-description">Manage and track material allotments</p>
     </div>
+    <div class="card-footer">
+      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
+      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+    </div>
+  </div>
 </div>
 
-<!-- Top Items Section -->
-<div class="top-items-section">
-    <div class="section-title">
-        <i class="bi bi-star-fill"></i>
-        <h2>Top Consumed Materials (This Month)</h2>
-        <span style="margin-left: auto; font-size: 0.75rem; color: #6c757d;" id="topItemsTimestamp">
-            <i class="bi bi-clock"></i> Updated: -
-        </span>
+<!-- ================================================================
+     NEW: Material Rebalancing Opportunities Table
+     Replaces the old "Top Consumed Materials"
+     ================================================================ -->
+<div class="rebalance-section">
+  <div class="section-title">
+    <i class="bi bi-arrow-left-right" style="color: #6f42c1;"></i>
+    <h2>Material Rebalancing Opportunities</h2>
+    <span class="chart-timestamp" id="rebalanceTimestamp">
+      <i class="bi bi-clock"></i> Updated: —
+    </span>
+    <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
+      <i class="bi bi-arrow-repeat"></i> Refresh
+    </button>
+  </div>
+  <div class="rebalance-table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Material Code</th>
+          <th>Material Name</th>
+          <th>Surplus Division</th>
+          <th>Surplus Qty</th>
+          <th>Deficit Division</th>
+          <th>Deficit Qty</th>
+          <th>Suggested Transfer</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="rebalanceTableBody">
+        <tr><td colspan="9" class="text-center">Loading…</td></tr>
+      </tbody>
+    </table>
+    <div class="rebalance-footnote">
+      <span><i class="bi bi-info-circle"></i> Surplus = Stock - Monthly Avg Consumption (per division). Deficit = Monthly Avg Consumption - Stock.</span>
     </div>
-    <div class="items-table-container">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Material Code</th>
-                    <th>Material Name</th>
-                    <th>Material Group</th>
-                    <th>Monthly Consumption</th>
-                    <th>Unit</th>
-                    <th>Stock Status</th>
-                </tr>
-            </thead>
-            <tbody id="topItemsTable">
-                <tr><td colspan="7" class="text-center">Loading...</td></tr>
-            </tbody>
-        </table>
-    </div>
+  </div>
 </div>
 
 <script>
-    let currentStockData = [];
-    let monthlyAvgData = {};
-    let lastUpdatedTimestamps = {};
-    
-    // Data version tracking
-    let dataVersions = {
+  (function() {
+    'use strict';
+
+    // ======================== CONFIG =========================
+    const DIVISION_PLANT_MAP = {
+      'Siliguri Town Division': '3412',
+      'Kurseong Division': '3413',
+      'Darjeeling Division': '3414',
+      'Sub-Urban Division': '3415',
+      'Kalimpong Division': '3471',
+      'Jalpaiguri Division': '3422',
+      'Mal Division': '3427',
+      'Coochbehar Division': '3444',
+      'Mathabhanga Division': '3445',
+      'Dinhata Division': '3446',
+      'Alipurduar Division': '3453'
+    };
+    const PLANT_TO_DIVISION = Object.fromEntries(
+      Object.entries(DIVISION_PLANT_MAP).map(([name, code]) => [code, name])
+    );
+
+    // ======================== STATE =========================
+    const state = {
+      stockData: [],
+      monthlyAvg: {},
+      transitSummary: null,
+      consumptionOverview: null,
+      allotments: [],
+      rebalanceData: [], // will store computed rebalance opportunities
+      versions: {
         stock: 0,
         critical: 0,
         transit: 0,
         consumption: 0,
-        incoming: 0,
         allotment: 0,
-        topItems: 0
+        rebalance: 0
+      },
+      lastUpdated: null
     };
 
-    function getCurrentTimestamp() {
-        const now = new Date();
-        return now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit',
-            hour12: true 
-        });
+    // ======================== DOM REFS ======================
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      // KPI
+      totalItemsHeader: $('totalItemsHeader'),
+      criticalItemsHeader: $('criticalItemsHeader'),
+      transitItemsHeader: $('transitItemsHeader'),
+      pendingAllotmentsHeader: $('pendingAllotmentsHeader'),
+      lastUpdatedHeader: $('lastUpdatedHeader'),
+      globalLastUpdated: $('globalLastUpdated'),
+      currentDate: $('currentDate'),
+      // Rebalance table
+      rebalanceTableBody: $('rebalanceTableBody'),
+      rebalanceTimestamp: $('rebalanceTimestamp')
+    };
+
+    // ======================== HELPERS =======================
+    function getTimestamp() {
+      return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     }
 
     function getFullTimestamp() {
-        const now = new Date();
-        return now.toLocaleString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            hour: '2-digit', 
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true 
-        });
+      return new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     }
 
-    function updateCardTimestamp(cardId, timestamp) {
-        const element = document.getElementById(cardId);
-        if (element) {
-            element.textContent = timestamp;
-            element.title = `Last updated: ${getFullTimestamp()}`;
-            // Add a subtle pulse animation
-            element.style.transition = 'color 0.3s';
-            element.style.color = '#28a745';
-            setTimeout(() => {
-                element.style.color = '';
-            }, 1000);
-        }
-    }
+    function roundUp(v) { return v && !isNaN(v) ? Math.ceil(v) : 0; }
 
     function updateGlobalTimestamp() {
-        const now = getFullTimestamp();
-        document.getElementById('globalLastUpdated').textContent = now;
-        document.getElementById('lastUpdatedHeader').textContent = getCurrentTimestamp();
+      const now = getFullTimestamp();
+      if (els.globalLastUpdated) els.globalLastUpdated.textContent = now;
+      if (els.lastUpdatedHeader) els.lastUpdatedHeader.textContent = getTimestamp();
+      state.lastUpdated = now;
     }
 
-    function displayCurrentDate() {
-        const dateElement = document.getElementById('currentDate');
-        if (dateElement) {
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            dateElement.textContent = new Date().toLocaleDateString('en-US', options);
-        }
-        updateGlobalTimestamp();
+    function navigateTo(url) {
+      window.location.href = url;
     }
 
-    // CEILING ROUNDING - Always round up
-    function roundUp(value) {
-        if (value === 0 || isNaN(value) || value === null) return 0;
-        return Math.ceil(value);
-    }
+    // ======================== API ===========================
+    const api = {
+      async fetchWithAuth(endpoint, options = {}) {
+        const resp = await fetch(endpoint, {
+          ...options,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.json();
+      },
 
+      getStock() { return this.fetchWithAuth('/api/inventory/current-stock'); },
+      getMonthlyAvg() { return this.fetchWithAuth('/api/consumption/monthly-average'); },
+      getConsumptionOverview() { return this.fetchWithAuth('/api/consumption/overview'); },
+      getTransitSummary() { return this.fetchWithAuth('/api/inventory/transit-summary'); },
+      getAllotments() {
+        return this.fetchWithAuth('/api/allotments').catch(() => []);
+      }
+    };
+
+    // ======================== DATA LOADERS ==================
     async function loadMonthlyAverages() {
-        try {
-            const response = await fetch('/api/consumption/monthly-average');
-            const data = await response.json();
-            monthlyAvgData = data;
-            console.log("Monthly averages loaded:", Object.keys(monthlyAvgData).length, "materials");
-        } catch (error) {
-            console.error('Error loading monthly averages:', error);
-        }
+      try {
+        const data = await api.getMonthlyAvg();
+        state.monthlyAvg = data || {};
+      } catch (e) { console.warn('Monthly avg load failed', e); state.monthlyAvg = {}; }
     }
 
     async function loadStockData() {
-        try {
-            const response = await fetch('/api/inventory/current-stock');
-            let data = await response.json();
-            
-            currentStockData = data.map(item => {
-                let monthlyAvg = 0;
-                const avgData = monthlyAvgData[item.material_code];
-                if (avgData) {
-                    monthlyAvg = avgData.monthly_avg || 0;
-                }
-                monthlyAvg = roundUp(monthlyAvg);
-                
-                return {
-                    ...item,
-                    monthly_avg: monthlyAvg,
-                    is_critical: (item.current_stock || 0) <= monthlyAvg && monthlyAvg > 0
-                };
-            });
-            
-            return currentStockData;
-        } catch (error) {
-            console.error('Error loading stock data:', error);
-            return [];
-        }
-    }
-
-    async function loadConsumptionOverview() {
-        try {
-            const response = await fetch('/api/consumption/overview');
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error loading consumption overview:', error);
-            return null;
-        }
-    }
-
-    async function loadTopMaterials() {
-        try {
-            const response = await fetch('/api/consumption/data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ period: 'monthly', plant: 'all', material_group: 'all', material_code: 'all' })
-            });
-            const data = await response.json();
-            return data.top_materials || [];
-        } catch (error) {
-            console.error('Error loading top materials:', error);
-            return [];
-        }
+      try {
+        const raw = await api.getStock();
+        state.stockData = raw.map(item => {
+          const avg = state.monthlyAvg[item.material_code]?.monthly_avg || 0;
+          return {
+            ...item,
+            monthly_avg: roundUp(avg),
+            is_critical: (item.current_stock || 0) <= roundUp(avg) && avg > 0
+          };
+        });
+        state.versions.stock++;
+      } catch (e) { console.warn('Stock load failed', e); state.stockData = []; }
     }
 
     async function loadTransitSummary() {
-        try {
-            const response = await fetch('/api/inventory/transit-summary');
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error loading transit summary:', error);
-            return { total_items: 0, total_quantity: 0, by_doc_type: {}, delayed_count: 0 };
-        }
+      try {
+        state.transitSummary = await api.getTransitSummary();
+        state.versions.transit++;
+      } catch (e) { console.warn('Transit load failed', e); state.transitSummary = { total_items: 0, total_quantity: 0, delayed_count: 0 }; }
     }
 
-    // Individual card refresh functions
+    async function loadConsumptionOverview() {
+      try {
+        state.consumptionOverview = await api.getConsumptionOverview();
+        state.versions.consumption++;
+      } catch (e) { console.warn('Consumption overview failed', e); state.consumptionOverview = null; }
+    }
+
+    async function loadAllotments() {
+      try {
+        state.allotments = await api.getAllotments();
+        state.versions.allotment++;
+      } catch (e) { console.warn('Allotments failed', e); state.allotments = []; }
+    }
+
+    // ======================== REBALANCE LOGIC =================
+    function computeRebalance() {
+      // 1. Build per-material, per-plant stock and monthly avg
+      const materialPlantMap = {};
+      state.stockData.forEach(item => {
+        const code = item.material_code;
+        const plant = item.plant;
+        if (!code || !plant) return;
+        if (!materialPlantMap[code]) materialPlantMap[code] = {};
+        if (!materialPlantMap[code][plant]) materialPlantMap[code][plant] = { stock: 0, monthly_avg: 0 };
+        materialPlantMap[code][plant].stock += parseFloat(item.current_stock) || 0;
+      });
+
+      // 2. Populate monthly averages from state.monthlyAvg
+      // state.monthlyAvg structure: { material_code: { plant: { monthly_avg: x } } }
+      for (const [code, plants] of Object.entries(state.monthlyAvg)) {
+        if (!materialPlantMap[code]) materialPlantMap[code] = {};
+        for (const [plant, data] of Object.entries(plants)) {
+          if (!materialPlantMap[code][plant]) {
+            materialPlantMap[code][plant] = { stock: 0, monthly_avg: 0 };
+          }
+          materialPlantMap[code][plant].monthly_avg = data.monthly_avg || 0;
+        }
+      }
+
+      // 3. For each material, find surplus and deficit divisions
+      const opportunities = [];
+      for (const [code, plants] of Object.entries(materialPlantMap)) {
+        // Compute surplus (stock - avg) and deficit (avg - stock) for each plant
+        const surplusList = [];
+        const deficitList = [];
+        for (const [plant, data] of Object.entries(plants)) {
+          const stock = data.stock || 0;
+          const avg = data.monthly_avg || 0;
+          const diff = stock - avg;
+          if (diff > 0) {
+            surplusList.push({ plant, surplus: diff });
+          } else if (diff < 0) {
+            deficitList.push({ plant, deficit: -diff });
+          }
+        }
+        // If there is at least one surplus and one deficit
+        if (surplusList.length > 0 && deficitList.length > 0) {
+          // Sort surplus descending, deficit descending
+          surplusList.sort((a, b) => b.surplus - a.surplus);
+          deficitList.sort((a, b) => b.deficit - a.deficit);
+          const surplusItem = surplusList[0];
+          const deficitItem = deficitList[0];
+          const transferQty = Math.min(surplusItem.surplus, deficitItem.deficit);
+          if (transferQty > 0) {
+            // Get material name from first stock item
+            const materialName = state.stockData.find(item => item.material_code === code)?.material_description || code;
+            opportunities.push({
+              material_code: code,
+              material_name: materialName,
+              surplus_division: PLANT_TO_DIVISION[surplusItem.plant] || surplusItem.plant,
+              surplus_qty: Math.round(surplusItem.surplus),
+              deficit_division: PLANT_TO_DIVISION[deficitItem.plant] || deficitItem.plant,
+              deficit_qty: Math.round(deficitItem.deficit),
+              transfer_qty: Math.round(transferQty)
+            });
+          }
+        }
+      }
+
+      // Sort by transfer_qty descending
+      opportunities.sort((a, b) => b.transfer_qty - a.transfer_qty);
+      state.rebalanceData = opportunities.slice(0, 20); // show top 20
+      state.versions.rebalance++;
+    }
+
+    // ======================== UI RENDERERS ==================
+    function renderKPIs() {
+      const totalItems = state.stockData.length;
+      const criticalCount = state.stockData.filter(item => item.is_critical).length;
+      const transitCount = state.transitSummary?.total_items || 0;
+      const pendingAllotments = state.allotments.filter(d => d.status === 'Pending').length;
+
+      setText(els.totalItemsHeader, totalItems ? totalItems.toLocaleString() : '—');
+      setText(els.criticalItemsHeader, criticalCount ? criticalCount.toLocaleString() : '—');
+      setText(els.transitItemsHeader, transitCount ? transitCount.toLocaleString() : '—');
+      setText(els.pendingAllotmentsHeader, pendingAllotments ? pendingAllotments.toLocaleString() : '—');
+    }
+
+    function renderRebalanceTable() {
+      const tbody = els.rebalanceTableBody;
+      if (!state.rebalanceData.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center">No rebalancing opportunities found. All divisions have balanced stock.</td></tr>`;
+        if (els.rebalanceTimestamp) {
+          els.rebalanceTimestamp.innerHTML = `<i class="bi bi-clock"></i> Updated: ${getTimestamp()}`;
+        }
+        return;
+      }
+
+      tbody.innerHTML = state.rebalanceData.map((item, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td><code>${item.material_code}</code></td>
+          <td><strong>${item.material_name}</strong></td>
+          <td><span class="badge bg-success">${item.surplus_division}</span></td>
+          <td><span class="badge bg-success">${item.surplus_qty.toLocaleString()}</span></td>
+          <td><span class="badge bg-danger">${item.deficit_division}</span></td>
+          <td><span class="badge bg-danger">${item.deficit_qty.toLocaleString()}</span></td>
+          <td><strong style="color: #6f42c1;">${item.transfer_qty.toLocaleString()}</strong></td>
+          <td>
+            <button class="btn-action" onclick="navigateTo('{{ url_for('main.allotment_tracker') }}?material=${item.material_code}')">
+              <i class="bi bi-send"></i> Transfer
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      if (els.rebalanceTimestamp) {
+        els.rebalanceTimestamp.innerHTML = `<i class="bi bi-clock"></i> Updated: ${getTimestamp()}`;
+      }
+    }
+
+    function setText(el, value) {
+      if (el) el.innerHTML = value;
+    }
+
+    // ======================== MASTER UPDATE =================
+    async function refreshAll() {
+      await loadMonthlyAverages();
+      await Promise.all([
+        loadStockData(),
+        loadTransitSummary(),
+        loadConsumptionOverview(),
+        loadAllotments()
+      ]);
+      computeRebalance();
+      renderKPIs();
+      renderRebalanceTable();
+      updateGlobalTimestamp();
+    }
+
+    // Refresh a specific card
     async function refreshCard(cardType) {
-        const timestamp = getCurrentTimestamp();
-        
-        switch(cardType) {
-            case 'stock':
-                await updateStockCard();
-                updateCardTimestamp('stockTimestamp', timestamp);
-                break;
-            case 'transit':
-                await updateTransitCard();
-                updateCardTimestamp('transitTimestamp', timestamp);
-                break;
-            case 'critical':
-                await updateCriticalCard();
-                updateCardTimestamp('criticalTimestamp', timestamp);
-                break;
-            case 'consumption':
-                await updateConsumptionCard();
-                updateCardTimestamp('consumptionTimestamp', timestamp);
-                break;
-            default:
-                await updateDashboard();
-        }
-        updateGlobalTimestamp();
+      switch (cardType) {
+        case 'stock':
+          await loadStockData();
+          computeRebalance();
+          renderKPIs();
+          renderRebalanceTable();
+          break;
+        case 'transit':
+          await loadTransitSummary();
+          renderKPIs();
+          break;
+        case 'critical':
+          await loadStockData();
+          computeRebalance();
+          renderKPIs();
+          renderRebalanceTable();
+          break;
+        case 'rebalance':
+          // Re-run rebalance with current data
+          computeRebalance();
+          renderRebalanceTable();
+          break;
+        default:
+          await refreshAll();
+          return;
+      }
+      updateGlobalTimestamp();
     }
 
-    async function updateStockCard() {
-        const stockItems = await loadStockData();
-        const totalItems = stockItems.length;
-        const totalValue = (stockItems.reduce((sum, item) => sum + (item.current_stock || 0), 0) / 10000000).toFixed(2);
-        const uniqueGroups = new Set(stockItems.map(item => item.material_group).filter(g => g));
-        
-        document.getElementById('totalItems').textContent = totalItems.toLocaleString();
-        document.getElementById('totalValue').textContent = `₹${totalValue} Cr`;
-        document.getElementById('totalCategories').textContent = uniqueGroups.size;
-        document.getElementById('stockTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${totalItems} total items in stock`;
-        document.getElementById('totalItemsHeader').textContent = totalItems.toLocaleString();
-        
-        // Update critical count in header
-        const criticalCount = stockItems.filter(item => item.is_critical).length;
-        document.getElementById('criticalItemsHeader').textContent = criticalCount;
-        
-        dataVersions.stock++;
-    }
-
-    async function updateCriticalCard() {
-        const stockItems = await loadStockData();
-        const criticalItems = stockItems.filter(item => item.is_critical);
-        const lowStock = criticalItems.filter(item => (item.current_stock || 0) > 0).length;
-        const outOfStock = criticalItems.filter(item => (item.current_stock || 0) === 0).length;
-        
-        document.getElementById('lowStock').textContent = lowStock;
-        document.getElementById('outOfStock').textContent = outOfStock;
-        document.getElementById('reorderNeeded').textContent = criticalItems.length;
-        document.getElementById('criticalTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${criticalItems.length} items need attention`;
-        document.getElementById('criticalItemsHeader').textContent = criticalItems.length;
-        
-        dataVersions.critical++;
-    }
-
-    async function updateTransitCard() {
-        const transitSummary = await loadTransitSummary();
-        
-        document.getElementById('activeShipments').textContent = transitSummary.total_items || 0;
-        document.getElementById('transitQuantity').textContent = (transitSummary.total_quantity || 0).toLocaleString();
-        document.getElementById('transitValue').textContent = `₹${((transitSummary.total_quantity || 0) * 0.005).toFixed(2)} Cr`;
-        document.getElementById('delayedShipments').textContent = transitSummary.delayed_count || 0;
-        document.getElementById('transitItemsHeader').textContent = transitSummary.total_items || 0;
-        
-        const ontimeRate = transitSummary.total_items > 0 
-            ? Math.round(((transitSummary.total_items - (transitSummary.delayed_count || 0)) / transitSummary.total_items) * 100)
-            : 100;
-        document.getElementById('ontimeRate').style.width = `${ontimeRate}%`;
-        document.getElementById('ontimePercent').textContent = `${ontimeRate}%`;
-        
-        dataVersions.transit++;
-    }
-
-    async function updateConsumptionCard() {
-        const consumptionData = await loadConsumptionOverview();
-        const topMaterials = await loadTopMaterials();
-        
-        if (consumptionData) {
-            document.getElementById('monthlyConsumption').textContent = Math.round(consumptionData.avg_monthly || 0);
-            document.getElementById('annualConsumption').textContent = Math.round(consumptionData.total_consumption || 0);
-            document.getElementById('topItem').textContent = (consumptionData.top_material || '-').substring(0, 30);
-            document.getElementById('consumptionTrend').innerHTML = `<i class="bi bi-arrow-up"></i> ${consumptionData.top_material || 'No data'}`;
-        }
-        
-        // Update top items table
-        const topItemsTable = document.getElementById('topItemsTable');
-        if (topMaterials && topMaterials.length > 0) {
-            const stockItems = await loadStockData();
-            topItemsTable.innerHTML = topMaterials.slice(0, 10).map((item, index) => {
-                const stockItem = stockItems.find(s => s.material_code === item.material_code);
-                const stockStatus = stockItem?.is_critical ? 'Critical' : (stockItem ? 'Available' : 'No Stock');
-                const statusClass = stockStatus === 'Critical' ? 'bg-danger' : (stockStatus === 'Available' ? 'bg-success' : 'bg-secondary');
-                
-                return `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><code>${item.material_code}</code></td>
-                        <td><strong>${item.material_name || item.material_code}</strong></td>
-                        <td>${item.material_group || '-'}</td>
-                        <td>${item.quantity.toLocaleString()}</td>
-                        <td>${item.unit || 'Units'}</td>
-                        <td><span class="badge ${statusClass}">${stockStatus}</span></td>
-                    </tr>
-                `;
-            }).join('');
-            document.getElementById('topItemsTimestamp').innerHTML = `<i class="bi bi-clock"></i> Updated: ${getCurrentTimestamp()}`;
-        } else {
-            topItemsTable.innerHTML = '<tr><td colspan="7" class="text-center">No consumption data available</td></tr>';
-        }
-        
-        dataVersions.consumption++;
-    }
-
-    async function updateIncomingCard() {
-        // Placeholder data - simulate update
-        document.getElementById('expectedDeliveries').textContent = Math.floor(Math.random() * 20) + 5;
-        document.getElementById('incomingQuantity').textContent = Math.floor(Math.random() * 5000) + 500;
-        document.getElementById('nextDelivery').textContent = new Date(Date.now() + 3 * 86400000).toLocaleDateString();
-        document.getElementById('incomingTrend').innerHTML = `<i class="bi bi-calendar-check"></i> ${Math.floor(Math.random() * 10) + 1} deliveries expected this week`;
-        
-        dataVersions.incoming++;
-    }
-
-    async function updateAllotmentCard() {
-        try {
-            // Try to fetch real data from API
-            const response = await fetch('/api/allotments');
-            const data = await response.json();
-            
-            if (data && data.length > 0) {
-                const pending = data.filter(d => d.status === 'Pending').length;
-                const completed = data.filter(d => d.status === 'Approved').length;
-                const monthly = data.filter(d => {
-                    const date = new Date(d.request_date);
-                    const now = new Date();
-                    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-                }).length;
-                const total = data.length;
-                const completionRate = total > 0 ? Math.round(((completed) / total) * 100) : 0;
-                
-                document.getElementById('pendingAllotments').textContent = pending;
-                document.getElementById('completedAllotments').textContent = completed;
-                document.getElementById('monthlyAllotments').textContent = monthly;
-                document.getElementById('completionRate').style.width = `${completionRate}%`;
-                document.getElementById('completionPercent').textContent = `${completionRate}%`;
-                document.getElementById('pendingAllotmentsHeader').textContent = pending;
-            } else {
-                // Fallback to sample data
-                const pending = Math.floor(Math.random() * 15) + 5;
-                const completed = Math.floor(Math.random() * 50) + 20;
-                const monthly = Math.floor(Math.random() * 30) + 10;
-                const completionRate = Math.floor(Math.random() * 30) + 65;
-                
-                document.getElementById('pendingAllotments').textContent = pending;
-                document.getElementById('completedAllotments').textContent = completed;
-                document.getElementById('monthlyAllotments').textContent = monthly;
-                document.getElementById('completionRate').style.width = `${completionRate}%`;
-                document.getElementById('completionPercent').textContent = `${completionRate}%`;
-                document.getElementById('pendingAllotmentsHeader').textContent = pending;
-            }
-        } catch (error) {
-            // Fallback to sample data if API fails
-            const pending = Math.floor(Math.random() * 15) + 5;
-            const completed = Math.floor(Math.random() * 50) + 20;
-            const monthly = Math.floor(Math.random() * 30) + 10;
-            const completionRate = Math.floor(Math.random() * 30) + 65;
-            
-            document.getElementById('pendingAllotments').textContent = pending;
-            document.getElementById('completedAllotments').textContent = completed;
-            document.getElementById('monthlyAllotments').textContent = monthly;
-            document.getElementById('completionRate').style.width = `${completionRate}%`;
-            document.getElementById('completionPercent').textContent = `${completionRate}%`;
-            document.getElementById('pendingAllotmentsHeader').textContent = pending;
-        }
-        
-        dataVersions.allotment++;
-    }
-
-    async function updateDashboard() {
-        const timestamp = getCurrentTimestamp();
-        
-        // Update all cards with their respective timestamps
-        await Promise.all([
-            updateStockCard(),
-            updateCriticalCard(),
-            updateTransitCard(),
-            updateConsumptionCard(),
-            updateIncomingCard(),
-            updateAllotmentCard()
-        ]);
-        
-        // Update all timestamps
-        updateCardTimestamp('stockTimestamp', timestamp);
-        updateCardTimestamp('criticalTimestamp', timestamp);
-        updateCardTimestamp('transitTimestamp', timestamp);
-        updateCardTimestamp('consumptionTimestamp', timestamp);
-        updateCardTimestamp('incomingTimestamp', timestamp);
-        updateCardTimestamp('allotmentTimestamp', timestamp);
-        
-        updateGlobalTimestamp();
-        console.log('📊 Dashboard updated at:', getFullTimestamp());
-    }
-
-    function refreshAllData() {
-        updateDashboard();
-    }
-
+    // ======================== INIT ==========================
     document.addEventListener('DOMContentLoaded', async function() {
-        displayCurrentDate();
-        
-        // Load monthly averages first
-        await loadMonthlyAverages();
-        
-        // Initial load
-        await updateDashboard();
-        
-        // Auto-refresh every 5 minutes
-        setInterval(() => {
-            updateDashboard();
-        }, 300000);
+      if (els.currentDate) {
+        els.currentDate.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      await refreshAll();
+      setInterval(refreshAll, 300000);
+
+      window.refreshAll = refreshAll;
+      window.refreshCard = refreshCard;
+      window.navigateTo = navigateTo;
     });
+
+  })();
 </script>
 
 <style>
-    /* Quick Stats Banner */
+  /* === Global resets & layout === */
+  .nav-actions {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+  }
+  .back-btn:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 6px 20px rgba(102,126,234,0.5);
+    color: #fff;
+  }
+  .action-btn-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .action-btn-group button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 50px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.2s;
+    color: #fff;
+  }
+  .action-btn-group button:hover { transform: scale(1.03); }
+  .btn-refresh-all { background: linear-gradient(135deg, #17a2b8, #138496); }
+  .btn-refresh-stock { background: linear-gradient(135deg, #28a745, #20c997); }
+  .btn-refresh-transit { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a; }
+  .btn-refresh-rebalance { background: linear-gradient(135deg, #6f42c1, #5a32a3); color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; }
+
+  .welcome-banner {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 15px;
+    padding: 25px 30px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .welcome-text h1 { font-size: 1.8rem; font-weight: 700; color: #333; margin-bottom: 5px; }
+  .welcome-text h1 i { color: #667eea; }
+  .welcome-text p { color: #666; font-size: 1rem; }
+  .date-badge {
+    background: #fff;
+    padding: 8px 18px;
+    border-radius: 50px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+  }
+  .last-updated { margin-left: 10px; color: #6c757d; font-size: 0.8rem; }
+
+  /* === KPI / Quick Stats === */
+  .quick-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px 30px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    border: 1px solid #eef2f6;
+    justify-content: space-around;
+  }
+  .kpi-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .kpi-icon {
+    font-size: 1.6rem;
+    color: #667eea;
+    opacity: 0.8;
+    transition: transform 0.3s;
+  }
+  .kpi-item:hover .kpi-icon { transform: scale(1.1); }
+  .critical-icon { color: #dc3545; }
+  .transit-icon { color: #ffc107; }
+  .allotment-icon { color: #6f42c1; }
+  .update-icon { color: #17a2b8; }
+  .kpi-content {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .kpi-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+  }
+  .kpi-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e2b3a;
+    min-width: 30px;
+  }
+
+  /* === Static Cards (5) === */
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+  }
+  .inventory-card {
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.04);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+  }
+  .inventory-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.10);
+  }
+
+  .card-header-green, .card-header-red, .card-header-blue,
+  .card-header-purple, .card-header-teal {
+    padding: 14px 20px;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-header-green { background: linear-gradient(135deg, #28a745, #20c997); }
+  .card-header-red   { background: linear-gradient(135deg, #dc3545, #c82333); }
+  .card-header-blue  { background: linear-gradient(135deg, #17a2b8, #138496); }
+  .card-header-purple{ background: linear-gradient(135deg, #6f42c1, #5a32a3); }
+  .card-header-teal  { background: linear-gradient(135deg, #20c997, #17a2b8); }
+
+  .card-header-green i, .card-header-red i, .card-header-blue i,
+  .card-header-purple i, .card-header-teal i {
+    font-size: 1.3rem;
+    margin-right: 6px;
+  }
+  .card-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 3px 12px;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .card-body-centered {
+    padding: 30px 20px;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-icon-large {
+    font-size: 3.5rem;
+    color: #667eea;
+    margin-bottom: 10px;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+  }
+  .inventory-card:hover .card-icon-large {
+    opacity: 0.6;
+  }
+  .card-body-centered h3 {
+    margin: 0 0 6px 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1e2b3a;
+  }
+  .card-description {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+
+  .card-footer {
+    padding: 10px 22px;
+    background: #f8fafd;
+    border-top: 1px solid #eef2f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+  }
+  .location { color: #6c757d; display: flex; align-items: center; gap: 5px; }
+  .details-link { color: #667eea; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+  .details-link:hover { color: #764ba2; }
+
+  /* === Rebalance Table === */
+  .rebalance-section {
+    margin-top: 40px;
+  }
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .section-title i { font-size: 1.5rem; }
+  .section-title h2 { font-size: 1.2rem; font-weight: 600; color: #1e2b3a; margin: 0; }
+  .chart-timestamp { margin-left: auto; font-size: 0.75rem; color: #6c757d; }
+  .btn-refresh-rebalance { margin-left: 10px; }
+
+  .rebalance-table-container {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    border: 1px solid #eef2f6;
+    overflow-x: auto;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .data-table th {
+    text-align: left;
+    padding: 10px 8px;
+    background: #f8fafd;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #495057;
+    border-bottom: 2px solid #e9ecef;
+  }
+  .data-table td {
+    padding: 8px 8px;
+    border-bottom: 1px solid #f0f2f5;
+    color: #1e2b3a;
+  }
+  .data-table tr:hover td { background: #f8fafd; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge.bg-success { background: #28a745; }
+  .badge.bg-danger { background: #dc3545; }
+  .badge.bg-secondary { background: #6c757d; }
+  .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
+  .btn-action {
+    background: #6f42c1;
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-action:hover { background: #5a32a3; }
+  .text-center { text-align: center; }
+  code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+  .rebalance-footnote {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
+  }
+
+  /* === Responsive === */
+  @media (max-width: 768px) {
+    .inventory-grid { grid-template-columns: 1fr 1fr; }
+    .welcome-banner { flex-direction: column; text-align: center; }
+    .welcome-text h1 { font-size: 1.4rem; }
     .quick-stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        background: white;
-        border-radius: 15px;
-        padding: 15px 25px;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        border: 1px solid #eef2f6;
-        justify-content: space-around;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      padding: 16px 20px;
     }
-    
-    .quick-stat-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.9rem;
-        color: #666;
-    }
-    
-    .quick-stat-item i {
-        font-size: 1.3rem;
-    }
-    
-    .quick-stat-item strong {
-        color: #1e2b3a;
-    }
-
-    /* Card Timestamp */
-    .card-timestamp {
-        font-size: 0.6rem;
-        background: rgba(255,255,255,0.2);
-        padding: 3px 10px;
-        border-radius: 12px;
-        color: rgba(255,255,255,0.9);
-        white-space: nowrap;
-        cursor: default;
-        transition: all 0.3s ease;
-    }
-    
-    .card-timestamp:hover {
-        background: rgba(255,255,255,0.3);
-        transform: scale(1.05);
-    }
-    
-    .card-timestamp.updated {
-        color: #28a745;
-    }
-
-    .inventory-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 25px;
-        margin-bottom: 40px;
-    }
-
-    .inventory-card {
-        background: white;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        border: 1px solid rgba(0,0,0,0.05);
-        cursor: pointer;
-    }
-
-    .inventory-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-    }
-
-    .card-header-green, .card-header-red, .card-header-blue, .card-header-purple, .card-header-orange, .card-header-teal {
-        padding: 15px 20px;
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .card-header-green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-    .card-header-red { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
-    .card-header-blue { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
-    .card-header-purple { background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); }
-    .card-header-orange { background: linear-gradient(135deg, #fd7e14 0%, #e67e22 100%); }
-    .card-header-teal { background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); }
-
-    .card-header-green i, .card-header-red i, .card-header-blue i, .card-header-purple i,
-    .card-header-orange i, .card-header-teal i {
-        font-size: 1.8rem;
-    }
-    .card-badge {
-        background: rgba(255,255,255,0.2);
-        padding: 4px 12px;
-        border-radius: 50px;
-        font-size: 0.7rem;
-    }
-    .card-body { padding: 20px 25px; }
-    .card-body h3 { margin: 0 0 15px 0; font-size: 1.2rem; color: #333; }
-    .stats-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
-    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
-    .stat-label { color: #666; font-size: 0.85rem; }
-    .stat-value { font-weight: 600; color: #333; font-size: 1rem; }
-    .stat-value.critical { color: #dc3545; }
-    .stat-value.warning { color: #fd7e14; }
-    .trend-indicator { font-size: 0.75rem; padding: 6px 10px; border-radius: 8px; text-align: center; margin-top: 8px; }
-    .trend-indicator.positive { background: #d4edda; color: #155724; }
-    .trend-indicator.negative { background: #f8d7da; color: #721c24; }
-    .card-footer { padding: 12px 25px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    .location { color: #666; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; }
-    .details-link { color: #667eea; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
-    .details-link:hover { color: #764ba2; }
-    .progress-bar-container { margin-top: 12px; }
-    .progress-label { font-size: 0.75rem; color: #666; margin-bottom: 4px; }
-    .progress-bar { height: 6px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; background: linear-gradient(90deg, #20c997, #17a2b8); }
-    .progress-percent { font-size: 0.7rem; color: #666; margin-top: 4px; text-align: right; }
-
-    .top-items-section {
-        margin-top: 40px;
-    }
-    .section-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-    }
-    .section-title i { font-size: 1.5rem; color: #667eea; }
-    .section-title h2 { font-size: 1.3rem; font-weight: 600; color: #1e2b3a; margin: 0; }
-    .items-table-container {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        border: 1px solid #eef2f6;
-        overflow-x: auto;
-    }
-    .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { text-align: left; padding: 10px 10px; background: #f8fafd; font-size: 0.7rem; font-weight: 600; color: #1e2b3a; border-bottom: 2px solid #eef2f6; }
-    .data-table td { padding: 8px 10px; border-bottom: 1px solid #eef2f6; font-size: 0.8rem; color: #1e2b3a; }
-    .data-table tr:hover { background: #f8fafd; }
-    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
-    .badge.bg-success { background: #28a745; color: white; }
-    .badge.bg-danger { background: #dc3545; color: white; }
-    .badge.bg-warning { background: #ffc107; color: #1e2b3a; }
-    .badge.bg-secondary { background: #6c757d; color: white; }
-    .welcome-banner {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        border-radius: 15px;
-        padding: 25px 30px;
-        margin-bottom: 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .welcome-text h1 { font-size: 1.8rem; font-weight: 700; color: #333; margin-bottom: 5px; }
-    .welcome-text p { color: #666; font-size: 1rem; }
-    .date-badge { 
-        background: white; 
-        padding: 8px 18px; 
-        border-radius: 50px; 
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        flex-wrap: wrap;
-    }
-    .text-center { text-align: center; }
-    code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-    
-    /* Animation for timestamp updates */
-    @keyframes timestampPulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-    }
-    .timestamp-updating {
-        animation: timestampPulse 0.6s ease;
-    }
-    
-    @media (max-width: 768px) {
-        .inventory-grid { grid-template-columns: 1fr; }
-        .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
-        .welcome-text h1 { font-size: 1.4rem; }
-        .welcome-text p { font-size: 0.85rem; }
-        .quick-stats { 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 8px;
-            padding: 12px 20px;
-        }
-        .quick-stat-item { font-size: 0.8rem; }
-        .data-table { font-size: 0.75rem; }
-        .data-table th, .data-table td { padding: 6px 5px; }
-        .card-body h3 { font-size: 1rem; }
-        .card-timestamp { font-size: 0.5rem; padding: 2px 8px; }
-        .date-badge { font-size: 0.8rem; padding: 6px 14px; }
-    }
-    
-    @media (max-width: 576px) {
-        .welcome-text h1 { font-size: 1.2rem; }
-        .quick-stat-item { font-size: 0.7rem; }
-        .quick-stat-item i { font-size: 0.9rem; }
-        .data-table { font-size: 0.65rem; }
-        .data-table th, .data-table td { padding: 4px 3px; }
-        .badge { font-size: 0.55rem; padding: 2px 5px; }
-        code { font-size: 0.6rem; }
-        .stat-label { font-size: 0.7rem; }
-        .stat-value { font-size: 0.85rem; }
-        .card-header-green i, .card-header-red i, .card-header-blue i, 
-        .card-header-purple i, .card-header-orange i, .card-header-teal i {
-            font-size: 1.3rem;
-        }
-        .card-timestamp { font-size: 0.45rem; padding: 2px 6px; }
-        .details-link { font-size: 0.7rem; }
-    }
+    .kpi-item { justify-content: center; }
+    .nav-actions { flex-direction: column; align-items: stretch; }
+    .back-btn { justify-content: center; }
+    .action-btn-group { justify-content: center; }
+    .data-table { font-size: 0.75rem; }
+    .data-table th, .data-table td { padding: 5px 4px; }
+    .section-title { flex-direction: column; align-items: flex-start; }
+    .chart-timestamp { margin-left: 0; }
+  }
+  @media (max-width: 480px) {
+    .inventory-grid { grid-template-columns: 1fr; }
+    .welcome-text h1 { font-size: 1.2rem; }
+    .kpi-value { font-size: 1rem; }
+    .kpi-icon { font-size: 1.2rem; }
+    .action-btn-group button { font-size: 0.7rem; padding: 6px 12px; }
+    .card-body-centered h3 { font-size: 1rem; }
+    .card-icon-large { font-size: 2.5rem; }
+    .data-table { font-size: 0.65rem; }
+    .data-table th, .data-table td { padding: 4px 3px; }
+    .badge { font-size: 0.55rem; padding: 2px 6px; }
+  }
 </style>
 {% endblock %}

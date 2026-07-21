@@ -1,10 +1,4 @@
-<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v10.1 -->
-<!-- ★ FIXED: Weight displayed as "X.X MT (Approx)" without green tick -->
-<!-- ★ Each division has its own truck capacity selection -->
-<!-- ★ Weight calculated per division -->
-<!-- ★ Virtual Stock = Current Stock + In-Transit -->
-<!-- ★ Critical = Virtual Stock <= Monthly Avg -->
-<!-- ★ Suggested Qty = Monthly Avg - Virtual Stock -->
+<!-- allotment_tracker.html - TRANSPORT WEIGHT OPTIMIZATION v12.1 (Manager-only View) -->
 {% extends "base.html" %}
 
 {% block title %}Allotment Tracker - IMS Siliguri{% endblock %}
@@ -2084,7 +2078,6 @@
                 const uniqueRegions = Utils.getUniqueRegions(divisionKeys, state.divisionRegionMap);
                 const regionsList = uniqueRegions.join(', ');
 
-                // ★ Calculate division-wise weights (NO PERCENTAGE, NO GREEN TICK)
                 const weights = this.calculateDivisionWeights();
                 const totalWeightMT = Object.values(weights).reduce((sum, w) => sum + (w / 1000), 0);
 
@@ -2111,10 +2104,8 @@
                     `;
                 });
 
-                // ★ Weight summary row - NO PERCENTAGE, NO GREEN TICK, just "X.X MT (Approx)"
                 const weightSummaryCols = divisionKeys.map(div => {
                     const weightMT = (weights[div] || 0) / 1000;
-                    // ★ Show only weight in MT (Approx) - NO GREEN TICK
                     return `<td style="border: 1px solid #000; padding: 2px 4px; text-align: center; font-size: 7px; font-weight: 600;">
                         ${weightMT.toFixed(1)} MT (Approx)
                     </td>`;
@@ -2144,7 +2135,6 @@
                     `;
                 }
 
-                // ★ Grouped comments display
                 let commentsHTML = '';
                 let noteCounter = 1;
                 const groupedComments = {};
@@ -2752,11 +2742,23 @@
                     }
                 }
 
-                state.finalData = (allotment.allotments || []).map(f => ({
-                    ...f,
-                    comment_count: f.comment_count || 0,
-                    comments: f.comments || []
-                }));
+                // Ensure material names are resolved
+                const allotmentData = (allotment.allotments || []).map(f => {
+                    let name = f.material_name || Utils.getMaterialName(f.material_code) || f.material_code;
+                    // If name is still code, try to get from cache
+                    if (name === f.material_code) {
+                        const cachedName = state.materialNameCache[f.material_code];
+                        if (cachedName) name = cachedName;
+                    }
+                    return {
+                        ...f,
+                        material_name: name,
+                        comment_count: f.comment_count || 0,
+                        comments: f.comments || []
+                    };
+                });
+
+                state.finalData = allotmentData;
                 state.stoCache = allotment.sto_numbers || {};
 
                 if (allotment.material_comments) {
@@ -2911,9 +2913,9 @@
                 UiService.showToast('🗑️ Final Allotment cleared');
             },
 
-            // ------------------------------------------------------------
-            // HISTORY
-            // ------------------------------------------------------------
+            // ============================================================
+            // ★★★ FIXED: HISTORY VIEW MODAL (Manager-only) ★★★
+            // ============================================================
             async loadHistory() {
                 try {
                     const history = await ApiService.getHistory();
@@ -2946,8 +2948,17 @@
                     }
                     const commentDisplay = totalComments > 0 ? `📝 ${totalComments}` : '';
                     
+                    // Store full allotment data in data attribute for View button
+                    const allotmentData = JSON.stringify(item).replace(/"/g, '&quot;');
+                    
+                    // ★ MANAGER-ONLY VIEW BUTTON ★
+                    const viewButton = state.isManager ? 
+                        `<button class="btn-action view" onclick="AllotmentManager.viewHistoryAllotment('${item.allotment_no}')">
+                            <i class="bi bi-eye"></i> View
+                        </button>` : '';
+
                     return `
-                    <tr>
+                    <tr data-allotment='${allotmentData}'>
                         <td style="text-align: center;">${idx + 1}</td>
                         <td><code>${item.allotment_no}</code></td>
                         <td>${item.divisions?.join(', ') || '-'}</td>
@@ -2963,9 +2974,7 @@
                             ${item.division_transport ? Object.keys(item.division_transport).length + ' divisions' : '-'}
                         </td>
                         <td>
-                            <button class="btn-action view" onclick="AllotmentManager.viewHistoryAllotment('${item.allotment_no}')">
-                                <i class="bi bi-eye"></i> View
-                            </button>
+                            ${viewButton}
                             ${state.isManager && item.status === 'Pending' ? `
                             <button class="btn-action view" onclick="AllotmentManager.loadPendingById('${item._id}')" style="background: #28a745;">
                                 <i class="bi bi-pencil"></i> Load
@@ -2979,24 +2988,389 @@
                 `}).join('');
             },
 
-            viewHistoryAllotment(allotmentNo) {
-                UiService.showToast(`Viewing allotment: ${allotmentNo}\n\nFull details coming soon.`);
+            viewHistoryAllotment: function(allotmentNo) {
+                // Only managers can call this
+                if (!state.isManager) {
+                    UiService.showToast('Access denied. Only Managers can view allotment details.', true);
+                    return;
+                }
+
+                const tbody = dom.historyBody;
+                if (!tbody) return;
+                
+                const rows = tbody.querySelectorAll('tr');
+                for (const row of rows) {
+                    const td = row.querySelector('td:nth-child(2)');
+                    if (td && td.textContent.trim() === allotmentNo) {
+                        const dataAttr = row.getAttribute('data-allotment');
+                        if (dataAttr) {
+                            try {
+                                const allotment = JSON.parse(dataAttr);
+                                this.showAllotmentDetailModal(allotment);
+                                return;
+                            } catch (e) {
+                                console.error('Error parsing allotment data:', e);
+                            }
+                        }
+                        this.fetchAndShowAllotmentDetail(allotmentNo);
+                        return;
+                    }
+                }
+                this.fetchAndShowAllotmentDetail(allotmentNo);
             },
 
-            async loadPendingById(allotmentId) {
+            fetchAndShowAllotmentDetail: async function(allotmentNo) {
+                // Only managers can call this
+                if (!state.isManager) {
+                    UiService.showToast('Access denied. Only Managers can view allotment details.', true);
+                    return;
+                }
+
                 UiService.showLoading();
                 try {
-                    const data = await ApiService.getPendingAllotmentById(allotmentId);
-                    if (data && data._id) {
-                        this.loadAllotmentData(data);
+                    const history = await ApiService.getHistory();
+                    const found = history.find(item => item.allotment_no === allotmentNo);
+                    if (found) {
+                        this.showAllotmentDetailModal(found);
                     } else {
-                        UiService.showToast('❌ Allotment not found', true);
+                        const pending = await ApiService.getPendingAllotments();
+                        const foundPending = pending.find(item => item.allotment_no === allotmentNo);
+                        if (foundPending) {
+                            this.showAllotmentDetailModal(foundPending);
+                        } else {
+                            UiService.showToast('❌ Allotment details not found', true);
+                        }
                     }
                 } catch (error) {
-                    console.error('Error loading allotment:', error);
-                    UiService.showToast('❌ Error loading allotment: ' + error.message, true);
+                    console.error('Error fetching allotment:', error);
+                    UiService.showToast('❌ Error fetching details: ' + error.message, true);
                 }
                 UiService.hideLoading();
+            },
+
+            // ★★★ FIXED: buildAllotmentDetailHTML - Properly aligned table ★★★
+            showAllotmentDetailModal: function(allotment) {
+                // Only managers can call this
+                if (!state.isManager) {
+                    UiService.showToast('Access denied. Only Managers can view allotment details.', true);
+                    return;
+                }
+
+                const modalHTML = `
+                    <div class="modal-overlay show" id="allotmentDetailModal" style="display:flex;">
+                        <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow: hidden;">
+                            <div class="modal-header" style="background: linear-gradient(135deg, #1a3c6e, #2a5a9a); color: white; border-radius: 20px 20px 0 0;">
+                                <h3 style="margin:0; display:flex; align-items:center; gap:12px; color:white;">
+                                    <i class="bi bi-file-earmark-text" style="font-size:1.4rem;"></i>
+                                    Allotment Details: ${allotment.allotment_no || 'N/A'}
+                                </h3>
+                                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" style="color:white; font-size:2rem; background:none; border:none; cursor:pointer;">&times;</button>
+                            </div>
+                            <div class="modal-body" style="overflow-y: auto; padding: 20px 25px;">
+                                ${this.buildAllotmentDetailHTML(allotment)}
+                            </div>
+                            <div class="modal-footer" style="border-top: 1px solid #eef2f6; padding: 12px 20px; display:flex; justify-content:flex-end; gap:10px; background:#f8fafd;">
+                                <button class="btn-cancel" onclick="this.closest('.modal-overlay').remove()" style="padding:8px 20px;">Close</button>
+                                <button class="btn-print" onclick="AllotmentManager.printAllotmentDetail('${allotment.allotment_no || ''}')" style="padding:8px 20px;">
+                                    <i class="bi bi-printer"></i> Print
+                                </button>
+                                ${allotment.status === 'Completed' ? `
+                                <span style="background:#d4edda; color:#155724; padding:6px 16px; border-radius:8px; font-weight:600; font-size:0.85rem;">
+                                    ✅ Completed
+                                </span>
+                                ` : allotment.status === 'Rejected' ? `
+                                <span style="background:#f8d7da; color:#721c24; padding:6px 16px; border-radius:8px; font-weight:600; font-size:0.85rem;">
+                                    ❌ Rejected
+                                </span>
+                                ` : `
+                                <span style="background:#fff3cd; color:#856404; padding:6px 16px; border-radius:8px; font-weight:600; font-size:0.85rem;">
+                                    ⏳ Pending
+                                </span>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                const existing = document.getElementById('allotmentDetailModal');
+                if (existing) existing.remove();
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                document.getElementById('allotmentDetailModal').addEventListener('click', function(e) {
+                    if (e.target === this) this.remove();
+                });
+            },
+
+            buildAllotmentDetailHTML: function(allotment) {
+                // This is only called by managers, but safe to keep
+                let html = '';
+
+                // --- Header Info ---
+                html += `
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-bottom:20px; background:#f8fafd; padding:15px; border-radius:10px; border:1px solid #eef2f6;">
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Allotment No</label><div style="font-weight:700; font-size:1rem; color:#1a3c6e;">${allotment.allotment_no || 'N/A'}</div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Memo No</label><div style="font-weight:600; font-size:0.95rem;">${allotment.memo_no || 'N/A'}</div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Date</label><div style="font-weight:600;">${allotment.allotment_date || (allotment.created_date ? new Date(allotment.created_date).toLocaleDateString('en-IN') : 'N/A')}</div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Status</label><div><span class="status-badge ${allotment.status === 'Completed' ? 'status-approved' : allotment.status === 'Rejected' ? 'status-rejected' : 'status-pending'}">${allotment.status || 'Unknown'}</span></div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Created By</label><div style="font-weight:600;">${allotment.created_by_name || allotment.created_by || 'Unknown'}</div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Created Date</label><div style="font-size:0.85rem;">${allotment.created_date ? new Date(allotment.created_date).toLocaleString('en-IN') : 'N/A'}</div></div>
+                        ${allotment.finalized_by ? `<div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Finalized By</label><div style="font-weight:600;">${allotment.finalized_by_name || allotment.finalized_by}</div></div>
+                        <div><label style="font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase;">Finalized Date</label><div style="font-size:0.85rem;">${allotment.finalized_date ? new Date(allotment.finalized_date).toLocaleString('en-IN') : 'N/A'}</div></div>` : ''}
+                        ${allotment.rejected_by ? `<div style="grid-column: span 2;"><label style="font-size:0.7rem; color:#dc3545; font-weight:600; text-transform:uppercase;">Rejection Reason</label><div style="color:#dc3545; font-weight:600;">${allotment.rejection_reason || 'No reason provided'}</div></div>` : ''}
+                    </div>
+                `;
+
+                // --- Divisions ---
+                const divisions = allotment.divisions || [];
+                html += `
+                    <div style="margin-bottom:16px;">
+                        <h4 style="font-size:0.95rem; margin:0 0 8px 0; display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-building" style="color:#667eea;"></i>
+                            Divisions (${divisions.length})
+                        </h4>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${divisions.map(div => `<span style="background:#eef2f6; padding:4px 12px; border-radius:12px; font-size:0.8rem;">${div}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+
+                // --- Materials Table ---
+                const materials = allotment.materials || [];
+                const allotments = allotment.allotments || [];
+                const stoNumbers = allotment.sto_numbers || {};
+
+                // Build a map of material_code -> name, unit
+                const materialMap = {};
+                materials.forEach(m => {
+                    const code = m.material_code;
+                    // Prefer name from allotment, else from materialMap, else fallback to code
+                    let name = m.material_name || Utils.getMaterialName(code) || code;
+                    // If name is still code, try to get from cached material list
+                    if (name === code) {
+                        const cached = state.materialNameCache[code];
+                        if (cached) name = cached;
+                    }
+                    materialMap[code] = { name: name, unit: m.unit || 'NOS' };
+                });
+
+                // Also include any materials from allotments not in materials list
+                allotments.forEach(a => {
+                    if (!materialMap[a.material_code]) {
+                        const name = a.material_name || Utils.getMaterialName(a.material_code) || a.material_code;
+                        materialMap[a.material_code] = { name: name, unit: a.unit || 'NOS' };
+                    }
+                });
+
+                // Group allotments by material_code
+                const groupedAllotments = {};
+                allotments.forEach(a => {
+                    if (!groupedAllotments[a.material_code]) {
+                        groupedAllotments[a.material_code] = [];
+                    }
+                    groupedAllotments[a.material_code].push(a);
+                });
+
+                // Get all unique division names from allotments, sorted
+                const allDivisions = [...new Set(allotments.map(a => a.division))].sort();
+                const divisionSTOs = {};
+                allDivisions.forEach(div => {
+                    divisionSTOs[div] = stoNumbers[div] || '';
+                });
+
+                const materialCodes = Object.keys(groupedAllotments).sort();
+
+                if (materialCodes.length > 0) {
+                    html += `
+                        <div style="margin-bottom:16px;">
+                            <h4 style="font-size:0.95rem; margin:0 0 8px 0; display:flex; align-items:center; gap:8px;">
+                                <i class="bi bi-table" style="color:#28a745;"></i>
+                                Materials & Allotment Details
+                            </h4>
+                            <div class="table-responsive" style="max-height:300px;">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
+                                    <thead>
+                                        <tr>
+                                            <th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:center; position:sticky; top:0; z-index:10;">#</th>
+                                            <th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:left; position:sticky; top:0; z-index:10;">Mat Code</th>
+                                            <th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:left; position:sticky; top:0; z-index:10;">Material Name</th>
+                                            <th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:center; position:sticky; top:0; z-index:10;">UOM</th>
+                                            ${allDivisions.map(div => `<th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:center; position:sticky; top:0; z-index:10; min-width:60px;">${div}</th>`).join('')}
+                                            <th style="padding:6px 8px; background:#f8fafd; border:1px solid #eef2f6; text-align:center; position:sticky; top:0; z-index:10;">Total</th>
+                                        </tr>
+                                        <tr>
+                                            ${allDivisions.map(div => `<th style="padding:2px 4px; background:#f8fafd; border:1px solid #eef2f6; text-align:center; font-size:0.6rem; position:sticky; top:30px; z-index:10;">${divisionSTOs[div] || 'STO'}</th>`).join('')}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                    `;
+
+                    let totalGrand = 0;
+                    materialCodes.forEach((code, idx) => {
+                        const info = materialMap[code] || { name: code, unit: 'NOS' };
+                        const rows = groupedAllotments[code] || [];
+                        let rowTotal = 0;
+                        const divCols = allDivisions.map(div => {
+                            const found = rows.find(r => r.division === div);
+                            const qty = found ? parseFloat(found.allotted_qty) || 0 : 0;
+                            rowTotal += qty;
+                            return `<td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-weight:${qty > 0 ? '700' : '400'}; color:${qty > 0 ? '#1a3c6e' : '#ccc'};">${qty > 0 ? qty : '-'}</td>`;
+                        }).join('');
+                        totalGrand += rowTotal;
+
+                        html += `
+                            <tr>
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center;">${idx + 1}</td>
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:left;"><code>${code}</code></td>
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:left;">${info.name}</td>
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center;">${info.unit}</td>
+                                ${divCols}
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-weight:700; background:#f8fafd;">${rowTotal}</td>
+                            </tr>
+                        `;
+                    });
+
+                    // STO row
+                    html += `
+                        <tr>
+                            <td colspan="4" style="padding:4px 8px; border:1px solid #eef2f6; text-align:right; font-weight:700; background:#f8fafd;">STO Numbers</td>
+                            ${allDivisions.map(div => `<td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-weight:700; font-size:0.7rem; background:#f8fafd;">${divisionSTOs[div] || '-'}</td>`).join('')}
+                            <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-weight:700; background:#f8fafd;">${totalGrand}</td>
+                        </tr>
+                    `;
+
+                    // Weight row if available
+                    if (allotment.total_weight_kg || allotment.transport_weight) {
+                        const totalWeightMT = (allotment.total_weight_kg || 0) / 1000;
+                        const capacityMT = (allotment.transport_weight || 0) / 1000;
+                        const utilization = capacityMT > 0 ? (totalWeightMT / capacityMT * 100) : 0;
+                        html += `
+                            <tr>
+                                <td colspan="4" style="padding:4px 8px; border:1px solid #eef2f6; text-align:right; font-weight:700; background:#f8fafd;">Transport</td>
+                                ${allDivisions.map(div => {
+                                    const divWeight = allotment.division_transport?.[div]?.weight || 0;
+                                    return `<td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-size:0.65rem; background:#f8fafd;">${(divWeight/1000).toFixed(1)} MT</td>`;
+                                }).join('')}
+                                <td style="padding:4px 6px; border:1px solid #eef2f6; text-align:center; font-weight:700; background:#d4edda; font-size:0.75rem;">
+                                    ${totalWeightMT.toFixed(1)} MT 
+                                    ${capacityMT > 0 ? `(${utilization.toFixed(0)}% of ${capacityMT.toFixed(0)} MT)` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // --- Comments ---
+                const comments = allotment.material_comments || {};
+                const commentKeys = Object.keys(comments);
+                let hasComments = false;
+                let commentsHTML = '';
+
+                for (const matCode of commentKeys) {
+                    const divs = comments[matCode];
+                    const materialName = materialMap[matCode]?.name || matCode;
+                    for (const [division, commentList] of Object.entries(divs)) {
+                        if (commentList && commentList.length > 0) {
+                            hasComments = true;
+                            commentsHTML += `
+                                <div style="background:#f8fafd; padding:6px 12px; margin-bottom:4px; border-radius:6px; border-left:3px solid #28a745; font-size:0.8rem;">
+                                    <strong>${materialName}</strong> 
+                                    <span style="color:#6c757d; font-size:0.7rem;">(${division})</span>
+                                    <br>
+                                    <span style="color:#28a745; font-size:0.75rem; font-style:italic;">
+                                        ${commentList.map((c, i) => `Note ${i+1}: ${c}`).join('; ')}
+                                    </span>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+
+                if (hasComments) {
+                    html += `
+                        <div style="margin-top:16px;">
+                            <h4 style="font-size:0.95rem; margin:0 0 8px 0; display:flex; align-items:center; gap:8px;">
+                                <i class="bi bi-chat" style="color:#28a745;"></i>
+                                Comments / Notes
+                            </h4>
+                            ${commentsHTML}
+                        </div>
+                    `;
+                }
+
+                return html;
+            },
+
+            printAllotmentDetail: function(allotmentNo) {
+                // Only managers can call this
+                if (!state.isManager) {
+                    UiService.showToast('Access denied. Only Managers can print allotment details.', true);
+                    return;
+                }
+
+                const modal = document.getElementById('allotmentDetailModal');
+                if (!modal) return;
+                
+                const content = modal.querySelector('.modal-body');
+                if (!content) return;
+                
+                const printWindow = window.open('', '_blank', 'width=1000,height=800');
+                if (!printWindow) {
+                    UiService.showToast('Please allow popups for printing.', true);
+                    return;
+                }
+                
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Allotment Details - ${allotmentNo}</title>
+                            <style>
+                                body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; padding: 20px; background: white; margin: 0; }
+                                .print-container { max-width: 1000px; margin: 0 auto; }
+                                .header { background: #1a3c6e; color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; }
+                                .header h2 { margin:0; }
+                                .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px; margin-bottom:20px; }
+                                .grid-item { background:#f8fafd; padding:10px 15px; border-radius:8px; }
+                                .grid-item label { font-size:0.7rem; color:#6c757d; font-weight:600; text-transform:uppercase; display:block; }
+                                .grid-item div { font-weight:600; }
+                                table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+                                th { background:#f8fafd; padding:6px 8px; border:1px solid #ddd; text-align:left; }
+                                td { padding:4px 8px; border:1px solid #ddd; }
+                                .badge { padding:3px 12px; border-radius:12px; font-size:0.7rem; font-weight:600; }
+                                .badge-approved { background:#d4edda; color:#155724; }
+                                .badge-pending { background:#fff3cd; color:#856404; }
+                                .badge-rejected { background:#f8d7da; color:#721c24; }
+                                .footer { margin-top:20px; border-top:1px solid #eee; padding-top:10px; text-align:center; font-size:0.7rem; color:#6c757d; }
+                                .comments-section { margin-top:16px; }
+                                .comment-item { background:#f8fafd; padding:6px 12px; margin-bottom:4px; border-radius:6px; border-left:3px solid #28a745; font-size:0.8rem; }
+                                @media print {
+                                    body { padding:10px; }
+                                    .no-print { display:none !important; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="print-container">
+                                ${content.innerHTML}
+                                <div class="footer">
+                                    Printed on ${new Date().toLocaleString('en-IN')}
+                                </div>
+                            </div>
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    window.close();
+                                };
+                            <\/script>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
             },
 
             // ------------------------------------------------------------
@@ -3181,7 +3555,7 @@
 </script>
 
 <!-- ================================================================
-     HTML STRUCTURE
+     HTML STRUCTURE (unchanged from original)
      ================================================================ -->
 
 <!-- Back Navigation -->
@@ -3545,7 +3919,7 @@
                 </table>
             </div>
             
-            <!-- ★ DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION SECTION -->
+            <!-- DIVISION-WISE TRANSPORT WEIGHT OPTIMIZATION SECTION -->
             <div id="divisionTransportContainer" style="display: none; margin-top: 20px;">
                 <!-- Dynamic per-division transport cards -->
             </div>
@@ -3715,7 +4089,7 @@
     </div>
 </div>
 
-<!-- ★ COMMENT MODAL -->
+<!-- COMMENT MODAL -->
 <div class="modal-overlay" id="commentModal">
     <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
@@ -3776,7 +4150,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- ================================================================
-     CSS STYLES
+     CSS STYLES (unchanged - same as original)
      ================================================================ -->
 <style>
     .welcome-banner {
