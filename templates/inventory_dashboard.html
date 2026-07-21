@@ -157,7 +157,7 @@
 </div>
 
 <!-- ================================================================
-     REBALANCING TABLE – WITH SELECTION & TRANSFER BUTTON
+     MATERIAL REBALANCING OPPORTUNITIES – CLEAN PROFESSIONAL TABLE
      ================================================================ -->
 <div class="rebalance-section">
   <div class="section-header">
@@ -204,19 +204,19 @@
       <table class="data-table" id="rebalanceTable">
         <thead>
           <tr>
-            <th style="width: 30px;">
-              <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()" title="Select All on this page">
+            <th style="width: 32px; text-align: center;">
+              <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()" title="Select All">
             </th>
-            <th class="sortable" data-sort="sno" onclick="sortTable('sno')">#</th>
-            <th class="sortable" data-sort="surplus" onclick="sortTable('surplus')">Surplus Division</th>
-            <th class="sortable" data-sort="code" onclick="sortTable('code')">Material Code</th>
-            <th class="sortable" data-sort="name" onclick="sortTable('name')">Material Name</th>
-            <th class="sortable" data-sort="surplusQty" onclick="sortTable('surplusQty')">Surplus Qty</th>
-            <th class="sortable" data-sort="deficit" onclick="sortTable('deficit')">Deficit Division</th>
-            <th class="sortable" data-sort="deficitQty" onclick="sortTable('deficitQty')">Deficit Qty</th>
-            <th class="sortable" data-sort="transfer" onclick="sortTable('transfer')">Transfer</th>
-            <th class="sortable" data-sort="type" onclick="sortTable('type')">Type</th>
-            <th>Action</th>
+            <th class="sortable" data-sort="sno" onclick="sortTable('sno')" style="width: 36px; text-align: center;">#</th>
+            <th class="sortable" data-sort="surplus" onclick="sortTable('surplus')" style="min-width: 140px;">Surplus Division</th>
+            <th class="sortable" data-sort="code" onclick="sortTable('code')" style="width: 100px;">Mat Code</th>
+            <th class="sortable" data-sort="name" onclick="sortTable('name')" style="min-width: 160px;">Material Name</th>
+            <th class="sortable" data-sort="surplusQty" onclick="sortTable('surplusQty')" style="width: 85px; text-align: right;">Surplus Qty</th>
+            <th class="sortable" data-sort="deficit" onclick="sortTable('deficit')" style="min-width: 140px;">Deficit Division</th>
+            <th class="sortable" data-sort="deficitQty" onclick="sortTable('deficitQty')" style="width: 85px; text-align: right;">Deficit Qty</th>
+            <th class="sortable" data-sort="transfer" onclick="sortTable('transfer')" style="width: 85px; text-align: center;">Transfer</th>
+            <th class="sortable" data-sort="type" onclick="sortTable('type')" style="width: 100px; text-align: center;">Type</th>
+            <th style="width: 80px; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody id="rebalanceTableBody">
@@ -390,11 +390,8 @@
         return;
       }
 
-      // Build query parameters
       const params = new URLSearchParams();
       selected.forEach((item, i) => {
-        // For each selected item, add material, from, to, qty as arrays
-        // Use indices to keep them grouped
         const idx = i + 1;
         params.append(`material${idx}`, item.material_code);
         params.append(`from${idx}`, item.surplus_plant);
@@ -403,9 +400,8 @@
         params.append(`name${idx}`, item.material_name);
       });
       params.append('count', selected.length);
-      params.append('rebalance', 'true'); // flag to indicate rebalancing transfer
+      params.append('rebalance', 'true');
 
-      // Navigate to Allotment Tracker with parameters
       const url = "{{ url_for('main.allotment_tracker') }}?" + params.toString();
       window.location.href = url;
     }
@@ -752,7 +748,6 @@
         </td></tr>`;
         updatePagination(0, 0, 0, 1);
         if (els.recordCount) els.recordCount.textContent = '0 records';
-        // Uncheck select all
         if (els.selectAllCheckbox) els.selectAllCheckbox.checked = false;
         return;
       }
@@ -763,7 +758,7 @@
         const surplusName = PLANT_TO_DIVISION[item.surplus_plant] || item.surplus_plant;
         const deficitName = PLANT_TO_DIVISION[item.deficit_plant] || item.deficit_plant;
         const rowClass = idx % 2 === 0 ? 'even-row' : 'odd-row';
-        const globalIdx = start + idx; // index in filteredData
+        const globalIdx = start + idx;
         
         const typeBadge = item.same_region ? 
           '<span class="type-badge same-region"><i class="bi bi-check-circle-fill"></i> Same Region</span>' :
@@ -775,19 +770,21 @@
 
         html += `
           <tr class="${rowClass}" title="${regionInfo}">
-            <td style="text-align: center;">
+            <td style="text-align: center; padding: 6px 4px;">
               <input type="checkbox" class="row-checkbox" data-index="${globalIdx}" onchange="updateSelectAllState()">
             </td>
-            <td class="text-center"><span class="row-number">${rowNum}</span></td>
-            <td><span class="division-badge surplus-badge"><i class="bi bi-building"></i> ${surplusName}</span></td>
-            <td><code class="material-code">${item.material_code}</code></td>
-            <td class="material-name-cell" title="${item.material_name}"><strong>${item.material_name}</strong></td>
-            <td class="text-center"><span class="qty-badge qty-surplus">+${item.surplus_qty.toLocaleString()}</span></td>
-            <td><span class="division-badge deficit-badge"><i class="bi bi-building"></i> ${deficitName}</span></td>
-            <td class="text-center"><span class="qty-badge qty-deficit">-${item.deficit_qty.toLocaleString()}</span></td>
-            <td class="text-center"><span class="transfer-badge">${item.transfer_qty.toLocaleString()}</span></td>
-            <td>${typeBadge}</td>
-            <td class="text-center">
+            <td style="text-align: center; font-weight: 600; color: #6c757d; padding: 6px 4px;">${rowNum}</td>
+            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${surplusName}</td>
+            <td style="padding: 6px 8px;"><code class="material-code">${item.material_code}</code></td>
+            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;" title="${item.material_name}">${item.material_name.length > 30 ? item.material_name.substring(0, 30) + '...' : item.material_name}</td>
+            <td style="text-align: right; padding: 6px 8px; font-weight: 600; color: #28a745;">${item.surplus_qty.toLocaleString()}</td>
+            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${deficitName}</td>
+            <td style="text-align: right; padding: 6px 8px; font-weight: 600; color: #dc3545;">${item.deficit_qty.toLocaleString()}</td>
+            <td style="text-align: center; padding: 6px 8px;">
+              <span class="transfer-badge">${item.transfer_qty.toLocaleString()}</span>
+            </td>
+            <td style="text-align: center; padding: 6px 4px;">${typeBadge}</td>
+            <td style="text-align: center; padding: 6px 4px;">
               <button class="btn-transfer" onclick="transferSingle('${item.material_code}','${item.surplus_plant}','${item.deficit_plant}','${item.transfer_qty}')">
                 <i class="bi bi-send"></i> Transfer
               </button>
@@ -799,7 +796,6 @@
       tbody.innerHTML = html;
       updatePagination(start, end, total, totalPages);
       if (els.recordCount) els.recordCount.textContent = `${total} record${total !== 1 ? 's' : ''}`;
-      // Reset select all state
       if (els.selectAllCheckbox) els.selectAllCheckbox.checked = false;
     }
 
@@ -961,6 +957,9 @@
 
 <style>
   /* === Global === */
+  * {
+    box-sizing: border-box;
+  }
   .nav-actions {
     display: flex;
     justify-content: space-between;
@@ -1178,7 +1177,7 @@
   .details-link:hover { color: #764ba2; }
 
   /* ================================================================
-     REBALANCE TABLE
+     CLEAN PROFESSIONAL REBALANCE TABLE
      ================================================================ */
   .rebalance-section {
     margin-top: 40px;
@@ -1220,20 +1219,20 @@
     align-items: center;
   }
 
-  /* Search wrapper */
   .search-wrapper {
     position: relative;
     display: inline-flex;
     align-items: center;
   }
   .search-input {
-    padding: 6px 30px 6px 12px;
+    padding: 6px 30px 6px 14px;
     border: 1px solid #ced4da;
     border-radius: 20px;
     font-size: 0.8rem;
     min-width: 200px;
     transition: border-color 0.2s;
     background: #fff;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .search-input:focus {
     outline: none;
@@ -1254,12 +1253,13 @@
   }
 
   .filter-select {
-    padding: 6px 12px;
+    padding: 6px 14px;
     border: 1px solid #ced4da;
     border-radius: 20px;
     font-size: 0.8rem;
     background: #fff;
     cursor: pointer;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .filter-select:focus {
     outline: none;
@@ -1286,15 +1286,11 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .btn-transfer-selected:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(40,167,69,0.3);
-  }
-  .btn-transfer-selected:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
   }
 
   .best-fit-toggle {
@@ -1311,6 +1307,7 @@
     font-weight: 600;
     color: #6c757d;
     transition: color 0.3s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .toggle-switch {
     position: relative;
@@ -1352,6 +1349,7 @@
     transform: translateX(18px);
   }
 
+  /* Table Container */
   .table-container {
     background: #fff;
     border-radius: 16px;
@@ -1364,22 +1362,23 @@
     overflow-y: auto;
   }
 
+  /* Clean Data Table – matches reference image */
   .data-table {
     width: 100%;
     border-collapse: collapse;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     font-size: 0.82rem;
-    min-width: 1050px;
+    min-width: 1000px;
   }
   .data-table thead {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: linear-gradient(135deg, #1a3c6e, #2a5a9a);
-    color: #fff;
   }
   .data-table thead th {
     padding: 10px 12px;
-    text-align: left;
+    background: linear-gradient(135deg, #1a3c6e, #2a5a9a);
+    color: #fff;
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -1387,7 +1386,6 @@
     border: none;
     white-space: nowrap;
   }
-  .data-table thead th i { margin-right: 4px; opacity: 0.7; }
   .data-table thead th.sortable {
     cursor: pointer;
     user-select: none;
@@ -1401,97 +1399,52 @@
   }
   .data-table thead th.sortable.sort-asc::after { content: '↑'; opacity: 1; }
   .data-table thead th.sortable.sort-desc::after { content: '↓'; opacity: 1; }
-  .data-table thead th.sortable:hover { background: rgba(255,255,255,0.08); }
+  .data-table thead th.sortable:hover {
+    background: rgba(255,255,255,0.08);
+  }
 
   .data-table tbody td {
     padding: 8px 12px;
     border-bottom: 1px solid #f0f2f5;
     color: #1e2b3a;
     vertical-align: middle;
+    font-size: 0.82rem;
   }
-  .data-table tbody tr.even-row { background: #fafcff; }
-  .data-table tbody tr.odd-row { background: #ffffff; }
-  .data-table tbody tr:hover { background: #f0f4ff; transition: background 0.15s; }
-
-  .row-number {
-    display: inline-block;
-    min-width: 24px;
-    height: 24px;
-    line-height: 24px;
-    text-align: center;
-    background: #eef2f6;
-    border-radius: 50%;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #495057;
+  .data-table tbody tr.even-row {
+    background: #fafcff;
+  }
+  .data-table tbody tr.odd-row {
+    background: #ffffff;
+  }
+  .data-table tbody tr:hover {
+    background: #f0f4ff;
+    transition: background 0.15s;
   }
 
-  .division-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  .surplus-badge {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #b7e4c7;
-  }
-  .surplus-badge i { color: #28a745; }
-  .deficit-badge {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-  }
-  .deficit-badge i { color: #dc3545; }
-
+  /* Material Code – monospace like reference */
   .material-code {
     background: #f0f2f5;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-family: 'Courier New', monospace;
     white-space: nowrap;
-  }
-  .material-name-cell {
-    max-width: 180px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: #1e2b3a;
   }
 
-  .qty-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    min-width: 40px;
-  }
-  .qty-surplus {
-    background: #d4edda;
-    color: #155724;
-  }
-  .qty-deficit {
-    background: #f8d7da;
-    color: #721c24;
-  }
-
+  /* Transfer badge – highlighted in purple */
   .transfer-badge {
     display: inline-block;
     padding: 2px 14px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     background: linear-gradient(135deg, #6f42c1, #5a32a3);
     color: #fff;
     min-width: 50px;
   }
 
+  /* Type badge – clean minimal */
   .type-badge {
     display: inline-flex;
     align-items: center;
@@ -1512,6 +1465,7 @@
   }
   .type-badge i { font-size: 0.6rem; }
 
+  /* Transfer button */
   .btn-transfer {
     display: inline-flex;
     align-items: center;
@@ -1525,6 +1479,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .btn-transfer:hover {
     transform: translateY(-1px);
@@ -1542,9 +1497,19 @@
     padding: 40px 20px !important;
     text-align: center;
   }
-  .empty-state h4 { font-size: 1.1rem; margin: 8px 0 4px; color: #1e2b3a; }
-  .empty-state p { margin: 0; color: #6c757d; font-size: 0.9rem; }
-  .loading-state { color: #6c757d; }
+  .empty-state h4 {
+    font-size: 1.1rem;
+    margin: 8px 0 4px;
+    color: #1e2b3a;
+  }
+  .empty-state p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  .loading-state {
+    color: #6c757d;
+  }
 
   /* === Pagination === */
   .pagination-bar {
@@ -1560,6 +1525,7 @@
   .pagination-info {
     font-size: 0.8rem;
     color: #6c757d;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
   .pagination-controls {
     display: flex;
@@ -1574,9 +1540,15 @@
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
-  .page-btn:hover:not(:disabled) { background: #e9ecef; }
-  .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .page-btn:hover:not(:disabled) {
+    background: #e9ecef;
+  }
+  .page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   .page-num {
     padding: 4px 10px;
     border: 1px solid transparent;
@@ -1586,8 +1558,11 @@
     font-size: 0.8rem;
     font-weight: 500;
     transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
-  .page-num:hover { background: #e9ecef; }
+  .page-num:hover {
+    background: #e9ecef;
+  }
   .page-num.active {
     background: #6f42c1;
     color: #fff;
@@ -1617,8 +1592,6 @@
     .pagination-bar { flex-direction: column; align-items: center; }
     .data-table { font-size: 0.7rem; min-width: 850px; }
     .data-table th, .data-table td { padding: 6px 8px; }
-    .division-badge { font-size: 0.65rem; padding: 2px 6px; }
-    .material-name-cell { max-width: 100px; }
   }
   @media (max-width: 480px) {
     .inventory-grid { grid-template-columns: 1fr; }
@@ -1630,7 +1603,7 @@
     .card-icon-large { font-size: 2.5rem; }
     .data-table { font-size: 0.6rem; min-width: 700px; }
     .data-table th, .data-table td { padding: 4px 4px; }
-    .qty-badge, .transfer-badge { font-size: 0.6rem; padding: 1px 6px; }
+    .transfer-badge { font-size: 0.6rem; padding: 1px 6px; }
     .btn-transfer { font-size: 0.55rem; padding: 2px 8px; }
     .type-badge { font-size: 0.55rem; padding: 1px 6px; }
   }
