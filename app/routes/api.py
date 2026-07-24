@@ -1,7 +1,7 @@
 """
 API Routes - Enhanced with Caching for Fast Response
 Using consumption_summary collection for consumption data
-Last Updated: July 11, 2026
+Last Updated: July 24, 2026
 - Added In-Memory Caching for 10x faster responses
 - Added Cache Management endpoints
 - Optimized MongoDB queries with indexes
@@ -12,6 +12,7 @@ Last Updated: July 11, 2026
 - ★ NEW: Added Unit Weight (MT) to materials endpoint for Transport Optimization
 - ★ NEW: Added weight calculation endpoints
 - ★ NEW: Added bulk weight update endpoint
+- ★ NEW: Added /api/last-updated endpoint for data sync timestamp
 - ★ FIXED: Proper NaN handling in safe_json_response
 """
 
@@ -2058,3 +2059,71 @@ def get_priority_works_overview():
         return safe_json_response(response)
     except Exception as e:
         return safe_json_response({'error': str(e)})
+
+# ================================================================
+# ★ NEW: LAST UPDATED TIMESTAMP ENDPOINT
+# ================================================================
+
+@api_bp.route('/api/last-updated')
+@login_required
+def get_last_updated():
+    """Get the last data sync timestamp from MongoDB"""
+    try:
+        db = get_db()
+        if db is None:
+            return safe_json_response({'last_updated': None})
+        
+        # Get the latest record with last_updated field
+        # Check multiple collections for the most recent timestamp
+        collections_to_check = ['current_stock', 'consumption_summary', 'material_in_transit', 'material_master']
+        latest_date = None
+        latest_collection = None
+        
+        for coll_name in collections_to_check:
+            try:
+                collections = db.list_collection_names()
+                if coll_name in collections:
+                    # Find the most recent record in this collection
+                    latest = db[coll_name].find_one(
+                        {}, 
+                        {'last_updated': 1, '_id': 0},
+                        sort=[('last_updated', -1)]
+                    )
+                    if latest and latest.get('last_updated'):
+                        if not latest_date or latest['last_updated'] > latest_date:
+                            latest_date = latest['last_updated']
+                            latest_collection = coll_name
+            except Exception as e:
+                print(f"Error checking {coll_name}: {e}")
+                continue
+        
+        if latest_date:
+            # Format the timestamp
+            if isinstance(latest_date, datetime):
+                formatted = latest_date.strftime('%B %d, %Y at %I:%M:%S %p')
+            elif isinstance(latest_date, str):
+                # Try to parse it
+                try:
+                    from dateutil import parser
+                    dt = parser.parse(latest_date)
+                    formatted = dt.strftime('%B %d, %Y at %I:%M:%S %p')
+                except:
+                    formatted = latest_date
+            else:
+                formatted = str(latest_date)
+            
+            print(f"✅ Last updated from {latest_collection}: {formatted}")
+            return safe_json_response({
+                'last_updated': formatted, 
+                'raw': latest_date.isoformat() if isinstance(latest_date, datetime) else latest_date,
+                'collection': latest_collection
+            })
+        
+        print("⚠️ No last_updated timestamp found in any collection")
+        return safe_json_response({'last_updated': None})
+        
+    except Exception as e:
+        print(f"Error in get_last_updated: {e}")
+        import traceback
+        traceback.print_exc()
+        return safe_json_response({'last_updated': None})
