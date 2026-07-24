@@ -4,22 +4,43 @@
 
 {% block content %}
 
-<!-- Back Navigation -->
-<div class="nav-actions">
-  <a href="{{ url_for('main.general_overview') }}" class="back-btn">
-    <i class="bi bi-arrow-left-circle-fill"></i>
-    <span>Back to General Overview</span>
-  </a>
-  <div class="action-btn-group">
-    <button onclick="refreshAll()" class="btn-refresh-all">
-      <i class="bi bi-arrow-repeat"></i> Refresh All
-    </button>
-    <button onclick="refreshCard('stock')" class="btn-refresh-stock">
-      <i class="bi bi-box-seam"></i> Stock
-    </button>
-    <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
-      <i class="bi bi-arrow-left-right"></i> Rebalance
-    </button>
+<!-- Top Bar with Back Link and Actions -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <a href="{{ url_for('main.inventory_dashboard') }}" class="back-inventory-btn">
+      <i class="bi bi-arrow-left-circle-fill"></i>
+      <span>Back to Inventory Dashboard</span>
+    </a>
+  </div>
+  <div class="top-bar-right">
+    <div class="action-buttons">
+      <button class="btn-export-excel" onclick="exportToExcel()">
+        <i class="bi bi-file-earmark-excel"></i> Export Excel
+      </button>
+      <button class="btn-export-pdf" onclick="exportToPDF()">
+        <i class="bi bi-file-earmark-pdf"></i> Export PDF
+      </button>
+      <button class="btn-refresh-table" onclick="refreshTable()">
+        <i class="bi bi-arrow-repeat"></i> Refresh
+      </button>
+      <div class="columns-toggle">
+        <button class="btn-columns" onclick="toggleColumnMenu()">
+          <i class="bi bi-layout-three-columns"></i> Columns
+        </button>
+        <div class="column-menu" id="columnMenu" style="display:none;">
+          <label><input type="checkbox" checked data-col="surplus" onchange="toggleColumn(this)"> Surplus Division</label>
+          <label><input type="checkbox" checked data-col="code" onchange="toggleColumn(this)"> Mat Code</label>
+          <label><input type="checkbox" checked data-col="name" onchange="toggleColumn(this)"> Material Name</label>
+          <label><input type="checkbox" checked data-col="surplusQty" onchange="toggleColumn(this)"> Surplus Qty</label>
+          <label><input type="checkbox" checked data-col="deficit" onchange="toggleColumn(this)"> Deficit Division</label>
+          <label><input type="checkbox" checked data-col="deficitQty" onchange="toggleColumn(this)"> Deficit Qty</label>
+          <label><input type="checkbox" checked data-col="transfer" onchange="toggleColumn(this)"> Transfer</label>
+          <label><input type="checkbox" checked data-col="type" onchange="toggleColumn(this)"> Type</label>
+          <label><input type="checkbox" checked data-col="action" onchange="toggleColumn(this)"> Action</label>
+        </div>
+      </div>
+    </div>
+    <span class="current-date" id="currentDateTop"></span>
   </div>
 </div>
 
@@ -90,8 +111,7 @@
       <p class="card-description">View all stock items and their status</p>
     </div>
     <div class="card-footer">
-      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+      <!-- Footer left empty -->
     </div>
   </div>
 
@@ -105,8 +125,7 @@
       <p class="card-description">Items with low or zero stock</p>
     </div>
     <div class="card-footer">
-      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+      <!-- Footer left empty -->
     </div>
   </div>
 
@@ -120,8 +139,7 @@
       <p class="card-description">Shipments currently on the way</p>
     </div>
     <div class="card-footer">
-      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+      <!-- Footer left empty -->
     </div>
   </div>
 
@@ -135,8 +153,7 @@
       <p class="card-description">Monthly and annual consumption trends</p>
     </div>
     <div class="card-footer">
-      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+      <!-- Footer left empty -->
     </div>
   </div>
 
@@ -150,8 +167,7 @@
       <p class="card-description">Manage and track material allotments</p>
     </div>
     <div class="card-footer">
-      <span class="location"><i class="bi bi-pin-map"></i> All Zones</span>
-      <span class="details-link">View Details <i class="bi bi-arrow-right"></i></span>
+      <!-- Footer left empty -->
     </div>
   </div>
 </div>
@@ -192,9 +208,6 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <button onclick="refreshCard('rebalance')" class="btn-refresh-rebalance">
-          <i class="bi bi-arrow-repeat"></i>
-        </button>
       </div>
     </div>
   </div>
@@ -208,15 +221,15 @@
               <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()" title="Select All">
             </th>
             <th class="sortable" data-sort="sno" onclick="sortTable('sno')" style="width: 36px; text-align: center;">#</th>
-            <th class="sortable" data-sort="surplus" onclick="sortTable('surplus')" style="min-width: 140px;">Surplus Division</th>
-            <th class="sortable" data-sort="code" onclick="sortTable('code')" style="width: 100px;">Mat Code</th>
-            <th class="sortable" data-sort="name" onclick="sortTable('name')" style="min-width: 160px;">Material Name</th>
-            <th class="sortable" data-sort="surplusQty" onclick="sortTable('surplusQty')" style="width: 85px; text-align: right;">Surplus Qty</th>
-            <th class="sortable" data-sort="deficit" onclick="sortTable('deficit')" style="min-width: 140px;">Deficit Division</th>
-            <th class="sortable" data-sort="deficitQty" onclick="sortTable('deficitQty')" style="width: 85px; text-align: right;">Deficit Qty</th>
-            <th class="sortable" data-sort="transfer" onclick="sortTable('transfer')" style="width: 85px; text-align: center;">Transfer</th>
-            <th class="sortable" data-sort="type" onclick="sortTable('type')" style="width: 100px; text-align: center;">Type</th>
-            <th style="width: 80px; text-align: center;">Action</th>
+            <th class="sortable col-surplus" data-sort="surplus" onclick="sortTable('surplus')" style="min-width: 140px;">Surplus Division</th>
+            <th class="sortable col-code" data-sort="code" onclick="sortTable('code')" style="width: 100px;">Mat Code</th>
+            <th class="sortable col-name" data-sort="name" onclick="sortTable('name')" style="min-width: 160px;">Material Name</th>
+            <th class="sortable col-surplusQty" data-sort="surplusQty" onclick="sortTable('surplusQty')" style="width: 85px; text-align: right;">Surplus Qty</th>
+            <th class="sortable col-deficit" data-sort="deficit" onclick="sortTable('deficit')" style="min-width: 140px;">Deficit Division</th>
+            <th class="sortable col-deficitQty" data-sort="deficitQty" onclick="sortTable('deficitQty')" style="width: 85px; text-align: right;">Deficit Qty</th>
+            <th class="sortable col-transfer" data-sort="transfer" onclick="sortTable('transfer')" style="width: 85px; text-align: center;">Transfer</th>
+            <th class="sortable col-type" data-sort="type" onclick="sortTable('type')" style="width: 100px; text-align: center;">Type</th>
+            <th class="col-action" style="width: 80px; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody id="rebalanceTableBody">
@@ -276,6 +289,18 @@
 
     const REGION_NAMES = ['Darjeeling', 'Kalimpong', 'Jalpaiguri', 'Coochbehar', 'Alipurduar'];
 
+    const COLUMN_CLASSES = {
+      surplus: 'col-surplus',
+      code: 'col-code',
+      name: 'col-name',
+      surplusQty: 'col-surplusQty',
+      deficit: 'col-deficit',
+      deficitQty: 'col-deficitQty',
+      transfer: 'col-transfer',
+      type: 'col-type',
+      action: 'col-action'
+    };
+
     // ======================== STATE =========================
     const state = {
       stockData: [],
@@ -290,6 +315,17 @@
       sortField: 'surplus',
       sortAsc: true,
       bestFit: false,
+      visibleColumns: {
+        surplus: true,
+        code: true,
+        name: true,
+        surplusQty: true,
+        deficit: true,
+        deficitQty: true,
+        transfer: true,
+        type: true,
+        action: true
+      },
       versions: {
         stock: 0,
         critical: 0,
@@ -311,6 +347,7 @@
       lastUpdatedHeader: $('lastUpdatedHeader'),
       globalLastUpdated: $('globalLastUpdated'),
       currentDate: $('currentDate'),
+      currentDateTop: $('currentDateTop'),
       rebalanceTableBody: $('rebalanceTableBody'),
       recordCount: $('recordCount'),
       searchInput: $('searchInput'),
@@ -326,7 +363,8 @@
       nextBtn: $('nextBtn'),
       materialSuggestions: $('materialSuggestions'),
       selectAllCheckbox: $('selectAllCheckbox'),
-      transferSelectedBtn: $('transferSelectedBtn')
+      transferSelectedBtn: $('transferSelectedBtn'),
+      columnMenu: $('columnMenu')
     };
 
     // ======================== HELPERS =======================
@@ -707,6 +745,140 @@
       });
     }
 
+    // ======================== COLUMN VISIBILITY =================
+    function toggleColumnMenu() {
+      const menu = els.columnMenu;
+      if (menu) {
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    function toggleColumn(checkbox) {
+      const col = checkbox.dataset.col;
+      state.visibleColumns[col] = checkbox.checked;
+      const className = COLUMN_CLASSES[col];
+      if (className) {
+        document.querySelectorAll(`.${className}`).forEach(el => {
+          el.style.display = checkbox.checked ? '' : 'none';
+        });
+      }
+    }
+
+    // Close column menu when clicking outside
+    document.addEventListener('click', function(e) {
+      const menu = els.columnMenu;
+      const btn = document.querySelector('.btn-columns');
+      if (menu && btn) {
+        if (!menu.contains(e.target) && !btn.contains(e.target)) {
+          menu.style.display = 'none';
+        }
+      }
+    });
+
+    // ======================== EXPORT FUNCTIONS =================
+    function getExportData() {
+      const data = state.filteredData;
+      return data.map((item, index) => ({
+        '#': index + 1,
+        'Surplus Division': PLANT_TO_DIVISION[item.surplus_plant] || item.surplus_plant,
+        'Mat Code': item.material_code,
+        'Material Name': item.material_name,
+        'Surplus Qty': item.surplus_qty,
+        'Deficit Division': PLANT_TO_DIVISION[item.deficit_plant] || item.deficit_plant,
+        'Deficit Qty': item.deficit_qty,
+        'Transfer Qty': item.transfer_qty,
+        'Type': item.same_region ? 'Same Region' : 'Cross Region'
+      }));
+    }
+
+    function exportToExcel() {
+      const data = getExportData();
+      if (!data.length) {
+        alert('No data to export.');
+        return;
+      }
+
+      // Create CSV
+      const headers = Object.keys(data[0]);
+      const rows = data.map(row => headers.map(h => row[h]));
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Rebalancing_Opportunities_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function exportToPDF() {
+      const data = getExportData();
+      if (!data.length) {
+        alert('No data to export.');
+        return;
+      }
+
+      // Create printable HTML table
+      const headers = Object.keys(data[0]);
+      let tableHTML = `
+        <html>
+        <head>
+          <title>Rebalancing Opportunities</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { text-align: center; color: #1a3c6e; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th { background: #1a3c6e; color: #fff; padding: 8px; text-align: left; }
+            td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+            tr:nth-child(even) { background: #f9f9f9; }
+            .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h1>Material Rebalancing Opportunities</h1>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead><tr>
+      `;
+
+      headers.forEach(h => {
+        tableHTML += `<th>${h}</th>`;
+      });
+      tableHTML += `</tr></thead><tbody>`;
+
+      data.forEach(row => {
+        tableHTML += '<tr>';
+        headers.forEach(h => {
+          tableHTML += `<td>${row[h]}</td>`;
+        });
+        tableHTML += '</tr>';
+      });
+
+      tableHTML += `
+            </tbody>
+          </table>
+          <div class="footer">Total Records: ${data.length} | Siliguri Zone Electrical Infrastructure</div>
+        </body>
+        </html>
+      `;
+
+      // Open print dialog
+      const win = window.open('', '_blank', 'width=900,height=600');
+      if (win) {
+        win.document.write(tableHTML);
+        win.document.close();
+        win.focus();
+        win.print();
+      } else {
+        alert('Please allow popups to export PDF.');
+      }
+    }
+
+    function refreshTable() {
+      refreshAll();
+    }
+
     // ======================== PAGINATION =================
     function changePage(direction) {
       const totalPages = Math.ceil(state.filteredData.length / state.pageSize);
@@ -774,17 +946,17 @@
               <input type="checkbox" class="row-checkbox" data-index="${globalIdx}" onchange="updateSelectAllState()">
             </td>
             <td style="text-align: center; font-weight: 600; color: #6c757d; padding: 6px 4px;">${rowNum}</td>
-            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${surplusName}</td>
-            <td style="padding: 6px 8px;"><code class="material-code">${item.material_code}</code></td>
-            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;" title="${item.material_name}">${item.material_name.length > 30 ? item.material_name.substring(0, 30) + '...' : item.material_name}</td>
-            <td style="text-align: right; padding: 6px 8px; font-weight: 600; color: #28a745;">${item.surplus_qty.toLocaleString()}</td>
-            <td style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${deficitName}</td>
-            <td style="text-align: right; padding: 6px 8px; font-weight: 600; color: #dc3545;">${item.deficit_qty.toLocaleString()}</td>
-            <td style="text-align: center; padding: 6px 8px;">
+            <td class="col-surplus" style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${surplusName}</td>
+            <td class="col-code" style="padding: 6px 8px;"><code class="material-code">${item.material_code}</code></td>
+            <td class="col-name" style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;" title="${item.material_name}">${item.material_name.length > 30 ? item.material_name.substring(0, 30) + '...' : item.material_name}</td>
+            <td class="col-surplusQty" style="text-align: right; padding: 6px 8px; font-weight: 600; color: #28a745;">${item.surplus_qty.toLocaleString()}</td>
+            <td class="col-deficit" style="padding: 6px 8px; font-weight: 500; color: #1e2b3a;">${deficitName}</td>
+            <td class="col-deficitQty" style="text-align: right; padding: 6px 8px; font-weight: 600; color: #dc3545;">${item.deficit_qty.toLocaleString()}</td>
+            <td class="col-transfer" style="text-align: center; padding: 6px 8px;">
               <span class="transfer-badge">${item.transfer_qty.toLocaleString()}</span>
             </td>
-            <td style="text-align: center; padding: 6px 4px;">${typeBadge}</td>
-            <td style="text-align: center; padding: 6px 4px;">
+            <td class="col-type" style="text-align: center; padding: 6px 4px;">${typeBadge}</td>
+            <td class="col-action" style="text-align: center; padding: 6px 4px;">
               <button class="btn-transfer" onclick="transferSingle('${item.material_code}','${item.surplus_plant}','${item.deficit_plant}','${item.transfer_qty}')">
                 <i class="bi bi-send"></i> Transfer
               </button>
@@ -797,6 +969,16 @@
       updatePagination(start, end, total, totalPages);
       if (els.recordCount) els.recordCount.textContent = `${total} record${total !== 1 ? 's' : ''}`;
       if (els.selectAllCheckbox) els.selectAllCheckbox.checked = false;
+      
+      // Apply column visibility
+      Object.keys(state.visibleColumns).forEach(col => {
+        const className = COLUMN_CLASSES[col];
+        if (className) {
+          document.querySelectorAll(`.${className}`).forEach(el => {
+            el.style.display = state.visibleColumns[col] ? '' : 'none';
+          });
+        }
+      });
     }
 
     function updateSelectAllState() {
@@ -897,48 +1079,18 @@
       updateGlobalTimestamp();
     }
 
-    async function refreshCard(cardType) {
-      switch (cardType) {
-        case 'stock':
-          await loadStockData();
-          computeRebalance();
-          renderKPIs();
-          populateSuggestions();
-          applyFilters();
-          break;
-        case 'transit':
-          await loadTransitSummary();
-          renderKPIs();
-          break;
-        case 'critical':
-          await loadStockData();
-          computeRebalance();
-          renderKPIs();
-          populateSuggestions();
-          applyFilters();
-          break;
-        case 'rebalance':
-          computeRebalance();
-          populateSuggestions();
-          applyFilters();
-          break;
-        default:
-          await refreshAll();
-          return;
-      }
-      updateGlobalTimestamp();
-    }
-
     // ======================== INIT ==========================
     document.addEventListener('DOMContentLoaded', async function() {
       if (els.currentDate) {
         els.currentDate.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       }
+      if (els.currentDateTop) {
+        els.currentDateTop.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
       await refreshAll();
       setInterval(refreshAll, 300000);
 
-      window.refreshAll = refreshAll;
-      window.refreshCard = refreshCard;
+      // Expose functions globally
       window.navigateTo = navigateTo;
       window.applyFilters = applyFilters;
       window.sortTable = sortTable;
@@ -950,6 +1102,11 @@
       window.transferSelected = transferSelected;
       window.transferSingle = transferSingle;
       window.updateSelectAllState = updateSelectAllState;
+      window.toggleColumnMenu = toggleColumnMenu;
+      window.toggleColumn = toggleColumn;
+      window.exportToExcel = exportToExcel;
+      window.exportToPDF = exportToPDF;
+      window.refreshTable = refreshTable;
     });
 
   })();
@@ -960,53 +1117,184 @@
   * {
     box-sizing: border-box;
   }
-  .nav-actions {
+
+  /* === Top Bar with Back Link and Actions === */
+  .top-bar {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 20px;
+    padding: 12px 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #eef2f6;
   }
-  .back-btn {
+
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .back-inventory-btn {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 24px;
+    gap: 8px;
+    padding: 8px 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
     text-decoration: none;
     border-radius: 50px;
     font-weight: 500;
+    font-size: 0.85rem;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+    box-shadow: 0 4px 15px rgba(102,126,234,0.25);
   }
-  .back-btn:hover {
-    transform: translateX(-5px);
-    box-shadow: 0 6px 20px rgba(102,126,234,0.5);
+  .back-inventory-btn:hover {
+    transform: translateX(-3px);
+    box-shadow: 0 6px 20px rgba(102,126,234,0.4);
     color: #fff;
   }
-  .action-btn-group {
+
+  .top-bar-right {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 16px;
     flex-wrap: wrap;
   }
-  .action-btn-group button {
+
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-export-excel {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 18px;
-    border: none;
-    border-radius: 50px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: transform 0.2s;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #28a745, #218838);
     color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
-  .action-btn-group button:hover { transform: scale(1.03); }
-  .btn-refresh-all { background: linear-gradient(135deg, #17a2b8, #138496); }
-  .btn-refresh-stock { background: linear-gradient(135deg, #28a745, #20c997); }
-  .btn-refresh-transit { background: linear-gradient(135deg, #ffc107, #fd7e14); color: #1e2b3a; }
-  .btn-refresh-rebalance { background: linear-gradient(135deg, #6f42c1, #5a32a3); color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; }
+  .btn-export-excel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+  }
+
+  .btn-export-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  .btn-export-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(220,53,69,0.3);
+  }
+
+  .btn-refresh-table {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  .btn-refresh-table:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(23,162,184,0.3);
+  }
+
+  .columns-toggle {
+    position: relative;
+    display: inline-block;
+  }
+
+  .btn-columns {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #6f42c1, #5a32a3);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  .btn-columns:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(111,66,193,0.3);
+  }
+
+  .column-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #fff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 12px 16px;
+    min-width: 180px;
+    z-index: 100;
+    margin-top: 6px;
+  }
+  .column-menu label {
+    display: block;
+    padding: 4px 0;
+    font-size: 0.78rem;
+    color: #1e2b3a;
+    cursor: pointer;
+  }
+  .column-menu label:hover {
+    background: #f5f7fa;
+  }
+  .column-menu label input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #6f42c1;
+  }
+
+  .current-date {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 6px 12px;
+    background: #f8fafd;
+    border-radius: 30px;
+    border: 1px solid #eef2f6;
+  }
 
   .welcome-banner {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -1171,10 +1459,8 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.8rem;
+    min-height: 42px;
   }
-  .location { color: #6c757d; display: flex; align-items: center; gap: 5px; }
-  .details-link { color: #667eea; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-  .details-link:hover { color: #764ba2; }
 
   /* ================================================================
      CLEAN PROFESSIONAL REBALANCE TABLE
@@ -1362,7 +1648,7 @@
     overflow-y: auto;
   }
 
-  /* Clean Data Table – matches reference image */
+  /* Clean Data Table */
   .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -1421,7 +1707,6 @@
     transition: background 0.15s;
   }
 
-  /* Material Code – monospace like reference */
   .material-code {
     background: #f0f2f5;
     padding: 2px 6px;
@@ -1432,7 +1717,6 @@
     color: #1e2b3a;
   }
 
-  /* Transfer badge – highlighted in purple */
   .transfer-badge {
     display: inline-block;
     padding: 2px 14px;
@@ -1444,7 +1728,6 @@
     min-width: 50px;
   }
 
-  /* Type badge – clean minimal */
   .type-badge {
     display: inline-flex;
     align-items: center;
@@ -1465,7 +1748,6 @@
   }
   .type-badge i { font-size: 0.6rem; }
 
-  /* Transfer button */
   .btn-transfer {
     display: inline-flex;
     align-items: center;
@@ -1572,6 +1854,21 @@
   /* === Responsive === */
   @media (max-width: 768px) {
     .inventory-grid { grid-template-columns: 1fr 1fr; }
+    .top-bar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .top-bar-left { justify-content: center; }
+    .top-bar-right {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .action-buttons {
+      justify-content: center;
+    }
+    .current-date { text-align: center; }
     .welcome-banner { flex-direction: column; text-align: center; }
     .welcome-text h1 { font-size: 1.4rem; }
     .quick-stats {
@@ -1581,24 +1878,22 @@
       padding: 16px 20px;
     }
     .kpi-item { justify-content: center; }
-    .nav-actions { flex-direction: column; align-items: stretch; }
-    .back-btn { justify-content: center; }
-    .action-btn-group { justify-content: center; }
     .section-header { flex-direction: column; align-items: stretch; }
     .toolbar { flex-direction: column; align-items: stretch; }
     .filter-group { flex-direction: column; }
     .search-input { min-width: auto; }
     .best-fit-toggle { justify-content: center; }
+    .action-toolbar { justify-content: center; }
     .pagination-bar { flex-direction: column; align-items: center; }
     .data-table { font-size: 0.7rem; min-width: 850px; }
     .data-table th, .data-table td { padding: 6px 8px; }
+    .column-menu { right: auto; left: 0; }
   }
   @media (max-width: 480px) {
     .inventory-grid { grid-template-columns: 1fr; }
     .welcome-text h1 { font-size: 1.2rem; }
     .kpi-value { font-size: 1rem; }
     .kpi-icon { font-size: 1.2rem; }
-    .action-btn-group button { font-size: 0.7rem; padding: 6px 12px; }
     .card-body-centered h3 { font-size: 1rem; }
     .card-icon-large { font-size: 2.5rem; }
     .data-table { font-size: 0.6rem; min-width: 700px; }
@@ -1606,6 +1901,37 @@
     .transfer-badge { font-size: 0.6rem; padding: 1px 6px; }
     .btn-transfer { font-size: 0.55rem; padding: 2px 8px; }
     .type-badge { font-size: 0.55rem; padding: 1px 6px; }
+    .action-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .btn-export-excel, .btn-export-pdf, .btn-refresh-table, .btn-columns {
+      justify-content: center;
+    }
+    .columns-toggle {
+      width: 100%;
+    }
+    .btn-columns {
+      width: 100%;
+      justify-content: center;
+    }
+    .column-menu {
+      position: static;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .back-inventory-btn {
+      justify-content: center;
+      font-size: 0.8rem;
+      padding: 8px 16px;
+    }
+    .action-buttons {
+      flex-wrap: wrap;
+    }
+    .action-buttons button {
+      font-size: 0.7rem;
+      padding: 6px 12px;
+    }
   }
 </style>
 {% endblock %}
