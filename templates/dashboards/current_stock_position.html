@@ -169,22 +169,6 @@
 </div>
 
 <!-- ================================================================
-     DYNAMIC FILTER STATUS BAR - Replaces static legend
-     ================================================================ -->
-<div id="filterStatusBar" class="filter-status-bar" style="display:none;">
-    <div class="filter-status-content">
-        <span class="filter-status-badge filter-active" id="statusFilterBadge">All Items</span>
-        <span class="filter-status-divider">|</span>
-        <span class="filter-status-text" id="filterStatusText">Showing all items</span>
-        <span class="filter-status-divider">|</span>
-        <span class="filter-status-count" id="filterStatusCount">0 records</span>
-    </div>
-    <button class="filter-status-clear" onclick="resetFilters()" title="Clear all filters">
-        <i class="bi bi-x-circle"></i> Clear
-    </button>
-</div>
-
-<!-- ================================================================
      STATUS FILTER CARDS
      ================================================================ -->
 <div class="status-filter-section">
@@ -257,9 +241,25 @@
 </div>
 
 <!-- ================================================================
+     DYNAMIC FILTER STATUS BAR - Shows active filters
+     ================================================================ -->
+<div id="filterStatusBar" class="filter-status-bar" style="display:none;">
+    <div class="filter-status-content">
+        <span class="filter-status-badge filter-active" id="statusFilterBadge">All Items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-text" id="filterStatusText">Showing all items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-count" id="filterStatusCount">0 records</span>
+    </div>
+    <button class="filter-status-clear" onclick="resetFilters()" title="Clear all filters">
+        <i class="bi bi-x-circle"></i> Clear
+    </button>
+</div>
+
+<!-- ================================================================
      STOCK TABLE - WITH FROZEN HEADER
      ================================================================ -->
-<div class="content-card">
+<div class="content-card" id="stockContentCard">
     <div class="section-title">
         <i class="bi bi-table"></i>
         <h2>Current Stock Position</h2>
@@ -302,24 +302,7 @@
      * ================================================================
      * CURRENT STOCK POSITION - COMPLETE FILTER LOGIC
      * ================================================================
-     * 
-     * FILTER HIERARCHY (Priority from Highest to Lowest):
-     * 1. REGION - Affects Division dropdown options
-     * 2. DIVISION - Filters by selected divisions
-     * 3. ZONE - Overrides Region + Division for Siliguri Zone
-     * 4. MATERIAL GROUP - Shows ALL divisions for selected group
-     * 5. MATERIAL - Shows specific material across filtered data
-     * 6. STATUS - Filters by Critical/Normal/In-Transit
-     * 7. SORT BY - Orders the results
-     * 
-     * KEY BEHAVIOR: When Material Group is selected, it shows 
-     * data across ALL DIVISIONS regardless of region/division filters.
-     * ================================================================
      */
-
-    // ================================================================
-    // 1. CONFIGURATION
-    // ================================================================
     const CONFIG = {
         EXCLUDED_GROUPS: ['monthly=', 'monthly=27', 'monthly= (27 month)', 'qterly=', 'qterly=3', 'quarterly=3', 'quarterly=', 'yearly', 'yearly='],
         API: {
@@ -371,9 +354,6 @@
         ]
     };
 
-    // ================================================================
-    // 2. STATE
-    // ================================================================
     const State = {
         stockData: [],
         filteredData: [],
@@ -387,9 +367,6 @@
         selectedMaterial: 'all'
     };
 
-    // ================================================================
-    // 3. UTILITIES
-    // ================================================================
     const Utils = {
         roundUp: (v) => v && !isNaN(v) ? Math.ceil(v) : 0,
         
@@ -422,9 +399,6 @@
         }
     };
 
-    // ================================================================
-    // 4. API SERVICE
-    // ================================================================
     const Api = {
         _cache: {},
         
@@ -457,9 +431,6 @@
         getStock: () => Api.fetch(CONFIG.API.STOCK)
     };
 
-    // ================================================================
-    // 5. UI SERVICE
-    // ================================================================
     const Ui = {
         dom: {},
         
@@ -477,7 +448,8 @@
                 statusFilterBadge: '#statusFilterBadge',
                 filterStatusText: '#filterStatusText',
                 filterStatusCount: '#filterStatusCount',
-                bannerSubText: '#bannerSubText'
+                bannerSubText: '#bannerSubText',
+                stockContentCard: '#stockContentCard'
             };
             for (const [k, v] of Object.entries(s)) Ui.dom[k] = document.querySelector(v);
         },
@@ -497,7 +469,12 @@
         renderTable: (data) => {
             const tb = Ui.dom.table;
             const countEl = Ui.dom.resultCount;
+            const card = Ui.dom.stockContentCard;
+            
             if (!tb) return;
+            
+            // Make sure the card is visible
+            if (card) card.style.display = 'block';
             
             if (!data?.length) {
                 const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
@@ -591,7 +568,8 @@
             
             if (State.selectedMaterial !== 'all' && data.length > 0) {
                 const first = data[0];
-                filters.push(`Material: ${first.material_code}${first.material_name ? ' - ' + first.material_name.substring(0, 20) : ''}`);
+                const name = first.material_name || '';
+                filters.push(`Material: ${first.material_code}${name ? ' - ' + name.substring(0, 25) : ''}`);
             }
             
             if (State.selectedGroup !== 'all') {
@@ -616,15 +594,14 @@
             filterText = filters.join(' | ');
             if (text) text.textContent = filterText || 'No active filters';
             
-            // Count
-            const total = data.length;
-            const unique = new Set(data.map(item => item.material_code)).size;
+            // Count - show material code for single record
             if (count) {
                 if (data.length === 1) {
                     const item = data[0];
                     count.textContent = `1 record (${item.material_code})`;
                 } else {
-                    count.textContent = `${total} records (${unique} materials)`;
+                    const unique = new Set(data.map(item => item.material_code)).size;
+                    count.textContent = `${data.length} records (${unique} materials)`;
                 }
             }
         },
@@ -637,14 +614,15 @@
                 const unique = new Set(data.map(item => item.material_code)).size;
                 const divs = new Set(data.map(item => item.division_name)).size;
                 let text = 'Virtual Stock = Current Stock + In-Transit';
+                
                 if (unique === 1 && data.length === 1) {
                     const item = data[0];
-                    text = `${item.material_code} - ${item.material_name || ''} | ${item.division_name}`;
+                    text = `${item.material_code}${item.material_name ? ' - ' + item.material_name : ''} | ${item.division_name}`;
                 } else if (unique === 1 && data.length > 1) {
                     const item = data[0];
-                    text = `${item.material_code} - ${item.material_name || ''} | Across ${divs} divisions`;
+                    text = `${item.material_code}${item.material_name ? ' - ' + item.material_name : ''} | Across ${divs} divisions`;
                 } else if (data.length > 1 && divs > 1) {
-                    text = `${data.length} records, ${unique} materials across ${divs} divisions | Virtual = Stock + Transit`;
+                    text = `${data.length} records, ${unique} materials across ${divs} divisions`;
                 }
                 el.textContent = text;
             } else {
@@ -685,9 +663,6 @@
         resetColVisibility: () => { document.querySelectorAll('.col-toggle').forEach(cb => cb.checked = true); Ui.updateColVisibility(); localStorage.removeItem('stock_col_prefs'); }
     };
 
-    // ================================================================
-    // 6. STOCK MANAGER - COMPLETE FILTER LOGIC
-    // ================================================================
     const Manager = {
         async init() {
             Ui.init();
@@ -1114,7 +1089,7 @@
     };
 
     // ================================================================
-    // 7. GLOBAL EXPOSURE
+    // GLOBAL EXPOSURE
     // ================================================================
     window.Manager = Manager;
     window.toggleMultiSelect = (id) => {
@@ -1140,15 +1115,15 @@
     window.requestAllotment = (c, d) => Manager.requestAllotment(c, d);
 
     // ================================================================
-    // 8. INITIALIZE
+    // INITIALIZE
     // ================================================================
     document.addEventListener('DOMContentLoaded', () => Manager.init());
 </script>
 
-<!-- ================================================================
-     CSS STYLES - WITH FROZEN HEADER & STATUS BADGES
-     ================================================================ -->
 <style>
+    /* ================================================================
+       MAIN STYLES
+       ================================================================ */
     * { box-sizing: border-box; }
     
     .nav-bar {
@@ -1158,6 +1133,7 @@
         gap: 10px;
         margin-bottom: 20px;
     }
+    
     .btn-back {
         display: inline-flex;
         align-items: center;
@@ -1177,7 +1153,9 @@
         box-shadow: 0 6px 20px rgba(102,126,234,0.5);
         color: white;
     }
+    
     .nav-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    
     .btn-excel, .btn-pdf, .btn-refresh, .btn-columns {
         display: inline-flex;
         align-items: center;
@@ -1189,6 +1167,7 @@
         font-weight: 500;
         transition: all 0.3s ease;
         color: white;
+        font-size: 0.85rem;
     }
     .btn-excel { background: linear-gradient(135deg, #28a745, #20c997); }
     .btn-excel:hover { transform: scale(1.05); }
@@ -1200,6 +1179,7 @@
     .btn-columns:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(108,117,125,0.5); }
 
     .column-toggle-wrapper { position: relative; display: inline-block; }
+    
     .column-menu {
         display: none;
         position: absolute;
@@ -1294,6 +1274,7 @@
         font-size: 0.95rem;
         margin: 0;
         transition: all 0.3s ease;
+        word-break: break-word;
     }
     .date-badge {
         background: white;
@@ -1305,7 +1286,7 @@
     }
 
     /* ================================================================
-       FILTER STATUS BAR - Dynamic & Clean
+       FILTER STATUS BAR
        ================================================================ */
     .filter-status-bar {
         display: none;
@@ -1428,14 +1409,6 @@
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
     }
-    .filter-select option {
-        padding: 8px 12px;
-        background: white;
-        color: #1e2b3a;
-        font-family: inherit;
-    }
-    .filter-select option:hover,
-    .filter-select option:checked { background: #f0f4ff; }
     
     .filter-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
     .btn-reset {
@@ -1695,6 +1668,7 @@
         padding: 20px;
         margin-bottom: 25px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        display: block !important; /* Ensure it's always visible */
     }
     .section-title {
         display: flex;
@@ -1707,14 +1681,9 @@
     }
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
-    .section-title .desktop-only {
-        margin-left: auto;
-        font-size: 0.7rem;
-        color: #6c757d;
-    }
 
     /* ================================================================
-       FROZEN HEADER - TABLE WITH STICKY HEADER
+       TABLE STYLES
        ================================================================ */
     .table-responsive {
         overflow: auto;
@@ -1788,7 +1757,6 @@
 
     .col-mat-name, .col-division { text-align: left !important; }
 
-    /* Status Badge Styles */
     .status-badge {
         display: inline-block;
         padding: 3px 12px;
@@ -1835,7 +1803,7 @@
     .desktop-only { display: inline !important; }
 
     /* ================================================================
-       RESPONSIVE BREAKPOINTS - Clean mobile view
+       RESPONSIVE BREAKPOINTS
        ================================================================ */
     @media (max-width: 992px) {
         .data-table { font-size: 0.7rem; }
@@ -1875,7 +1843,6 @@
         }
         .date-badge { font-size: 0.8rem; }
         
-        /* Filter status bar mobile */
         .filter-status-bar {
             flex-direction: column;
             align-items: stretch;
@@ -1890,10 +1857,22 @@
             white-space: normal;
             max-width: 100%;
             font-size: 0.7rem;
+            word-break: break-word;
         }
         .filter-status-clear {
             align-self: flex-end;
             font-size: 0.7rem;
+        }
+        
+        /* Ensure table is visible on mobile */
+        .content-card {
+            display: block !important;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .table-responsive {
+            max-height: 60vh;
+            overflow-x: auto;
         }
         
         .data-table { font-size: 0.6rem; }
@@ -1968,6 +1947,12 @@
         .filter-status-badge { font-size: 0.55rem; padding: 2px 8px; }
         .filter-status-count { font-size: 0.6rem; padding: 2px 8px; }
         .filter-status-text { font-size: 0.6rem; }
+        
+        /* Ensure table card is always visible */
+        .content-card {
+            display: block !important;
+            padding: 10px;
+        }
     }
 
     @media print {
