@@ -69,7 +69,7 @@
 <div class="welcome-banner">
     <div class="welcome-text">
         <h1><i class="bi bi-box-seam"></i> Current Stock Position</h1>
-        <p>Virtual Stock = Current Stock + In-Transit Quantity | Critical = Virtual Stock ≤ Reorder Level</p>
+        <p id="bannerSubText">Virtual Stock = Current Stock + In-Transit Quantity</p>
     </div>
     <div class="date-badge">
         <i class="bi bi-calendar3"></i>
@@ -169,6 +169,22 @@
 </div>
 
 <!-- ================================================================
+     DYNAMIC FILTER STATUS BAR - Replaces static legend
+     ================================================================ -->
+<div id="filterStatusBar" class="filter-status-bar" style="display:none;">
+    <div class="filter-status-content">
+        <span class="filter-status-badge filter-active" id="statusFilterBadge">All Items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-text" id="filterStatusText">Showing all items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-count" id="filterStatusCount">0 records</span>
+    </div>
+    <button class="filter-status-clear" onclick="resetFilters()" title="Clear all filters">
+        <i class="bi bi-x-circle"></i> Clear
+    </button>
+</div>
+
+<!-- ================================================================
      STATUS FILTER CARDS
      ================================================================ -->
 <div class="status-filter-section">
@@ -183,7 +199,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">All Items</div>
-                <div style="font-size:0.6rem;color:#6c757d;">Show all stock items</div>
+                <div class="status-card-sub">Show all stock items</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -193,7 +209,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">Critical</div>
-                <div style="font-size:0.6rem;color:#6c757d;">Virtual ≤ Reorder Level</div>
+                <div class="status-card-sub">Virtual ≤ Reorder Level</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -203,7 +219,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">Normal</div>
-                <div style="font-size:0.6rem;color:#6c757d;">Virtual > Reorder Level</div>
+                <div class="status-card-sub">Virtual > Reorder Level</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -213,7 +229,7 @@
             </div>
             <div class="status-card-info">
                 <div class="status-card-label">In-Transit</div>
-                <div style="font-size:0.6rem;color:#6c757d;">Has pending transit</div>
+                <div class="status-card-sub">Has pending transit</div>
             </div>
             <div class="status-card-arrow"><i class="bi bi-chevron-right"></i></div>
         </div>
@@ -241,23 +257,12 @@
 </div>
 
 <!-- ================================================================
-     LEGEND
-     ================================================================ -->
-<div class="legend-container">
-    <span class="legend-badge critical">🔴 Critical - Virtual Stock ≤ Reorder Level</span>
-    <span class="legend-badge normal">🟢 Normal - Virtual Stock > Reorder Level</span>
-    <span class="legend-badge transit">🚚 In-Transit</span>
-    <span class="legend-badge virtual">🔵 Virtual = Stock + Transit</span>
-</div>
-
-<!-- ================================================================
      STOCK TABLE - WITH FROZEN HEADER
      ================================================================ -->
 <div class="content-card">
     <div class="section-title">
         <i class="bi bi-table"></i>
         <h2>Current Stock Position</h2>
-        <span class="desktop-only"><i class="bi bi-info-circle"></i> Virtual Stock = Current Stock + In-Transit</span>
         <span id="resultCount" style="margin-left: auto; font-size: 0.8rem; color: #667eea; font-weight: 600;"></span>
     </div>
     <div class="table-responsive">
@@ -409,6 +414,11 @@
         debounce: (fn, d = 300) => {
             let t;
             return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), d); };
+        },
+        
+        getStatusLabel: (status) => {
+            const map = { 'all': 'All Items', 'critical': 'Critical', 'normal': 'Normal', 'in_transit': 'In-Transit' };
+            return map[status] || status;
         }
     };
 
@@ -462,7 +472,12 @@
                 regionOpts: '#regionOptions', divOpts: '#divisionOptions',
                 regionDisplay: '#regionDisplayText', divDisplay: '#divisionDisplayText',
                 colMenu: '#columnMenu', colIcon: '#columnToggleIcon',
-                resultCount: '#resultCount'
+                resultCount: '#resultCount',
+                filterStatusBar: '#filterStatusBar',
+                statusFilterBadge: '#statusFilterBadge',
+                filterStatusText: '#filterStatusText',
+                filterStatusCount: '#filterStatusCount',
+                bannerSubText: '#bannerSubText'
             };
             for (const [k, v] of Object.entries(s)) Ui.dom[k] = document.querySelector(v);
         },
@@ -488,10 +503,11 @@
                 const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
                 tb.innerHTML = `<tr><td colspan="13" class="text-center">No ${names[State.statusFilter] || 'items'} found matching your filters</td></tr>`;
                 if (countEl) countEl.textContent = '0 records';
+                Ui.updateFilterStatusBar(data);
                 return;
             }
             
-            // ★ Get unique material count
+            // Get unique material count
             const uniqueCodes = new Set(data.map(item => item.material_code));
             const uniqueCount = uniqueCodes.size;
             
@@ -499,16 +515,21 @@
             const criticalCount = data.filter(item => item.status === 'Critical').length;
             const normalCount = data.filter(item => item.status === 'Normal').length;
             const transitCount = data.filter(item => item.has_transit).length;
-            const transitTotal = data.reduce((sum, item) => sum + (item.transit_qty || 0), 0);
             
-            // ★ Render ALL records (division-wise)
+            // Render ALL records
             tb.innerHTML = data.map((item, index) => `
                 <tr>
                     <td class="col-sno">${index + 1}</td>
                     <td class="col-mat-code"><code>${Utils.sanitize(item.material_code)}</code></td>
-                    <td class="col-mat-name" title="${Utils.sanitize(item.material_name || 'Unknown')}">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 28))}${(item.material_name || '').length > 28 ? '...' : ''}</td>
+                    <td class="col-mat-name" title="${Utils.sanitize(item.material_name || 'Unknown')}">
+                        <span class="mobile-only" style="font-size:0.65rem;display:block;color:#6c757d;">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 20))}${(item.material_name || '').length > 20 ? '...' : ''}</span>
+                        <span class="desktop-only">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 28))}${(item.material_name || '').length > 28 ? '...' : ''}</span>
+                    </td>
                     <td class="col-group"><span class="badge-group">${Utils.sanitize(item.material_group || '-')}</span></td>
-                    <td class="col-division">${Utils.sanitize(item.division_name)}</td>
+                    <td class="col-division">
+                        <span class="desktop-only">${Utils.sanitize(item.division_name)}</span>
+                        <span class="mobile-only" style="font-size:0.6rem;">${Utils.sanitize(item.division_name.substring(0, 12))}${item.division_name.length > 12 ? '...' : ''}</span>
+                    </td>
                     <td class="col-current-stock"><strong>${Utils.formatNum(item.current_stock)}</strong></td>
                     <td class="col-unit">${Utils.sanitize(item.unit || 'Units')}</td>
                     <td class="col-transit ${item.has_transit ? 'has-transit' : ''}">${item.has_transit ? '🚚 ' + Utils.formatNum(item.transit_qty) : '-'}</td>
@@ -522,9 +543,8 @@
                 </tr>
             `).join('');
             
-            // ★ Update count display - only show records count
+            // Update count display
             if (countEl) {
-                const group = State.selectedGroup;
                 const divCount = new Set(data.map(item => item.division_name)).size;
                 let displayText = `${data.length} records`;
                 if (uniqueCount > 0) displayText += ` (${uniqueCount} unique materials`;
@@ -533,8 +553,103 @@
                 countEl.textContent = displayText;
             }
             
-            // Remove the guidance message - just show count in the table header
-            // No additional message displayed
+            // Update filter status bar
+            Ui.updateFilterStatusBar(data);
+            
+            // Update banner subtitle
+            Ui.updateBannerSubtitle(data);
+        },
+        
+        updateFilterStatusBar: (data) => {
+            const bar = Ui.dom.filterStatusBar;
+            const badge = Ui.dom.statusFilterBadge;
+            const text = Ui.dom.filterStatusText;
+            const count = Ui.dom.filterStatusCount;
+            
+            if (!bar) return;
+            
+            const hasFilters = State.statusFilter !== 'all' || 
+                              State.selectedGroup !== 'all' || 
+                              State.selectedMaterial !== 'all' ||
+                              (State.selectedRegions.length > 0 && State.selectedRegions.length < CONFIG.ALL_REGIONS.length) ||
+                              (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length);
+            
+            if (!hasFilters || !data || data.length === 0) {
+                bar.style.display = 'none';
+                return;
+            }
+            
+            bar.style.display = 'flex';
+            
+            // Status badge
+            const statusLabel = Utils.getStatusLabel(State.statusFilter);
+            if (badge) badge.textContent = statusLabel;
+            
+            // Filter text
+            let filterText = '';
+            const filters = [];
+            
+            if (State.selectedMaterial !== 'all' && data.length > 0) {
+                const first = data[0];
+                filters.push(`Material: ${first.material_code}${first.material_name ? ' - ' + first.material_name.substring(0, 20) : ''}`);
+            }
+            
+            if (State.selectedGroup !== 'all') {
+                filters.push(`Group: ${State.selectedGroup}`);
+            }
+            
+            if (State.selectedRegions.length > 0 && State.selectedRegions.length < CONFIG.ALL_REGIONS.length) {
+                const regionNames = State.selectedRegions.map(r => CONFIG.REGION_NAMES[r] || r);
+                filters.push(`Region${regionNames.length > 1 ? 's' : ''}: ${regionNames.join(', ')}`);
+            }
+            
+            if (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length) {
+                const divNames = State.selectedDivisions;
+                filters.push(`Division${divNames.length > 1 ? 's' : ''}: ${divNames.join(', ')}`);
+            }
+            
+            if (State.statusFilter !== 'all') {
+                const statusMap = { 'critical': '⚠️ Critical', 'normal': '✅ Normal', 'in_transit': '🚚 In-Transit' };
+                filters.push(`Status: ${statusMap[State.statusFilter] || State.statusFilter}`);
+            }
+            
+            filterText = filters.join(' | ');
+            if (text) text.textContent = filterText || 'No active filters';
+            
+            // Count
+            const total = data.length;
+            const unique = new Set(data.map(item => item.material_code)).size;
+            if (count) {
+                if (data.length === 1) {
+                    const item = data[0];
+                    count.textContent = `1 record (${item.material_code})`;
+                } else {
+                    count.textContent = `${total} records (${unique} materials)`;
+                }
+            }
+        },
+        
+        updateBannerSubtitle: (data) => {
+            const el = Ui.dom.bannerSubText;
+            if (!el) return;
+            
+            if (data && data.length > 0) {
+                const unique = new Set(data.map(item => item.material_code)).size;
+                const divs = new Set(data.map(item => item.division_name)).size;
+                let text = 'Virtual Stock = Current Stock + In-Transit';
+                if (unique === 1 && data.length === 1) {
+                    const item = data[0];
+                    text = `${item.material_code} - ${item.material_name || ''} | ${item.division_name}`;
+                } else if (unique === 1 && data.length > 1) {
+                    const item = data[0];
+                    text = `${item.material_code} - ${item.material_name || ''} | Across ${divs} divisions`;
+                } else if (data.length > 1 && divs > 1) {
+                    text = `${data.length} records, ${unique} materials across ${divs} divisions | Virtual = Stock + Transit`;
+                }
+                el.textContent = text;
+            } else {
+                el.textContent = 'Virtual Stock = Current Stock + In-Transit Quantity';
+            }
         },
         
         setDate: () => { const el = Ui.dom.date; if (el) el.textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); },
@@ -596,6 +711,13 @@
                 }
                 if (!e.target.closest('.column-toggle-wrapper')) Ui.closeColMenu();
             });
+            
+            // Handle resize for responsive updates
+            window.addEventListener('resize', Utils.debounce(() => {
+                if (State.filteredData.length > 0) {
+                    Ui.renderTable(State.filteredData);
+                }
+            }, 300));
         },
         
         async loadGroups() {
@@ -709,9 +831,6 @@
             this.applyFilters();
         },
         
-        // ================================================================
-        // ★ COMPLETE FILTER LOGIC - applyFilters()
-        // ================================================================
         applyFilters() {
             if (!State.allRawData || State.allRawData.length === 0) {
                 this.loadStockData();
@@ -720,15 +839,11 @@
             
             let filtered = [...State.allRawData];
             
-            // ============================================================
-            // FILTER 1: REGION (Affects Division dropdown)
-            // ============================================================
+            // FILTER 1: REGION
             let allowedDivisions = [];
             if (State.selectedRegions.length === 0 || State.selectedRegions.length === CONFIG.ALL_REGIONS.length) {
-                // If no regions selected or all regions selected → show all divisions
                 allowedDivisions = CONFIG.ALL_DIVISIONS;
             } else {
-                // Show only divisions belonging to selected regions
                 const unique = new Set();
                 State.selectedRegions.forEach(region => {
                     if (CONFIG.REGION_DIVISIONS[region]) {
@@ -739,20 +854,14 @@
             }
             filtered = filtered.filter(item => allowedDivisions.includes(item.division_name));
             
-            // ============================================================
             // FILTER 2: DIVISION
-            // ============================================================
-            // If specific divisions are selected (not all), filter by them
             if (State.selectedDivisions.length > 0 && State.selectedDivisions.length < CONFIG.ALL_DIVISIONS.length) {
                 filtered = filtered.filter(item => State.selectedDivisions.includes(item.division_name));
             }
             
-            // ============================================================
-            // FILTER 3: ZONE (Overrides Region + Division)
-            // ============================================================
+            // FILTER 3: ZONE
             const zone = Ui.dom.zone?.value || 'all';
             if (zone === 'siliguri') {
-                // Siliguri Zone includes all except Cord Road
                 const zoneDivs = [
                     'darjeeling', 'kalimpong', 'jalpaiguri', 
                     'coochbehar', 'alipurduar', 'siliguri_zone'
@@ -760,28 +869,21 @@
                 filtered = filtered.filter(item => zoneDivs.includes(item.division_name));
             }
             
-            // ============================================================
-            // FILTER 4: MATERIAL GROUP ★ CRITICAL
-            // Shows ALL divisions for selected group
-            // ============================================================
+            // FILTER 4: MATERIAL GROUP
             const group = Ui.dom.group?.value || 'all';
             State.selectedGroup = group;
             
             if (group !== 'all') {
-                // Get all material codes in this group
                 const groupMaterialCodes = new Set();
                 State.allRawData.forEach(item => {
                     if (item.material_group === group) {
                         groupMaterialCodes.add(item.material_code);
                     }
                 });
-                // Show ALL records for these material codes (across ALL divisions)
                 filtered = filtered.filter(item => groupMaterialCodes.has(item.material_code));
             }
             
-            // ============================================================
-            // FILTER 5: MATERIAL (Specific)
-            // ============================================================
+            // FILTER 5: MATERIAL
             const material = Ui.dom.material?.value || 'all';
             State.selectedMaterial = material;
             
@@ -789,9 +891,7 @@
                 filtered = filtered.filter(item => String(item.material_code) === String(material));
             }
             
-            // ============================================================
-            // FILTER 6: STATUS (Card Selection)
-            // ============================================================
+            // FILTER 6: STATUS
             if (State.statusFilter === 'critical') {
                 filtered = filtered.filter(item => item.status === 'Critical');
             } else if (State.statusFilter === 'normal') {
@@ -799,11 +899,8 @@
             } else if (State.statusFilter === 'in_transit') {
                 filtered = filtered.filter(item => item.has_transit);
             }
-            // 'all' - no filter
             
-            // ============================================================
             // FILTER 7: SORT BY
-            // ============================================================
             const sortBy = Ui.dom.sort?.value || 'material_code';
             const sortMap = {
                 'material_code': (a, b) => String(a.material_code).localeCompare(String(b.material_code)),
@@ -1192,7 +1289,12 @@
         margin-bottom: 5px;
     }
     .welcome-text h1 i { color: #667eea; }
-    .welcome-text p { color: #666; font-size: 0.95rem; }
+    .welcome-text p { 
+        color: #666; 
+        font-size: 0.95rem;
+        margin: 0;
+        transition: all 0.3s ease;
+    }
     .date-badge {
         background: white;
         padding: 8px 18px;
@@ -1201,6 +1303,83 @@
         white-space: nowrap;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+
+    /* ================================================================
+       FILTER STATUS BAR - Dynamic & Clean
+       ================================================================ */
+    .filter-status-bar {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(135deg, #f8fafd, #f0f4ff);
+        border: 1px solid #e0e8f5;
+        border-radius: 12px;
+        padding: 10px 18px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+        transition: all 0.3s ease;
+    }
+    .filter-status-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 0.8rem;
+    }
+    .filter-status-badge {
+        display: inline-block;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        background: #667eea;
+        color: white;
+        letter-spacing: 0.3px;
+    }
+    .filter-status-badge.filter-active {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+    .filter-status-divider {
+        color: #d0d8e8;
+        font-weight: 300;
+    }
+    .filter-status-text {
+        color: #1e2b3a;
+        font-weight: 500;
+        max-width: 500px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .filter-status-count {
+        background: white;
+        padding: 2px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #667eea;
+        border: 1px solid #e0e8f5;
+    }
+    .filter-status-clear {
+        background: none;
+        border: none;
+        color: #6c757d;
+        font-size: 0.75rem;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .filter-status-clear:hover {
+        background: #fee;
+        color: #dc3545;
+    }
+    .filter-status-clear i { font-size: 0.9rem; }
 
     .filter-section {
         background: white;
@@ -1444,7 +1623,13 @@
         color: #1e2b3a;
         letter-spacing: 0.2px;
     }
+    .status-card-sub {
+        font-size: 0.6rem;
+        color: #6c757d;
+        margin-top: 1px;
+    }
     .status-card.active .status-card-label { color: #667eea; }
+    .status-card.active .status-card-sub { color: #667eea; opacity: 0.8; }
     .status-card-arrow { flex-shrink: 0; }
     .status-card-arrow i {
         color: #667eea;
@@ -1503,26 +1688,6 @@
         100% { transform: rotate(360deg); }
     }
     .loading p { margin-top: 15px; color: white; }
-
-    .legend-container {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-        padding: 12px 15px;
-        background: #f8fafd;
-        border-radius: 12px;
-    }
-    .legend-badge {
-        font-size: 0.75rem;
-        padding: 4px 12px;
-        border-radius: 20px;
-        white-space: nowrap;
-    }
-    .legend-badge.critical { background: #fee; color: #dc3545; border: 1px solid #fcc; }
-    .legend-badge.normal { background: #d4edda; color: #28a745; border: 1px solid #b8e6c4; }
-    .legend-badge.transit { background: #d1ecf1; color: #17a2b8; border: 1px solid #b8e0e8; }
-    .legend-badge.virtual { background: #cce5ff; color: #0062cc; border: 1px solid #b3d4f0; }
 
     .content-card {
         background: white;
@@ -1646,23 +1811,6 @@
         border: 1px solid #c8e6c9;
     }
     
-    /* Row background highlights */
-    .data-table tr td.status-critical {
-        background: #fce4e4 !important;
-    }
-    
-    .data-table tr td.status-normal {
-        background: #e8f5e9 !important;
-    }
-    
-    .data-table tr:hover td.status-critical {
-        background: #f8d7da !important;
-    }
-    
-    .data-table tr:hover td.status-normal {
-        background: #d4edda !important;
-    }
-
     .has-transit { color: #17a2b8; font-weight: bold; }
 
     .badge-group {
@@ -1686,11 +1834,18 @@
     .mobile-only { display: none !important; }
     .desktop-only { display: inline !important; }
 
+    /* ================================================================
+       RESPONSIVE BREAKPOINTS - Clean mobile view
+       ================================================================ */
     @media (max-width: 992px) {
         .data-table { font-size: 0.7rem; }
         .col-mat-name { width: 110px; min-width: 100px; max-width: 140px; }
         .col-division { width: 85px; min-width: 70px; max-width: 110px; }
         .col-mat-code { width: 70px; min-width: 65px; max-width: 80px; }
+        
+        .filter-status-text { max-width: 300px; }
+        .filter-status-content { font-size: 0.7rem; }
+        .filter-status-badge { font-size: 0.65rem; padding: 3px 10px; }
     }
 
     @media (max-width: 768px) {
@@ -1707,12 +1862,39 @@
         .filter-grid { grid-template-columns: 1fr 1fr; }
         .status-filter-cards { grid-template-columns: 1fr 1fr; }
         
-        .welcome-banner { flex-direction: column; text-align: center; gap: 10px; padding: 20px; }
+        .welcome-banner { 
+            flex-direction: column; 
+            text-align: center; 
+            gap: 10px; 
+            padding: 20px; 
+        }
         .welcome-text h1 { font-size: 1.3rem; }
-        .welcome-text p { font-size: 0.8rem; }
+        .welcome-text p { 
+            font-size: 0.8rem;
+            word-break: break-word;
+        }
         .date-badge { font-size: 0.8rem; }
-        .legend-container { gap: 8px; padding: 10px; }
-        .legend-badge { font-size: 0.65rem; padding: 3px 10px; }
+        
+        /* Filter status bar mobile */
+        .filter-status-bar {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px 16px;
+        }
+        .filter-status-content {
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.7rem;
+        }
+        .filter-status-text {
+            white-space: normal;
+            max-width: 100%;
+            font-size: 0.7rem;
+        }
+        .filter-status-clear {
+            align-self: flex-end;
+            font-size: 0.7rem;
+        }
         
         .data-table { font-size: 0.6rem; }
         .data-table th { font-size: 0.55rem; padding: 5px 3px; }
@@ -1743,7 +1925,9 @@
         .status-card-icon { width: 34px; height: 34px; }
         .status-card-icon i { font-size: 0.9rem; }
         .status-card-label { font-size: 0.7rem; }
+        .status-card-sub { font-size: 0.55rem; }
         .status-card-arrow i { font-size: 0.8rem; }
+        .status-filter-title { font-size: 0.7rem; }
     }
 
     @media (max-width: 576px) {
@@ -1776,14 +1960,21 @@
         .status-card-icon { width: 30px; height: 30px; }
         .status-card-icon i { font-size: 0.8rem; }
         .status-card-label { font-size: 0.65rem; }
+        .status-card-sub { font-size: 0.5rem; }
         .status-card-arrow i { font-size: 0.7rem; }
         .status-filter-title { font-size: 0.7rem; }
+        
+        .filter-status-content { font-size: 0.6rem; gap: 4px; }
+        .filter-status-badge { font-size: 0.55rem; padding: 2px 8px; }
+        .filter-status-count { font-size: 0.6rem; padding: 2px 8px; }
+        .filter-status-text { font-size: 0.6rem; }
     }
 
     @media print {
         .filter-section, .filter-actions, .btn-reset, .column-toggle-wrapper,
         #guidanceMessage, #errorMessage, .btn-back, .btn-excel, .btn-pdf,
-        .btn-refresh, .multi-select-wrapper, .status-filter-section {
+        .btn-refresh, .multi-select-wrapper, .status-filter-section,
+        .filter-status-bar {
             display: none !important;
         }
         .content-card { box-shadow: none; padding: 0; }
