@@ -221,6 +221,22 @@
 </div>
 
 <!-- ================================================================
+     DYNAMIC FILTER STATUS BAR - Shows active filters
+     ================================================================ -->
+<div id="filterStatusBar" class="filter-status-bar" style="display:none;">
+    <div class="filter-status-content">
+        <span class="filter-status-badge filter-active" id="statusFilterBadge">All Items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-text" id="filterStatusText">Showing all items</span>
+        <span class="filter-status-divider">|</span>
+        <span class="filter-status-count" id="filterStatusCount">0 records</span>
+    </div>
+    <button class="filter-status-clear" onclick="resetFilters()" title="Clear all filters">
+        <i class="bi bi-x-circle"></i> Clear
+    </button>
+</div>
+
+<!-- ================================================================
      GUIDANCE & ERROR MESSAGES
      ================================================================ -->
 <div id="guidanceMessage" class="guidance-message" style="display:none;">
@@ -241,23 +257,7 @@
 </div>
 
 <!-- ================================================================
-     DYNAMIC FILTER STATUS BAR - Shows active filters
-     ================================================================ -->
-<div id="filterStatusBar" class="filter-status-bar" style="display:none;">
-    <div class="filter-status-content">
-        <span class="filter-status-badge filter-active" id="statusFilterBadge">All Items</span>
-        <span class="filter-status-divider">|</span>
-        <span class="filter-status-text" id="filterStatusText">Showing all items</span>
-        <span class="filter-status-divider">|</span>
-        <span class="filter-status-count" id="filterStatusCount">0 records</span>
-    </div>
-    <button class="filter-status-clear" onclick="resetFilters()" title="Clear all filters">
-        <i class="bi bi-x-circle"></i> Clear
-    </button>
-</div>
-
-<!-- ================================================================
-     STOCK TABLE - WITH FROZEN HEADER
+     STOCK TABLE - ALWAYS VISIBLE
      ================================================================ -->
 <div class="content-card" id="stockContentCard">
     <div class="section-title">
@@ -473,14 +473,19 @@
             
             if (!tb) return;
             
-            // Make sure the card is visible
-            if (card) card.style.display = 'block';
+            // ALWAYS ensure the card is visible
+            if (card) {
+                card.style.display = 'block !important';
+                card.style.visibility = 'visible !important';
+                card.style.opacity = '1 !important';
+            }
             
-            if (!data?.length) {
+            if (!data || data.length === 0) {
                 const names = { all: 'items', critical: 'critical items', normal: 'normal items', in_transit: 'items with in-transit' };
                 tb.innerHTML = `<tr><td colspan="13" class="text-center">No ${names[State.statusFilter] || 'items'} found matching your filters</td></tr>`;
                 if (countEl) countEl.textContent = '0 records';
                 Ui.updateFilterStatusBar(data);
+                // Still show the card even with no data
                 return;
             }
             
@@ -488,24 +493,28 @@
             const uniqueCodes = new Set(data.map(item => item.material_code));
             const uniqueCount = uniqueCodes.size;
             
-            // Count by status
-            const criticalCount = data.filter(item => item.status === 'Critical').length;
-            const normalCount = data.filter(item => item.status === 'Normal').length;
-            const transitCount = data.filter(item => item.has_transit).length;
-            
             // Render ALL records
-            tb.innerHTML = data.map((item, index) => `
+            tb.innerHTML = data.map((item, index) => {
+                const isMobile = window.innerWidth <= 768;
+                const matNameDisplay = isMobile 
+                    ? (item.material_name || 'Unknown').substring(0, 20) + ((item.material_name || '').length > 20 ? '...' : '')
+                    : (item.material_name || 'Unknown').substring(0, 28) + ((item.material_name || '').length > 28 ? '...' : '');
+                const divDisplay = isMobile
+                    ? item.division_name.substring(0, 12) + (item.division_name.length > 12 ? '...' : '')
+                    : item.division_name;
+                    
+                return `
                 <tr>
                     <td class="col-sno">${index + 1}</td>
                     <td class="col-mat-code"><code>${Utils.sanitize(item.material_code)}</code></td>
                     <td class="col-mat-name" title="${Utils.sanitize(item.material_name || 'Unknown')}">
-                        <span class="mobile-only" style="font-size:0.65rem;display:block;color:#6c757d;">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 20))}${(item.material_name || '').length > 20 ? '...' : ''}</span>
+                        <span class="mobile-only" style="font-size:0.65rem;display:block;color:#6c757d;">${Utils.sanitize(matNameDisplay)}</span>
                         <span class="desktop-only">${Utils.sanitize((item.material_name || 'Unknown').substring(0, 28))}${(item.material_name || '').length > 28 ? '...' : ''}</span>
                     </td>
                     <td class="col-group"><span class="badge-group">${Utils.sanitize(item.material_group || '-')}</span></td>
                     <td class="col-division">
                         <span class="desktop-only">${Utils.sanitize(item.division_name)}</span>
-                        <span class="mobile-only" style="font-size:0.6rem;">${Utils.sanitize(item.division_name.substring(0, 12))}${item.division_name.length > 12 ? '...' : ''}</span>
+                        <span class="mobile-only" style="font-size:0.6rem;">${Utils.sanitize(divDisplay)}</span>
                     </td>
                     <td class="col-current-stock"><strong>${Utils.formatNum(item.current_stock)}</strong></td>
                     <td class="col-unit">${Utils.sanitize(item.unit || 'Units')}</td>
@@ -518,7 +527,7 @@
                     </td>
                     <td class="col-stock-months">${item.stock_months > 0 ? item.stock_months + 'm' : '-'}</td>
                 </tr>
-            `).join('');
+            `}).join('');
             
             // Update count display
             if (countEl) {
@@ -594,7 +603,7 @@
             filterText = filters.join(' | ');
             if (text) text.textContent = filterText || 'No active filters';
             
-            // Count - show material code for single record
+            // Count
             if (count) {
                 if (data.length === 1) {
                     const item = data[0];
@@ -1662,13 +1671,19 @@
     }
     .loading p { margin-top: 15px; color: white; }
 
+    /* ================================================================
+       STOCK TABLE - ALWAYS VISIBLE
+       ================================================================ */
     .content-card {
         background: white;
         border-radius: 20px;
         padding: 20px;
         margin-bottom: 25px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        display: block !important; /* Ensure it's always visible */
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        min-height: 200px;
     }
     .section-title {
         display: flex;
@@ -1682,13 +1697,11 @@
     .section-title i { font-size: 1.3rem; color: #667eea; }
     .section-title h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
 
-    /* ================================================================
-       TABLE STYLES
-       ================================================================ */
     .table-responsive {
         overflow: auto;
         max-height: 70vh;
         position: relative;
+        width: 100%;
     }
     
     .data-table {
@@ -1803,7 +1816,7 @@
     .desktop-only { display: inline !important; }
 
     /* ================================================================
-       RESPONSIVE BREAKPOINTS
+       RESPONSIVE BREAKPOINTS - TABLE ALWAYS VISIBLE
        ================================================================ */
     @media (max-width: 992px) {
         .data-table { font-size: 0.7rem; }
@@ -1814,6 +1827,11 @@
         .filter-status-text { max-width: 300px; }
         .filter-status-content { font-size: 0.7rem; }
         .filter-status-badge { font-size: 0.65rem; padding: 3px 10px; }
+        
+        .content-card {
+            display: block !important;
+            min-height: 150px;
+        }
     }
 
     @media (max-width: 768px) {
@@ -1864,18 +1882,26 @@
             font-size: 0.7rem;
         }
         
-        /* Ensure table is visible on mobile */
+        /* TABLE ALWAYS VISIBLE ON MOBILE */
         .content-card {
             display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
             padding: 15px;
             margin-bottom: 20px;
+            min-height: 120px;
         }
         .table-responsive {
             max-height: 60vh;
             overflow-x: auto;
+            width: 100%;
         }
         
-        .data-table { font-size: 0.6rem; }
+        .data-table { 
+            font-size: 0.6rem; 
+            min-width: 600px;
+            width: 100%;
+        }
         .data-table th { font-size: 0.55rem; padding: 5px 3px; }
         .data-table td { padding: 4px 3px; }
         
@@ -1915,6 +1941,14 @@
         .welcome-text h1 { font-size: 1.1rem; }
         .welcome-text p { font-size: 0.7rem; }
         
+        .content-card {
+            padding: 10px;
+            min-height: 100px;
+        }
+        .table-responsive {
+            max-height: 50vh;
+        }
+        
         .col-sno { width: 20px; min-width: 20px; max-width: 20px; }
         .col-mat-code { width: 45px; min-width: 40px; max-width: 55px; }
         .col-mat-name { width: 55px; min-width: 45px; max-width: 70px; }
@@ -1924,7 +1958,10 @@
         .col-virtual-stock { width: 40px; min-width: 35px; max-width: 50px; }
         .col-status { width: 45px; min-width: 40px; max-width: 55px; }
         
-        .data-table { font-size: 0.5rem; }
+        .data-table { 
+            font-size: 0.5rem; 
+            min-width: 450px;
+        }
         .data-table th { font-size: 0.45rem; padding: 3px 2px; }
         .data-table td { padding: 3px 2px; }
         code { font-size: 0.45rem; }
@@ -1947,12 +1984,6 @@
         .filter-status-badge { font-size: 0.55rem; padding: 2px 8px; }
         .filter-status-count { font-size: 0.6rem; padding: 2px 8px; }
         .filter-status-text { font-size: 0.6rem; }
-        
-        /* Ensure table card is always visible */
-        .content-card {
-            display: block !important;
-            padding: 10px;
-        }
     }
 
     @media print {
@@ -1962,7 +1993,11 @@
         .filter-status-bar {
             display: none !important;
         }
-        .content-card { box-shadow: none; padding: 0; }
+        .content-card { 
+            box-shadow: none; 
+            padding: 0;
+            display: block !important;
+        }
         .data-table th { background: #f0f0f0; }
         .mobile-only { display: none !important; }
         .desktop-only { display: inline !important; }
